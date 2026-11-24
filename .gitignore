@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+# Never commit game data or anything derived from it.
+*.exe
+*.dll
+*.rpf
+*.xvc
+*.msixvc
+MicrosoftGame.config
