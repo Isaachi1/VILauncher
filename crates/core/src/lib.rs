@@ -18,6 +18,7 @@ pub mod backends;
 pub mod config;
 pub mod doctor;
 pub mod gamedir;
+pub mod host;
 pub mod launch;
 pub mod net;
 pub mod paths;

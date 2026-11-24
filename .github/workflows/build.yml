@@ -1,6 +1,8 @@
 # Builds the three programs VILauncher puts together and packs them for Linux:
 #
-# * launcher: VILauncher itself on Linux (the `vilauncher` CLI, the Tauri window, .deb, AppImage)
+# * launcher: VILauncher itself on Linux (the `vilauncher` CLI, the Tauri window, .deb, .rpm,
+#             AppImage)
+# * flatpak:  VILauncher as a Flatpak bundle (packaging/flatpak), for the Steam Deck and any distro
 # * select:   which repositories to build: from PortWatch VI's tracker, the most advanced
 #             effort with public code of each family VILauncher can build (a VIctory tree or
 #             an XCL tree), at its newest commit (scripts/select-runtimes.sh)
@@ -95,6 +97,30 @@ jobs:
         with:
           name: vilauncher-linux-x64
           path: out/
+          if-no-files-found: error
+
+  flatpak:
+    name: VILauncher (Flatpak)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-47
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the Flatpak bundle
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: vilauncher.flatpak
+          manifest-path: packaging/flatpak/io.github.lportvi.vilauncher.yml
+          cache-key: flatpak-builder-${{ hashFiles('Cargo.lock') }}
+          upload-artifact: false
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vilauncher-flatpak
+          path: vilauncher.flatpak
           if-no-files-found: error
 
   select:
@@ -410,7 +436,7 @@ jobs:
   release:
     name: Release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: bundle
+    needs: [bundle, flatpak]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -418,6 +444,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: vilauncher-bundle
+          path: release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vilauncher-flatpak
           path: release
 
       - name: Publish the release

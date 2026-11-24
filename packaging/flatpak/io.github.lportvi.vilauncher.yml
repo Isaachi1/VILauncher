@@ -1,0 +1,50 @@
+# Flatpak of VILauncher: for the Steam Deck (SteamOS) and any distribution with Flatpak.
+#
+#   flatpak install flathub org.gnome.Platform//47 org.gnome.Sdk//47 org.freedesktop.Sdk.Extension.rust-stable//24.08
+#   flatpak-builder --user --install --force-clean build-dir packaging/flatpak/io.github.lportvi.vilauncher.yml
+#
+# The build fetches crates from crates.io (--share=network at build time), which is fine for
+# a bundle built by our CI but not accepted on Flathub as is.
+#
+# Proton and Wine run on the host, not in the sandbox: the launcher starts them with
+# `flatpak-spawn --host` (crates/core/src/host.rs), which needs the Flatpak talk-name below.
+# Home access is for the game folder, Steam's Proton installs and the Wine prefix.
+id: io.github.lportvi.vilauncher
+runtime: org.gnome.Platform
+runtime-version: '47'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: vilauncher-app
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --filesystem=home
+  - --talk-name=org.freedesktop.Flatpak
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  build-args:
+    - --share=network
+  env:
+    CARGO_HOME: /run/build/vilauncher/cargo
+modules:
+  - name: vilauncher
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --locked -p vilauncher-cli
+      - cargo build --release --locked -p vilauncher-app --features tauri/custom-protocol
+      - install -Dm755 target/release/vilauncher-app /app/bin/vilauncher-app
+      - install -Dm755 target/release/vilauncher /app/bin/vilauncher
+      - install -Dm644 app/icons/128x128.png /app/share/icons/hicolor/128x128/apps/io.github.lportvi.vilauncher.png
+      - install -Dm644 packaging/linux/io.github.lportvi.vilauncher.desktop /app/share/applications/io.github.lportvi.vilauncher.desktop
+      - install -Dm644 packaging/linux/io.github.lportvi.vilauncher.metainfo.xml /app/share/metainfo/io.github.lportvi.vilauncher.metainfo.xml
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - target
+          - .flatpak-builder
+          - build-dir

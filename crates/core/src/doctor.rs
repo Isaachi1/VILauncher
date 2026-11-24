@@ -6,7 +6,6 @@
 
 use std::fs;
 use std::path::Path;
-use std::process::Command;
 
 use serde::Serialize;
 
@@ -152,8 +151,9 @@ fn device_usable(path: &str) -> bool {
 }
 
 fn vulkaninfo() -> Option<String> {
-    let tool = runners::which("vulkaninfo")?;
-    let out = Command::new(tool).output().ok()?;
+    // In a Flatpak the host's vulkaninfo is the one that sees the host's drivers.
+    let tool = if crate::host::in_flatpak() { "vulkaninfo".into() } else { runners::which("vulkaninfo")? };
+    let out = crate::host::simple(&[tool.into()]).output().ok()?;
     Some(String::from_utf8_lossy(&out.stdout).into_owned())
 }
 

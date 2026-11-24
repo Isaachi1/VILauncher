@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.lportvi.vilauncher</id>
+  <name>VILauncher</name>
+  <summary>Runs VIctory or XCL on Linux through Proton or Wine</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <description>
+    <p>
+      VILauncher runs the unpacked folder of an Xbox Series (GDK) game you own through one of two
+      compatibility layers, VIctory or XCL, on Proton or Wine with vkd3d-proton. It does not
+      unpack, decrypt or patch game packages, and it ships nothing from any game.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.lportvi.vilauncher.desktop</launchable>
+  <url type="homepage">https://github.com/LPortVI/VILauncher</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-24"/>
+  </releases>
+</component>

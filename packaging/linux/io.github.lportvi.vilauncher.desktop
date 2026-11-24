@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=VILauncher
+Comment=Runs VIctory or XCL on Linux through Proton or Wine
+Exec=vilauncher-app
+Icon=io.github.lportvi.vilauncher
+Terminal=false
+Categories=Game;
+Keywords=Proton;Wine;Xbox;GDK;
