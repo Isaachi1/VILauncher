@@ -11,3 +11,5 @@ dist/
 *.xvc
 *.msixvc
 MicrosoftGame.config
+target/
+app/gen/
