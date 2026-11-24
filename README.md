@@ -155,8 +155,12 @@ Toda noite (e a cada push na `main`), o workflow `build`:
 2. **compila** esses commits em runners Windows (os dois são programas Windows/MSVC, então o
    launcher não compila nada na sua máquina);
 3. **verifica no VirusTotal** (`scripts/virustotal-scan.py`, com o segredo `VT_API_KEY` do
-   repositório): cada `.exe` e `.dll` é consultado pelo SHA-256 e, se o VirusTotal não o conhece,
-   enviado para análise. O resultado vira um JSON com o repositório e o commit daquela build;
+   repositório, num runner Linux): cada executável da build é consultado pelo SHA-256 e, se o
+   VirusTotal não o conhece, enviado para análise. Os executáveis são reconhecidos pelo conteúdo,
+   não pelo nome, então os tipos mais usados entram: PE do Windows (`.exe`, `.dll`, `.sys`), ELF do
+   Linux (programas, `.so`, AppImage), pacotes `.deb`, instaladores MSI, Mach-O e scripts com `#!`.
+   O resultado vira um JSON com o repositório e o commit daquela build. Toda noite os arquivos do
+   próprio VILauncher (CLI, janela, `.deb` e AppImage) também são verificados, só para registro;
 4. **publica** na release `runtimes`: um `.tar.gz` por backend, o JSON do VirusTotal e o
    `runtimes.json` (repositório, commit, tamanho, SHA-256, resultado do VirusTotal, qual família está
    mais avançada e como cada projeto foi escolhido ou pulado). Uma build que o VirusTotal acusa
@@ -179,17 +183,18 @@ publicadas como "não verificadas".
 
 A chave gratuita permite 4 consultas por minuto, 500 por dia e 15,5 mil por mês, e só para uso não
 comercial. O CI respeita isso: consulta pelo hash antes de enviar qualquer arquivo, espaça as
-consultas em 16 s, faz no máximo 40 por execução, consulta uma análise em andamento uma vez por
+consultas em 16 s, faz no máximo 60 por execução, consulta uma análise em andamento uma vez por
 minuto por até 10 minutos e espera um minuto quando recebe 429. Um backend cujo repositório e commit
 já estão publicados não é escaneado de novo. Na prática, uma noite com os dois backends novos gasta
-umas 30 consultas, e uma noite sem mudanças não gasta nenhuma.
+umas 30 consultas (mais umas 20 para os arquivos do launcher), e uma noite sem mudanças não gasta
+nenhuma.
 
 ### VirusTotal na sua máquina (opcional)
 
 Com uma chave salva em **Compatibilidade** (ou `vilauncher virustotal --key CHAVE`; fica em
 `~/.config/vilauncher/virustotal.key`, só legível por você, ou em `VILAUNCHER_VT_KEY`), o launcher
 também consulta de novo cada build antes de instalar e pode verificar a build em uso, mesmo uma
-compilada à mão (**Verificar build atual no VirusTotal**, `vilauncher virustotal`). Só o hash sai da
+compilada à mão; os executáveis da pasta são reconhecidos pelo conteúdo, como no CI (**Verificar build atual no VirusTotal**, `vilauncher virustotal`). Só o hash sai da
 máquina, a não ser que você peça **Enviar para análise** (`vilauncher virustotal --upload xcl.exe`).
 Só os binários da pasta do backend são consultados ou enviados, nunca a pasta do jogo.
 

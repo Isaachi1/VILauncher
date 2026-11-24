@@ -233,7 +233,10 @@ pub fn check_scan(asset: &Asset, staging: &Path) -> Result<()> {
         return Err(Error::Config(format!("VirusTotal flagged this build ({}); not installed", names.join(", "))));
     }
     for f in &scan.files {
-        let ok = !f.name.contains(['/', '\\']) && sha256_file(&staging.join(&f.name)).is_ok_and(|h| h.eq_ignore_ascii_case(&f.sha256));
+        // A name is a path relative to the build's folder; nothing may point outside it.
+        let rel = Path::new(&f.name);
+        let inside = !f.name.is_empty() && !f.name.contains('\\') && rel.components().all(|c| matches!(c, std::path::Component::Normal(_)));
+        let ok = inside && sha256_file(&staging.join(rel)).is_ok_and(|h| h.eq_ignore_ascii_case(&f.sha256));
         if !ok {
             return Err(Error::Config(format!("{} is not the file VirusTotal scanned; not installed", f.name)));
         }
@@ -477,6 +480,14 @@ mod tests {
         let sha = sha256_file(&exe).unwrap();
         let mut asset = parse_manifest(&FULL.replace("\"SHA\"", &format!("\"{sha}\""))).unwrap().victory.unwrap();
         check_scan(&asset, t.path()).unwrap();
+
+        let mut nested = asset.clone();
+        nested.virustotal.as_mut().unwrap().files[0].name = "bin/../victory.exe".into();
+        assert!(check_scan(&nested, t.path()).is_err(), "no `..` in scanned names");
+        fs::create_dir_all(t.path().join("bin")).unwrap();
+        fs::copy(&exe, t.path().join("bin/victory.exe")).unwrap();
+        nested.virustotal.as_mut().unwrap().files[0].name = "bin/victory.exe".into();
+        check_scan(&nested, t.path()).unwrap();
 
         fs::write(&exe, "MZ changed after the scan").unwrap();
         assert!(check_scan(&asset, t.path()).is_err());

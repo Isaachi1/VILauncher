@@ -3,7 +3,10 @@
 
 Usage: virustotal-scan.py DIR OUT_JSON --repo OWNER/NAME --commit SHA
 
-Every .exe and .dll directly in DIR is looked up by SHA-256 first. Only a file VirusTotal
+Every executable under DIR is looked up by SHA-256 first. Executables are recognised by
+their first bytes, not their names, so the common kinds are all covered on Linux:
+Windows PE (.exe, .dll, .sys), ELF (Linux programs, .so libraries, AppImages), Debian
+packages (.deb), MSI installers, Mach-O, and scripts with a #! line. Only a file VirusTotal
 has not seen is uploaded (these are builds of public source code, made by this workflow),
 and its analysis is waited for. The key comes from VT_API_KEY; without it the result says
 "skipped".
@@ -12,7 +15,7 @@ A free key allows 4 requests a minute, 500 a day and 15,500 a month, for non-com
 use only. So:
   * requests are at least VT_GAP_SECONDS (16) apart, also across the runs of one job: the
     time of the last request is kept in VT_STATE_FILE when it is set;
-  * one job makes at most VT_MAX_REQUESTS (40) requests, counted in the same file; past
+  * one job makes at most VT_MAX_REQUESTS (60) requests, counted in the same file; past
     that, the files left are reported "pending" instead of asked about;
   * an analysis is polled once a minute for at most VT_WAIT_SECONDS (600);
   * a 429 (quota) answer waits a minute and is retried twice, then gives up.
@@ -43,7 +46,7 @@ API = os.environ.get("VT_API", "https://www.virustotal.com/api/v3")
 GAP = float(os.environ.get("VT_GAP_SECONDS", "16"))        # 4 requests a minute
 WAIT = float(os.environ.get("VT_WAIT_SECONDS", "600"))      # how long to wait for an analysis
 POLL = float(os.environ.get("VT_POLL_SECONDS", "60"))       # how often to ask about it
-MAX_REQUESTS = int(os.environ.get("VT_MAX_REQUESTS", "40"))  # per job, across runs
+MAX_REQUESTS = int(os.environ.get("VT_MAX_REQUESTS", "60"))  # per job, across runs
 STATE = os.environ.get("VT_STATE_FILE", "")
 DIRECT_UPLOAD = 32 << 20
 
@@ -170,10 +173,51 @@ def scan_known(key, path, entry):
     return entry
 
 
+MAGIC = [
+    (b"MZ", "pe"),                      # Windows .exe / .dll / .sys
+    (b"\x7fELF", "elf"),                # Linux programs, .so, AppImage
+    (b"!<arch>\ndebian", "deb"),         # Debian package
+    (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "msi"),  # Windows Installer
+    (b"\xcf\xfa\xed\xfe", "macho"),      # Mach-O 64-bit
+    (b"\xca\xfe\xba\xbe", "macho"),      # Mach-O universal
+    (b"#!", "script"),
+]
+
+
+def kind_of(path):
+    """The executable kind of `path` from its first bytes, or None."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(16)
+    except OSError:
+        return None
+    for magic, kind in MAGIC:
+        if head.startswith(magic):
+            return kind
+    return None
+
+
+def executables(directory):
+    """(relative path, kind) of every executable under `directory`, sorted; symlinks skipped."""
+    found = []
+    for root, dirs, names in os.walk(directory):
+        dirs.sort()
+        for n in names:
+            full = os.path.join(root, n)
+            if os.path.islink(full) or not os.path.isfile(full):
+                continue
+            kind = kind_of(full)
+            if kind:
+                found.append((os.path.relpath(full, directory), kind))
+    return sorted(found)
+
+
 def scan(directory, key):
-    names = sorted(n for n in os.listdir(directory)
-                   if n.lower().endswith((".exe", ".dll")) and os.path.isfile(os.path.join(directory, n)))
-    files = [scan_file(key, os.path.join(directory, n)) for n in names]
+    files = []
+    for rel, kind in executables(directory):
+        entry = scan_file(key, os.path.join(directory, rel))
+        entry["name"], entry["kind"] = rel, kind
+        files.append(entry)
     states = {f["state"] for f in files}
     verdict = "flagged" if "flagged" in states else ("pending" if "pending" in states or not files else "clean")
     return verdict, files

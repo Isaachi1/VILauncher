@@ -288,9 +288,9 @@ jobs:
     if: >-
       github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
       !inputs.xcl_ref && !inputs.victory_ref
-    needs: [select, xcl, victory]
+    needs: [select, launcher, xcl, victory]
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     permissions:
       contents: write
     concurrency:
@@ -306,7 +306,8 @@ jobs:
       # Free VirusTotal key: 4 lookups a minute, 500 a day, 15.5K a month, non-commercial. A backend
       # whose repository and commit are the ones already published is not rebuilt into the release
       # nor scanned again, so only a changed backend spends lookups (about 15). The scan script
-      # spaces requests 16 s apart across both runs (VT_STATE_FILE) and stops at 40 per job.
+      # spaces requests 16 s apart across its runs (VT_STATE_FILE) and stops at 60 per job.
+      # It covers every executable kind by content: PE, ELF (.so, AppImage), .deb, MSI, scripts.
       - name: VirusTotal
         env:
           VT_API_KEY: ${{ secrets.VT_API_KEY }}
@@ -329,6 +330,13 @@ jobs:
           }
           scan xcl dl/xcl-windows-x64 XCL_COMMIT.txt "${{ needs.select.outputs.xcl_repo }}"
           scan victory dl/victory-windows-x64 VICTORY_COMMIT.txt "${{ needs.select.outputs.victory_repo }}"
+          # VILauncher's own Linux files (CLI, window, .deb, AppImage): every night and by hand,
+          # not on each push, to save the daily quota; for the record only, they gate nothing.
+          if [ "$GITHUB_EVENT_NAME" != push ]; then
+            scan launcher dl/vilauncher-linux-x64 VILAUNCHER_COMMIT.txt "$GITHUB_REPOSITORY"
+          else
+            echo '{"verdict": "unchanged", "files": []}' > vt-launcher.json
+          fi
 
       - name: Pack and write runtimes.json
         env:
@@ -363,10 +371,16 @@ jobs:
           }
           xcl=$(entry xcl dl/xcl-windows-x64 XCL_COMMIT.txt "${{ needs.select.outputs.xcl_repo }}" "${{ needs.select.outputs.xcl_effort }}")
           victory=$(entry victory dl/victory-windows-x64 VICTORY_COMMIT.txt "${{ needs.select.outputs.victory_repo }}" "${{ needs.select.outputs.victory_effort }}")
-          jq -n --argjson xcl "$xcl" --argjson victory "$victory" --slurpfile sel dl/selection/selection.json \
+          if [ "$(jq -r .verdict vt-launcher.json)" = unchanged ]; then
+            launcher=$(jq -c '.launcher // null' previous.json)
+          else
+            launcher=$(jq -c '{commit: .commit, repo: .repo, virustotal: .}' vt-launcher.json)
+          fi
+          jq -n --argjson xcl "$xcl" --argjson victory "$victory" --argjson launcher "$launcher" \
+            --slurpfile sel dl/selection/selection.json \
             --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            '{schema: 1, published_at: $at, run_url: $run, xcl: $xcl, victory: $victory,
+            '{schema: 1, published_at: $at, run_url: $run, xcl: $xcl, victory: $victory, launcher: $launcher,
               recommended: $sel[0].recommended, candidates: $sel[0].candidates}' > out/runtimes.json
           cat out/runtimes.json
           ls -l out
