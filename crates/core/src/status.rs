@@ -39,6 +39,20 @@ const REPOS: &[(&str, BackendKind)] = &[
 struct Tracker {
     updated: Option<String>,
     efforts: Vec<RawEffort>,
+    history: Vec<RawHistory>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct RawHistory {
+    date: String,
+    leader: Option<f64>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct Stats {
+    stars: f64,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -49,8 +63,54 @@ struct RawEffort {
     repo: Option<String>,
     tier: String,
     gta: Milestones,
+    groundwork: Option<Groundwork>,
+    /// What a private build builds on: effort ids (a list, or one id).
+    #[serde(rename = "basedOn")]
+    based_on: serde_json::Value,
+    /// An owner's call the ladder can't express: the score, set by hand.
+    #[serde(rename = "manualScore")]
+    manual_score: Option<f64>,
+    /// Taken offline (`{"at": …, "note": …}` when set): still listed, no longer ranked.
+    nuked: serde_json::Value,
+    stats: Option<Stats>,
     highlights: Vec<String>,
     blockers: Vec<String>,
+}
+
+/// The parts built before the executable exists, each 0..1; together they fill the first 10%.
+#[derive(Debug, Default, Clone, PartialEq, Deserialize)]
+#[serde(default)]
+struct Groundwork {
+    loader: f64,
+    shaders: f64,
+    graphics: f64,
+    proven: f64,
+}
+
+impl Groundwork {
+    fn fraction(&self) -> f64 {
+        0.2 * clamp01(self.loader) + 0.28 * clamp01(self.shaders) + 0.32 * clamp01(self.graphics) + 0.2 * clamp01(self.proven)
+    }
+}
+
+fn clamp01(v: f64) -> f64 {
+    if v.is_finite() { v.clamp(0.0, 1.0) } else { 0.0 }
+}
+
+/// The tracker's scale, 0 to 100, as PortWatch VI draws it: a ladder of steps up to
+/// Playable at 50%, then four tracks (story, rendering, performance, stability) fill the rest.
+pub const MILESTONES: &[(&str, &str, f64)] = &[
+    ("groundwork", "Preparação", 0.0),
+    ("loads", "Exe rodando", 10.0),
+    ("boots", "Primeiro frame", 20.0),
+    ("menu", "Menu principal", 30.0),
+    ("world", "No mundo", 40.0),
+    ("playable", "Jogável", 50.0),
+    ("complete", "Completo", 100.0),
+];
+
+fn milestone_index(key: &str) -> usize {
+    MILESTONES.iter().position(|(k, _, _)| *k == key).unwrap_or(0)
 }
 
 /// 0, 0.5 or 1 for each step; `render` is 0..1 and `fps` a number.
@@ -65,6 +125,8 @@ pub struct Milestones {
     pub story: f64,
     pub render: f64,
     pub fps: f64,
+    /// `unknown`, `constant`, `often`, `sometimes`, `rarely` or `stable`.
+    pub stability: Option<String>,
 }
 
 impl Milestones {
@@ -85,6 +147,48 @@ impl Milestones {
             }
         }
         ("Nada roda ainda", false)
+    }
+
+    /// The score on the tracker's 0-100 scale and the furthest milestone, as the site computes it.
+    fn score(&self, groundwork: f64) -> (f64, &'static str) {
+        let ladder = [
+            (self.loads, "loads", 10.0),
+            (self.boots, "boots", 20.0),
+            (self.menu, "menu", 30.0),
+            (self.world, "world", 40.0),
+            (self.playable, "playable", 50.0),
+        ];
+        let mut score = 10.0 * groundwork;
+        let mut reached = "groundwork";
+        let mut prev = score;
+        for (v, key, at) in ladder {
+            let v = clamp01(v);
+            if v >= 1.0 {
+                score = at;
+                prev = at;
+                reached = key;
+                continue;
+            }
+            if v > 0.0 {
+                score = score.max(prev + v * (at - prev));
+            }
+            break;
+        }
+        if reached == "playable" {
+            let stability = match self.stability.as_deref() {
+                Some("often") => 0.25,
+                Some("sometimes") => 0.55,
+                Some("rarely") => 0.8,
+                Some("stable") => 1.0,
+                _ => 0.0,
+            };
+            let quality = 0.35 * clamp01(self.story) + 0.25 * clamp01(self.render) + 0.2 * clamp01(self.fps / 30.0) + 0.2 * stability;
+            score = 50.0 + quality * 50.0;
+            if quality >= 1.0 {
+                reached = "complete";
+            }
+        }
+        (score, reached)
     }
 
     /// The steps summed, for ordering: one more full step always counts more
@@ -110,12 +214,56 @@ pub struct Effort {
     pub gta: Milestones,
     pub highlights: Vec<String>,
     pub blockers: Vec<String>,
+    /// Where it sits on the tracker's 0-100 scale.
+    pub score: f64,
+    /// The furthest milestone, as a key of [`MILESTONES`].
+    pub reached: String,
+    /// No public code: a build nobody else can run.
+    pub private: bool,
+    /// For a private build, the names of the efforts it builds on.
+    pub based_on: Vec<String>,
+}
+
+/// The headline: how close the leading effort is to the whole game.
+#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+pub struct Overall {
+    pub score: f64,
+    /// Average of the three best scores.
+    pub top3: f64,
+    /// The furthest milestone any effort reached, as a key of [`MILESTONES`].
+    pub furthest: String,
+    /// Id of the leading effort.
+    pub leader: Option<String>,
+    /// Efforts whose game draws its first frame.
+    pub booted: usize,
+    pub tracked: usize,
+    /// The best efforts, best first, for the markers above the bar: (id, name, score, private).
+    pub top: Vec<Marker>,
+    /// The leader's score day by day.
+    pub history: Vec<Point>,
+    /// The milestones, for the bar: (key, label, at).
+    pub milestones: Vec<(String, String, f64)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Marker {
+    pub id: String,
+    pub name: String,
+    pub score: f64,
+    pub private: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Point {
+    pub date: String,
+    pub score: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Report {
     pub source: String,
     pub updated: Option<String>,
+    pub overall: Overall,
     /// Ours first (VIctory, XCL), then the others ordered by how far they got.
     pub efforts: Vec<Effort>,
     /// Set when the network failed and this is the cached copy.
@@ -130,21 +278,38 @@ fn backend_of(repo: Option<&str>) -> Option<BackendKind> {
 /// Turns the tracker's JSON into the report the window shows.
 pub fn parse(json: &str) -> Result<Report> {
     let t: Tracker = serde_json::from_str(json).map_err(|e| Error::Config(format!("PortWatch VI: unexpected data: {e}")))?;
-    let mut efforts: Vec<(f64, Effort)> = t
+    let names: std::collections::HashMap<String, String> = t
+        .efforts
+        .iter()
+        .map(|e| (e.id.clone(), if e.name.is_empty() { e.id.clone() } else { e.name.clone() }))
+        .collect();
+    let mut efforts: Vec<(f64, f64, bool, Effort)> = t
         .efforts
         .into_iter()
         .filter(|e| !e.id.is_empty())
         .map(|e| {
             let (stage, partial) = e.gta.stage();
-            let repo = e.repo.filter(|r| !r.is_empty());
+            let repo = e.repo.filter(|r| r.contains('/'));
             let backend = backend_of(repo.as_deref());
             let rank = e.gta.rank();
+            let (raw, reached) = e.gta.score(e.groundwork.as_ref().map_or(0.0, Groundwork::fraction));
+            let score = e.manual_score.filter(|v| v.is_finite()).map_or(raw, |v| v.clamp(0.0, 100.0));
+            let score = (score * 10.0).round() / 10.0;
+            let based_on = match &e.based_on {
+                serde_json::Value::String(id) => vec![id.clone()],
+                serde_json::Value::Array(ids) => ids.iter().filter_map(|v| v.as_str().map(String::from)).collect(),
+                _ => Vec::new(),
+            };
+            let based_on = based_on.iter().map(|id| names.get(id).cloned().unwrap_or_else(|| id.clone())).collect();
             let name = if e.name.is_empty() { e.id.clone() } else { e.name };
             (
                 rank,
+                e.stats.as_ref().map_or(0.0, |s| s.stars),
+                !matches!(e.nuked, serde_json::Value::Null | serde_json::Value::Bool(false)),
                 Effort {
                     id: e.id,
                     name,
+                    private: repo.is_none(),
                     repo,
                     backend,
                     tier: e.tier,
@@ -153,17 +318,52 @@ pub fn parse(json: &str) -> Result<Report> {
                     gta: e.gta,
                     highlights: e.highlights,
                     blockers: e.blockers,
+                    score,
+                    reached: reached.into(),
+                    based_on,
                 },
             )
         })
         .collect();
-    efforts.sort_by(|(ra, a), (rb, b)| {
+
+    // The headline counts every effort that is still online, private builds included.
+    let mut ranked: Vec<(&Effort, f64)> = efforts.iter().filter(|(_, _, nuked, _)| !nuked).map(|(_, stars, _, e)| (e, *stars)).collect();
+    ranked.sort_by(|(a, sa), (b, sb)| b.score.total_cmp(&a.score).then(sb.total_cmp(sa)));
+    let top3: Vec<f64> = ranked.iter().take(3).map(|(e, _)| e.score).collect();
+    let furthest = ranked.iter().map(|(e, _)| milestone_index(&e.reached)).max().unwrap_or(0);
+    let overall = Overall {
+        score: ranked.first().map_or(0.0, |(e, _)| e.score),
+        top3: if top3.is_empty() { 0.0 } else { (top3.iter().sum::<f64>() / top3.len() as f64 * 10.0).round() / 10.0 },
+        furthest: MILESTONES[furthest].0.into(),
+        leader: ranked.first().map(|(e, _)| e.id.clone()),
+        booted: efforts.iter().filter(|(_, _, _, e)| e.gta.boots >= 1.0).count(),
+        tracked: efforts.len(),
+        top: ranked
+            .iter()
+            .take(6)
+            .map(|(e, _)| Marker { id: e.id.clone(), name: e.name.clone(), score: e.score, private: e.private })
+            .collect(),
+        history: t
+            .history
+            .into_iter()
+            .filter_map(|h| h.leader.filter(|v| v.is_finite()).map(|score| Point { date: h.date, score }))
+            .collect(),
+        milestones: MILESTONES.iter().map(|(k, l, at)| (k.to_string(), l.to_string(), *at)).collect(),
+    };
+
+    efforts.sort_by(|(ra, _, _, a), (rb, _, _, b)| {
         (b.backend.is_some(), b.tier == "tracked")
             .cmp(&(a.backend.is_some(), a.tier == "tracked"))
             .then(rb.total_cmp(ra))
             .then(a.name.cmp(&b.name))
     });
-    Ok(Report { source: SITE_URL.into(), updated: t.updated, efforts: efforts.into_iter().map(|(_, e)| e).collect(), stale: None })
+    Ok(Report {
+        source: SITE_URL.into(),
+        updated: t.updated,
+        overall,
+        efforts: efforts.into_iter().map(|(_, _, _, e)| e).collect(),
+        stale: None,
+    })
 }
 
 pub fn cache_file() -> PathBuf {
@@ -207,15 +407,18 @@ mod tests {
     const SAMPLE: &str = r#"{
       "updated": "2026-11-24T21:00:00Z",
       "efforts": [
-        {"id": "closed", "name": "Closed", "repo": null, "tier": "tracked",
-         "gta": {"loads": 1, "boots": 1, "menu": 1, "world": 1, "playable": 1, "render": 0.5, "fps": 4}},
+        {"id": "closed", "name": "Closed", "repo": null, "tier": "tracked", "basedOn": ["marvis"],
+         "gta": {"loads": 1, "boots": 1, "menu": 1, "world": 1, "playable": 1, "render": 0.5, "fps": 4, "stability": "unknown"}},
         {"id": "marvis", "name": "VIctory", "repo": "Marvisak/VIctory", "tier": "tracked",
          "gta": {"loads": 1, "boots": 1, "menu": 1, "world": 1}, "highlights": ["h"], "blockers": ["b"]},
         {"id": "xcl", "name": "XCL", "repo": "xcl-dev/xcl", "tier": "tracked",
          "gta": {"loads": 1, "boots": 1, "menu": 1, "world": 0.5}, "unknownField": 3},
-        {"id": "early", "name": "Early", "repo": "a/b", "tier": "watchlist", "gta": {}},
+        {"id": "early", "name": "Early", "repo": "a/b", "tier": "watchlist", "gta": {},
+         "groundwork": {"loader": 1, "graphics": 0.5}},
+        {"id": "gone", "name": "Gone", "repo": "e/f", "tier": "tracked", "nuked": {"at": "2026-11-23", "note": "repo gone"}, "gta": {"loads": 1, "boots": 1}},
         {"id": "mid", "name": "Mid", "repo": "c/d", "tier": "tracked", "gta": {"loads": 1}}
       ],
+      "history": [{"date": "2026-11-22", "leader": null}, {"date": "2026-11-23", "leader": 30}, {"date": "2026-11-24", "leader": 57.6}],
       "news": []
     }"#;
 
@@ -223,7 +426,7 @@ mod tests {
     fn ours_first_then_by_progress() {
         let r = parse(SAMPLE).unwrap();
         let ids: Vec<_> = r.efforts.iter().map(|e| e.id.as_str()).collect();
-        assert_eq!(ids, ["marvis", "xcl", "closed", "mid", "early"]);
+        assert_eq!(ids, ["marvis", "xcl", "closed", "gone", "mid", "early"]);
         assert_eq!(r.efforts[0].backend, Some(BackendKind::Victory));
         assert_eq!(r.efforts[1].backend, Some(BackendKind::Xcl));
         assert_eq!(r.efforts[2].repo, None);
@@ -238,6 +441,34 @@ mod tests {
         assert_eq!((by("marvis").stage.as_str(), by("marvis").partial), ("No mundo", false));
         assert_eq!(by("closed").stage, "Jogável");
         assert_eq!(by("early").stage, "Nada roda ainda");
+    }
+
+    #[test]
+    fn scores_like_the_site() {
+        let r = parse(SAMPLE).unwrap();
+        let by = |id: &str| r.efforts.iter().find(|e| e.id == id).unwrap().clone();
+        // Playable, then the tracks: 50 + 50 * (0.25 * 0.5 + 0.2 * 4/30) = 57.6
+        assert_eq!((by("closed").score, by("closed").reached.as_str()), (57.6, "playable"));
+        assert!(by("closed").private);
+        assert_eq!(by("closed").based_on, ["VIctory"]);
+        assert_eq!((by("marvis").score, by("marvis").reached.as_str()), (40.0, "world"));
+        // Half of the way from Menus (30) to In the world (40).
+        assert_eq!((by("xcl").score, by("xcl").reached.as_str()), (35.0, "menu"));
+        assert_eq!(by("mid").score, 10.0);
+        // Groundwork only: 10% * (0.2 * 1 + 0.32 * 0.5) = 3.6
+        assert_eq!((by("early").score, by("early").reached.as_str()), (3.6, "groundwork"));
+    }
+
+    #[test]
+    fn overall_is_the_leader() {
+        let o = parse(SAMPLE).unwrap().overall;
+        assert_eq!(o.score, 57.6);
+        assert_eq!(o.leader.as_deref(), Some("closed"));
+        assert_eq!(o.top3, 44.2);
+        assert_eq!(o.furthest, "playable");
+        assert_eq!((o.booted, o.tracked), (4, 6));
+        assert_eq!(o.top.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), ["closed", "marvis", "xcl", "mid", "early"]);
+        assert_eq!(o.history, [Point { date: "2026-11-23".into(), score: 30.0 }, Point { date: "2026-11-24".into(), score: 57.6 }]);
     }
 
     #[test]
