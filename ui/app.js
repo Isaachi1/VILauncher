@@ -1,0 +1,265 @@
+// VILauncher's window. Everything happens in Rust (vilauncher-core); this file
+// only edits the configuration and shows what comes back.
+
+const { invoke } = window.__TAURI__.core;
+const { listen } = window.__TAURI__.event;
+const dialog = window.__TAURI__.dialog;
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => [...document.querySelectorAll(sel)];
+
+let config = null;
+let pendingForce = false;
+const MAX_LOG_LINES = 5000;
+
+// -- the form <-> the configuration --------------------------------------------------------
+
+function getPath(obj, path) {
+  return path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+
+function setPath(obj, path, value) {
+  const keys = path.split(".");
+  const last = keys.pop();
+  const target = keys.reduce((o, k) => (o[k] ??= {}), obj);
+  if (value === null || value === undefined) delete target[last];
+  else target[last] = value;
+}
+
+function fillForm() {
+  for (const el of $$("[data-path]")) {
+    const v = getPath(config, el.dataset.path);
+    if (el.dataset.kind === "lines") el.value = (v || []).join("\n");
+    else if (el.dataset.kind === "env") el.value = Object.entries(v || {}).map(([k, x]) => `${k}=${x}`).join("\n");
+    else el.value = v ?? "";
+  }
+  refreshVisibility();
+}
+
+function readForm() {
+  const next = structuredClone(config);
+  for (const el of $$("[data-path]")) {
+    const raw = el.value;
+    let v;
+    if (el.dataset.kind === "lines") {
+      v = raw.split("\n").map((s) => s.trim()).filter(Boolean);
+    } else if (el.dataset.kind === "env") {
+      v = {};
+      for (const line of raw.split("\n")) {
+        const i = line.indexOf("=");
+        if (i > 0) v[line.slice(0, i).trim()] = line.slice(i + 1);
+      }
+    } else if (el.tagName === "SELECT") {
+      v = raw;
+    } else {
+      v = raw.trim() === "" ? null : raw.trim();
+    }
+    setPath(next, el.dataset.path, v);
+  }
+  return next;
+}
+
+function refreshVisibility() {
+  const backend = $('[data-path="backend.kind"]').value;
+  const runner = $('[data-path="runner.kind"]').value;
+  for (const el of $$(".only-victory")) el.hidden = backend !== "victory";
+  for (const el of $$(".only-xcl")) el.hidden = backend !== "xcl";
+  for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
+  $("#runner-path-label").textContent = runner === "wine" ? "Binário do wine (vazio: o do PATH)" : "Pasta do Proton (vazio: o melhor encontrado)";
+  $("#backend-label").textContent = `${backend === "xcl" ? "XCL" : "VIctory"} · ${runner === "wine" ? "Wine + vkd3d-proton" : "Proton"}`;
+}
+
+async function refreshTitle() {
+  const dir = $('[data-path="game.dir"]').value.trim();
+  if (!dir) {
+    $("#game-title").textContent = "Nenhum jogo escolhido";
+    $("#game-sub").textContent = "Escolha a pasta desempacotada de um jogo seu na aba Jogo.";
+    return;
+  }
+  try {
+    const info = await invoke("game_info", { dir });
+    $("#game-title").textContent = info.display_name || info.identity || dir.split("/").pop();
+    $("#game-sub").textContent = [info.identity, info.version].filter(Boolean).join(" · ") || dir;
+  } catch (e) {
+    $("#game-title").textContent = dir.split("/").pop() || dir;
+    $("#game-sub").textContent = String(e);
+  }
+}
+
+// -- feedback ----------------------------------------------------------------------------
+
+function showBanner(text, canForce) {
+  $("#banner-text").textContent = text;
+  $("#banner-force").hidden = !canForce;
+  pendingForce = canForce;
+  $("#banner").hidden = false;
+}
+
+function hideBanner() {
+  $("#banner").hidden = true;
+  pendingForce = false;
+}
+
+function selectTab(name) {
+  for (const b of $$(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
+  for (const p of $$(".panel")) p.hidden = p.id !== `tab-${name}`;
+}
+
+function appendLog(line, stream) {
+  const log = $("#log");
+  const span = document.createElement("span");
+  if (stream === "stderr") span.className = "stderr";
+  span.textContent = line + "\n";
+  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
+  log.appendChild(span);
+  while (log.childNodes.length > MAX_LOG_LINES) log.removeChild(log.firstChild);
+  if (atBottom) log.scrollTop = log.scrollHeight;
+}
+
+function setRunning(running) {
+  $("#play").hidden = running;
+  $("#stop").hidden = !running;
+}
+
+const STATUS_TEXT = { ok: "OK", warn: "AVISO", fail: "FALHA" };
+
+function showChecks(checks) {
+  const body = $("#checks tbody");
+  body.replaceChildren();
+  for (const c of checks) {
+    const tr = document.createElement("tr");
+    const pill = document.createElement("span");
+    pill.className = `pill ${c.status}`;
+    pill.textContent = STATUS_TEXT[c.status];
+    const tdS = document.createElement("td");
+    tdS.appendChild(pill);
+    const tdN = document.createElement("td");
+    tdN.className = "name";
+    tdN.textContent = c.name;
+    const tdD = document.createElement("td");
+    tdD.textContent = c.detail;
+    tr.append(tdS, tdN, tdD);
+    body.appendChild(tr);
+  }
+  const fails = checks.filter((c) => c.status === "fail").length;
+  const warns = checks.filter((c) => c.status === "warn").length;
+  $("#doctor-status").textContent = `${fails} falha(s), ${warns} aviso(s), ${checks.length - fails - warns} ok`;
+}
+
+// -- actions -----------------------------------------------------------------------------
+
+async function save() {
+  config = readForm();
+  const path = await invoke("save_config", { config });
+  $("#save-status").textContent = `Salvo em ${path}`;
+  return config;
+}
+
+async function guarded(button, fn) {
+  button.disabled = true;
+  try {
+    await fn();
+  } catch (e) {
+    showBanner(String(e), false);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function play(force) {
+  hideBanner();
+  await save();
+  try {
+    $("#log").replaceChildren();
+    await invoke("launch_game", { config, force });
+    setRunning(true);
+    selectTab("log");
+  } catch (e) {
+    showBanner(`Não dá para rodar ainda:\n${e}`, !force);
+  }
+}
+
+async function init() {
+  const state = await invoke("get_state");
+  config = state.config;
+  fillForm();
+  refreshTitle();
+  setRunning(state.running);
+  $("#config-path").textContent = `Configuração: ${state.config_path}`;
+  $("#log-path").textContent = `Também gravado em ${state.log_file}`;
+  const list = $("#protons");
+  list.replaceChildren();
+  for (const p of state.protons) {
+    const opt = document.createElement("option");
+    opt.value = p.path;
+    opt.label = p.version;
+    list.appendChild(opt);
+  }
+
+  for (const b of $$(".tabs button")) b.addEventListener("click", () => selectTab(b.dataset.tab));
+  for (const el of $$('select[data-path]')) el.addEventListener("change", refreshVisibility);
+  $('[data-path="game.dir"]').addEventListener("change", refreshTitle);
+  $('[data-path="backend.exe"]').addEventListener("change", async (ev) => {
+    const kind = await invoke("guess_backend", { exe: ev.target.value });
+    if (kind) {
+      $('[data-path="backend.kind"]').value = kind;
+      refreshVisibility();
+    }
+  });
+
+  for (const b of $$("[data-browse]")) {
+    b.addEventListener("click", async () => {
+      const input = $(`[data-path="${b.dataset.target}"]`);
+      const directory = b.dataset.browse === "dir" || (b.dataset.browse === "any" && $('[data-path="runner.kind"]').value === "proton");
+      const picked = await dialog.open({ directory, multiple: false, defaultPath: input.value || undefined });
+      if (typeof picked === "string") {
+        input.value = picked;
+        input.dispatchEvent(new Event("change"));
+      }
+    });
+  }
+
+  $("#play").addEventListener("click", () => guarded($("#play"), () => play(false)));
+  $("#banner-force").addEventListener("click", () => guarded($("#play"), () => play(true)));
+  $("#banner-close").addEventListener("click", hideBanner);
+  $("#stop").addEventListener("click", () => invoke("stop_game"));
+  $("#save").addEventListener("click", () => guarded($("#save"), save));
+  $("#setup").addEventListener("click", () =>
+    guarded($("#setup"), async () => {
+      await save();
+      $("#save-status").textContent = "Preparando o prefixo…";
+      const lines = await invoke("setup_prefix", { config });
+      for (const l of lines) appendLog(l, "stdout");
+      $("#save-status").textContent = lines.length ? lines[lines.length - 1] : "Prefixo pronto";
+    }),
+  );
+  $("#desktop").addEventListener("click", () =>
+    guarded($("#desktop"), async () => {
+      await save();
+      const path = await invoke("create_desktop_entry", { config });
+      $("#save-status").textContent = `Atalho criado em ${path}`;
+    }),
+  );
+  $("#doctor").addEventListener("click", () =>
+    guarded($("#doctor"), async () => {
+      $("#doctor-status").textContent = "Verificando…";
+      showChecks(await invoke("run_doctor", { config: readForm() }));
+    }),
+  );
+  $("#dry").addEventListener("click", () =>
+    guarded($("#dry"), async () => {
+      const out = $("#dry-out");
+      out.hidden = false;
+      out.textContent = await invoke("dry_run", { config: readForm() });
+    }),
+  );
+  $("#log-clear").addEventListener("click", () => $("#log").replaceChildren());
+
+  await listen("game-log", (ev) => appendLog(ev.payload.line, ev.payload.stream));
+  await listen("game-exit", (ev) => {
+    setRunning(false);
+    appendLog(`— o jogo terminou (código ${ev.payload ?? "desconhecido"}) —`, "stdout");
+  });
+}
+
+init().catch((e) => showBanner(String(e), false));

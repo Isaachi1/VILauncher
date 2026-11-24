@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VILauncher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-text">
+      <p class="eyebrow" id="backend-label">VIctory · Proton</p>
+      <h1 id="game-title">Nenhum jogo escolhido</h1>
+      <p class="sub" id="game-sub">Escolha a pasta desempacotada de um jogo seu na aba Jogo.</p>
+    </div>
+    <div class="hero-actions">
+      <button id="play" class="primary big">Jogar</button>
+      <button id="stop" class="danger big" hidden>Parar</button>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden>
+    <pre id="banner-text"></pre>
+    <div class="banner-actions">
+      <button id="banner-force" class="ghost" hidden>Rodar mesmo assim</button>
+      <button id="banner-close" class="ghost">Fechar</button>
+    </div>
+  </div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="game" aria-selected="true">Jogo</button>
+    <button role="tab" data-tab="compat">Compatibilidade</button>
+    <button role="tab" data-tab="doctor">Verificação</button>
+    <button role="tab" data-tab="log">Log</button>
+  </nav>
+
+  <main>
+    <section id="tab-game" class="panel">
+      <label class="field">
+        <span>Pasta do jogo <em>(desempacotada, com MicrosoftGame.config)</em></span>
+        <div class="row"><input data-path="game.dir" placeholder="/home/voce/Jogos/titulo"><button data-browse="dir" data-target="game.dir">Escolher…</button></div>
+      </label>
+      <label class="field">
+        <span>Executável <em>(opcional; padrão: o do MicrosoftGame.config)</em></span>
+        <input data-path="game.exe" placeholder="ex.: bin\game.exe">
+      </label>
+      <label class="field">
+        <span>Argumentos do jogo <em>(um por linha)</em></span>
+        <textarea data-path="game.args" data-kind="lines" rows="3"></textarea>
+      </label>
+      <div class="note">
+        O VILauncher só roda arquivos de um jogo que você possui, já desempacotados. Ele não desempacota,
+        não descriptografa e não contorna DRM ou licenças; uma pasta com um pacote XVC / MSIXVC é recusada.
+      </div>
+    </section>
+
+    <section id="tab-compat" class="panel" hidden>
+      <h2>Camada de compatibilidade</h2>
+      <div class="grid">
+        <label class="field">
+          <span>Backend</span>
+          <select data-path="backend.kind">
+            <option value="victory">VIctory (VILinux)</option>
+            <option value="xcl">XCL (LinuxCL)</option>
+          </select>
+        </label>
+        <label class="field only-victory">
+          <span>Console simulado</span>
+          <select data-path="backend.console">
+            <option value="series-x">Xbox Series X</option>
+            <option value="series-s">Xbox Series S</option>
+          </select>
+        </label>
+      </div>
+      <label class="field">
+        <span>Executável do backend <em>(build Windows: victory.exe ou xcl.exe)</em></span>
+        <div class="row"><input data-path="backend.exe" placeholder="/home/voce/builds/victory.exe"><button data-browse="file" data-target="backend.exe">Escolher…</button></div>
+      </label>
+      <label class="field only-victory">
+        <span>Funções não implementadas</span>
+        <select data-path="backend.unimplemented">
+          <option value="trap">trap: para e mostra qual foi (recomendado)</option>
+          <option value="zero">zero: devolve 0 e segue</option>
+        </select>
+      </label>
+      <label class="field only-xcl">
+        <span>DXC <em>(bin/x64 de um release do DirectXShaderCompiler)</em></span>
+        <div class="row"><input data-path="backend.dxc_dir"><button data-browse="dir" data-target="backend.dxc_dir">Escolher…</button></div>
+      </label>
+      <label class="field only-xcl">
+        <span>Pasta com opus.dll <em>(sem ele o áudio Opus fica mudo no Wine)</em></span>
+        <div class="row"><input data-path="backend.opus_dir"><button data-browse="dir" data-target="backend.opus_dir">Escolher…</button></div>
+      </label>
+
+      <h2>Wine / Proton</h2>
+      <div class="grid">
+        <label class="field">
+          <span>Executar com</span>
+          <select data-path="runner.kind">
+            <option value="proton">Proton (recomendado: já traz o vkd3d-proton)</option>
+            <option value="wine">Wine do sistema + vkd3d-proton</option>
+          </select>
+        </label>
+      </div>
+      <label class="field">
+        <span id="runner-path-label">Pasta do Proton</span>
+        <div class="row"><input data-path="runner.path" list="protons" placeholder="detectado automaticamente"><button data-browse="any" data-target="runner.path">Escolher…</button></div>
+        <datalist id="protons"></datalist>
+      </label>
+      <label class="field only-wine">
+        <span>vkd3d-proton <em>(release descompactado, com x64/d3d12.dll)</em></span>
+        <div class="row"><input data-path="runner.vkd3d_dir"><button data-browse="dir" data-target="runner.vkd3d_dir">Escolher…</button></div>
+      </label>
+      <label class="field">
+        <span>Prefixo <em>(opcional)</em></span>
+        <div class="row"><input data-path="runner.prefix" placeholder="~/.local/share/vilauncher/…"><button data-browse="dir" data-target="runner.prefix">Escolher…</button></div>
+      </label>
+      <label class="field">
+        <span>Variáveis extras <em>(NOME=valor, uma por linha)</em></span>
+        <textarea data-path="env" data-kind="env" rows="3" placeholder="VICTORY_LOG=info"></textarea>
+      </label>
+      <div class="actions">
+        <button id="save">Salvar</button>
+        <button id="setup">Preparar prefixo</button>
+        <button id="desktop" class="ghost">Criar atalho no menu</button>
+        <span class="status" id="save-status"></span>
+      </div>
+    </section>
+
+    <section id="tab-doctor" class="panel" hidden>
+      <div class="actions">
+        <button id="doctor" class="primary">Verificar</button>
+        <button id="dry" class="ghost">Mostrar comando</button>
+        <span class="status" id="doctor-status"></span>
+      </div>
+      <table id="checks"><tbody></tbody></table>
+      <pre id="dry-out" hidden></pre>
+    </section>
+
+    <section id="tab-log" class="panel" hidden>
+      <div class="actions">
+        <span class="status" id="log-path"></span>
+        <button id="log-clear" class="ghost">Limpar</button>
+      </div>
+      <pre id="log"></pre>
+    </section>
+  </main>
+
+  <footer><span id="config-path"></span></footer>
+  <script src="app.js"></script>
+</body>
+</html>
