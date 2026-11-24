@@ -102,8 +102,9 @@ sudo sysctl -w vm.unprivileged_userfaultfd=1     # o vkd3d-proton precisa ver as
 
 ## Instalar
 
-Os pacotes saem do CI (a release de uma tag `v*`, ou os artefatos de uma execução do workflow
-`build`). Escolha o da sua distribuição:
+Os pacotes saem do CI: cada merge na `main` publica uma
+[release](https://github.com/LPortVI/VILauncher/releases/latest) com todos eles (ou pegue os
+artefatos de uma execução do workflow `build`). Escolha o da sua distribuição:
 
 | Distribuição | Pacote | Como instalar |
 |---|---|---|
@@ -150,10 +151,17 @@ Linux rodam pelo Proton/Wine). O `xcl.exe` e o `victory.exe` vêm dos projetos m
 código público segundo o PortWatch VI (veja abaixo). Ele roda a cada push na `main`, em cada PR,
 toda noite (para pegar commits novos e um novo líder no tracker) e à mão, em **Actions › build › Run
 workflow**, onde um branch, tag ou commit informado compila o LPortVI/xcl ou o LPortVI/VIctory
-naquele ponto em vez da escolha do tracker. Uma tag `v*` publica tudo como release.
+naquele ponto em vez da escolha do tracker.
+
+Cada push na `main` (um PR que entrou) publica uma release, sem precisar criar tag: a versão é o
+`<major>.<minor>` do `Cargo.toml` mais o número da execução do workflow (por exemplo `v0.1.57`),
+e os pacotes saem com essa versão. Para mudar de minor ou major, mude a versão do workspace no
+`Cargo.toml`. Uma tag `v*` criada à mão também publica, com a versão da tag. Num PR, o job
+`Release` só mostra o que publicaria.
 
 O artefato `vilauncher-bundle` traz o `.deb`, o `.rpm`, o AppImage e `vilauncher-linux-x64.tar.gz`;
-o `vilauncher-flatpak` traz o `vilauncher.flatpak`. Uma tag `v*` publica todos na release:
+o `vilauncher-flatpak` traz o `vilauncher.flatpak`. A release traz todos eles, mais o
+`xcl-windows-x64.tar.gz` e o `victory-windows-x64.tar.gz` com cada backend sozinho:
 
 ```
 vilauncher-linux-x64/
