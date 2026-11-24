@@ -255,6 +255,19 @@ async function init() {
   );
   $("#log-clear").addEventListener("click", () => $("#log").replaceChildren());
 
+  // Console-style shortcuts, shown in the footer.
+  const tabs = ["game", "compat", "doctor", "log"];
+  document.addEventListener("keydown", (ev) => {
+    if (!ev.ctrlKey || ev.altKey || ev.metaKey) return;
+    if (ev.key === "Enter" && !$("#play").hidden) $("#play").click();
+    else if (ev.key.toLowerCase() === "d") {
+      selectTab("doctor");
+      $("#doctor").click();
+    } else if (ev.key >= "1" && ev.key <= "4") selectTab(tabs[Number(ev.key) - 1]);
+    else return;
+    ev.preventDefault();
+  });
+
   await listen("game-log", (ev) => appendLog(ev.payload.line, ev.payload.stream));
   await listen("game-exit", (ev) => {
     setRunning(false);

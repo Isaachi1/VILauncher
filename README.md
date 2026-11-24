@@ -44,6 +44,12 @@ desempacotada de um jogo seu, e recusa uma pasta que tenha um pacote.
 | `crates/cli` | `vilauncher`: a linha de comando (scripts, atalho do menu, SSH) |
 | `app` | `vilauncher-app`: a janela Tauri 2 |
 | `ui` | a interface da janela (HTML/CSS/JS sem build; tudo roda no Rust) |
+| `ui/fonts` | Anton (SIL Open Font License, `ui/fonts/OFL.txt`) |
+
+O visual é inspirado no estilo do menu e do material de divulgação do GTA VI: um pôr do sol de
+Vice City (azul-cobalto, magenta, rosa e laranja) com palmeiras, abas no estilo do menu de pausa e
+tipografia condensada em caixa alta. Tudo é desenho próprio, em CSS e SVG. O launcher não inclui
+logo, arte, fonte ou imagem da Rockstar.
 
 A janela tem quatro abas:
 
@@ -52,7 +58,7 @@ A janela tem quatro abas:
 - **Verificação:** as checagens da máquina e da configuração, e o comando exato que vai rodar.
 - **Log:** a saída do jogo ao vivo, gravada também em `~/.local/state/vilauncher/last-run.log`.
 
-O botão **Jogar** se recusa a rodar enquanto alguma checagem da configuração falha. Dá para forçar
+Atalhos: `Ctrl+Enter` joga, `Ctrl+D` verifica e `Ctrl+1` a `Ctrl+4` trocam de aba. O botão **Jogar** se recusa a rodar enquanto alguma checagem da configuração falha. Dá para forçar
 mesmo assim.
 
 ## Estado
