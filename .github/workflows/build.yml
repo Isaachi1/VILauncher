@@ -303,15 +303,32 @@ jobs:
         with:
           path: dl
 
+      # Free VirusTotal key: 4 lookups a minute, 500 a day, 15.5K a month, non-commercial. A backend
+      # whose repository and commit are the ones already published is not rebuilt into the release
+      # nor scanned again, so only a changed backend spends lookups (about 15). The scan script
+      # spaces requests 16 s apart across both runs (VT_STATE_FILE) and stops at 40 per job.
       - name: VirusTotal
         env:
           VT_API_KEY: ${{ secrets.VT_API_KEY }}
+          VT_STATE_FILE: ${{ runner.temp }}/vt-state.json
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          python3 -I scripts/virustotal-scan.py dl/xcl-windows-x64 vt-xcl.json \
-            --repo "${{ needs.select.outputs.xcl_repo }}" --commit "$(head -n1 dl/xcl-windows-x64/XCL_COMMIT.txt | awk '{print $2}')"
-          python3 -I scripts/virustotal-scan.py dl/victory-windows-x64 vt-victory.json \
-            --repo "${{ needs.select.outputs.victory_repo }}" --commit "$(head -n1 dl/victory-windows-x64/VICTORY_COMMIT.txt | awk '{print $2}')"
+          gh release download runtimes --pattern runtimes.json --output previous.json 2>/dev/null || echo '{}' > previous.json
+          scan() {  # backend, artifact folder, commit file, repo
+            local commit
+            commit=$(head -n1 "$2/$3" | awk '{print $2}')
+            if [ "$(jq -r --arg k "$1" '.[$k].commit // ""' previous.json)" = "$commit" ] &&
+               [ "$(jq -r --arg k "$1" '.[$k].repo // ""' previous.json)" = "$4" ]; then
+              echo "$1: $4 @ $commit is already published; not scanned again"
+              jq -n --arg repo "$4" --arg commit "$commit" '{repo: $repo, commit: $commit, verdict: "unchanged", files: []}' > "vt-$1.json"
+              return
+            fi
+            python3 -I scripts/virustotal-scan.py "$2" "vt-$1.json" --repo "$4" --commit "$commit"
+          }
+          scan xcl dl/xcl-windows-x64 XCL_COMMIT.txt "${{ needs.select.outputs.xcl_repo }}"
+          scan victory dl/victory-windows-x64 VICTORY_COMMIT.txt "${{ needs.select.outputs.victory_repo }}"
 
       - name: Pack and write runtimes.json
         env:
@@ -320,11 +337,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir out
-          # The manifest now on the release, to keep the previous build of a backend whose new one is flagged.
-          gh release download runtimes --pattern runtimes.json --output previous.json 2>/dev/null || echo '{}' > previous.json
+          # previous.json (from the VirusTotal step) is the manifest now on the release: a backend that
+          # did not change, or whose new build is flagged, keeps its published entry.
           entry() {  # backend, artifact folder, commit file, repo, effort
-            local kind=$1 dir=$2 commit file
-            if [ "$(jq -r .verdict "vt-$kind.json")" = flagged ]; then
+            local kind=$1 dir=$2 commit file verdict
+            verdict=$(jq -r .verdict "vt-$kind.json")
+            if [ "$verdict" = unchanged ]; then
+              jq -c --arg k "$kind" '.[$k] // null' previous.json
+              return
+            fi
+            if [ "$verdict" = flagged ]; then
               echo "::warning::VirusTotal flags the new $kind build ($4); keeping the published one" >&2
               jq -c --arg k "$kind" '.[$k] // null' previous.json
               return

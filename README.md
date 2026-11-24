@@ -177,6 +177,13 @@ Para ativar o VirusTotal no CI, crie uma conta gratuita no VirusTotal e salve a 
 segredo `VT_API_KEY` em **Settings › Secrets and variables › Actions**. Sem ela, as builds são
 publicadas como "não verificadas".
 
+A chave gratuita permite 4 consultas por minuto, 500 por dia e 15,5 mil por mês, e só para uso não
+comercial. O CI respeita isso: consulta pelo hash antes de enviar qualquer arquivo, espaça as
+consultas em 16 s, faz no máximo 40 por execução, consulta uma análise em andamento uma vez por
+minuto por até 10 minutos e espera um minuto quando recebe 429. Um backend cujo repositório e commit
+já estão publicados não é escaneado de novo. Na prática, uma noite com os dois backends novos gasta
+umas 30 consultas, e uma noite sem mudanças não gasta nenhuma.
+
 ### VirusTotal na sua máquina (opcional)
 
 Com uma chave salva em **Compatibilidade** (ou `vilauncher virustotal --key CHAVE`; fica em
