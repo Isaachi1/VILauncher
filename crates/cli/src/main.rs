@@ -411,8 +411,9 @@ fn main() -> ExitCode {
                 Ok(c) => c,
                 Err(code) => return code,
             };
-            let exe = std::env::current_exe().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "vilauncher".into());
-            match launch::write_desktop_entry(&cfg, &[exe, "run".into()]) {
+            let mut exec = vilauncher_core::host::self_exec("vilauncher");
+            exec.push("run".into());
+            match launch::write_desktop_entry(&cfg, &exec) {
                 Ok(p) => {
                     println!("wrote {} (a run's output goes to {})", p.display(), launch::log_file().display());
                     ExitCode::SUCCESS

@@ -100,6 +100,30 @@ sudo sysctl -w vm.max_map_count=1048576          # títulos grandes mapeiam muit
 sudo sysctl -w vm.unprivileged_userfaultfd=1     # o vkd3d-proton precisa ver as escritas na memória do jogo (XCL #175)
 ```
 
+## Instalar
+
+Os pacotes saem do CI (a release de uma tag `v*`, ou os artefatos de uma execução do workflow
+`build`). Escolha o da sua distribuição:
+
+| Distribuição | Pacote | Como instalar |
+|---|---|---|
+| Ubuntu, Debian, Mint, Pop!_OS, Zorin | `.deb` | `sudo apt install ./VILauncher_*_amd64.deb` |
+| Fedora, openSUSE, Nobara, RHEL | `.rpm` | `sudo dnf install ./VILauncher-*.x86_64.rpm` (openSUSE: `sudo zypper install ./…rpm`) |
+| Arch, Manjaro, EndeavourOS, CachyOS | `PKGBUILD` | `cd packaging/arch && makepkg -si` (compila a release do código-fonte) |
+| Steam Deck (SteamOS), Bazzite e qualquer distro com Flatpak | `.flatpak` | `flatpak install --user ./vilauncher.flatpak` |
+| Qualquer distro x86-64 | AppImage | `chmod +x VILauncher_*.AppImage && ./VILauncher_*.AppImage` |
+| Qualquer distro, com os backends juntos | `.tar.gz` | descompacte e rode `vilauncher-app` |
+
+O `.deb`, o `.rpm` e o AppImage são compilados no Ubuntu 22.04, então rodam em distros com glibc
+2.35 ou mais nova. O pacote do Arch usa a `webkit2gtk-4.1` do sistema, e o Flatpak usa a do runtime
+GNOME 50.
+
+**No Flatpak**, o launcher roda dentro do sandbox, mas o Proton e o Wine rodam no sistema: ele os
+inicia com `flatpak-spawn --host`. Por isso o Flatpak pede acesso à pasta pessoal (o jogo, o Proton
+do Steam e o prefixo Wine ficam nela) e a `org.freedesktop.Flatpak`. Use o Proton (do Steam ou o
+GE-Proton): um Wine instalado em `/usr` não aparece dentro do sandbox. Os atalhos de menu que o
+launcher cria chamam `flatpak run`.
+
 ## Compilar
 
 As dependências do Tauri no Debian/Ubuntu:
@@ -128,7 +152,8 @@ toda noite (para pegar commits novos e um novo líder no tracker) e à mão, em 
 workflow**, onde um branch, tag ou commit informado compila o LPortVI/xcl ou o LPortVI/VIctory
 naquele ponto em vez da escolha do tracker. Uma tag `v*` publica tudo como release.
 
-O artefato `vilauncher-bundle` traz o `.deb`, o AppImage e `vilauncher-linux-x64.tar.gz`:
+O artefato `vilauncher-bundle` traz o `.deb`, o `.rpm`, o AppImage e `vilauncher-linux-x64.tar.gz`;
+o `vilauncher-flatpak` traz o `vilauncher.flatpak`. Uma tag `v*` publica todos na release:
 
 ```
 vilauncher-linux-x64/
@@ -155,8 +180,12 @@ Toda noite (e a cada push na `main`), o workflow `build`:
 2. **compila** esses commits em runners Windows (os dois são programas Windows/MSVC, então o
    launcher não compila nada na sua máquina);
 3. **verifica no VirusTotal** (`scripts/virustotal-scan.py`, com o segredo `VT_API_KEY` do
-   repositório): cada `.exe` e `.dll` é consultado pelo SHA-256 e, se o VirusTotal não o conhece,
-   enviado para análise. O resultado vira um JSON com o repositório e o commit daquela build;
+   repositório, num runner Linux): cada executável da build é consultado pelo SHA-256 e, se o
+   VirusTotal não o conhece, enviado para análise. Os executáveis são reconhecidos pelo conteúdo,
+   não pelo nome, então os tipos mais usados entram: PE do Windows (`.exe`, `.dll`, `.sys`), ELF do
+   Linux (programas, `.so`, AppImage), pacotes `.deb`, instaladores MSI, Mach-O e scripts com `#!`.
+   O resultado vira um JSON com o repositório e o commit daquela build. Toda noite os arquivos do
+   próprio VILauncher (CLI, janela, `.deb` e AppImage) também são verificados, só para registro;
 4. **publica** na release `runtimes`: um `.tar.gz` por backend, o JSON do VirusTotal e o
    `runtimes.json` (repositório, commit, tamanho, SHA-256, resultado do VirusTotal, qual família está
    mais avançada e como cada projeto foi escolhido ou pulado). Uma build que o VirusTotal acusa
@@ -177,12 +206,20 @@ Para ativar o VirusTotal no CI, crie uma conta gratuita no VirusTotal e salve a 
 segredo `VT_API_KEY` em **Settings › Secrets and variables › Actions**. Sem ela, as builds são
 publicadas como "não verificadas".
 
+A chave gratuita permite 4 consultas por minuto, 500 por dia e 15,5 mil por mês, e só para uso não
+comercial. O CI respeita isso: consulta pelo hash antes de enviar qualquer arquivo, espaça as
+consultas em 16 s, faz no máximo 60 por execução, consulta uma análise em andamento uma vez por
+minuto por até 10 minutos e espera um minuto quando recebe 429. Um backend cujo repositório e commit
+já estão publicados não é escaneado de novo. Na prática, uma noite com os dois backends novos gasta
+umas 30 consultas (mais umas 20 para os arquivos do launcher), e uma noite sem mudanças não gasta
+nenhuma.
+
 ### VirusTotal na sua máquina (opcional)
 
 Com uma chave salva em **Compatibilidade** (ou `vilauncher virustotal --key CHAVE`; fica em
 `~/.config/vilauncher/virustotal.key`, só legível por você, ou em `VILAUNCHER_VT_KEY`), o launcher
 também consulta de novo cada build antes de instalar e pode verificar a build em uso, mesmo uma
-compilada à mão (**Verificar build atual no VirusTotal**, `vilauncher virustotal`). Só o hash sai da
+compilada à mão; os executáveis da pasta são reconhecidos pelo conteúdo, como no CI (**Verificar build atual no VirusTotal**, `vilauncher virustotal`). Só o hash sai da
 máquina, a não ser que você peça **Enviar para análise** (`vilauncher virustotal --upload xcl.exe`).
 Só os binários da pasta do backend são consultados ou enviados, nunca a pasta do jogo.
 

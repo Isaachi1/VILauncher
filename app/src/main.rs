@@ -211,8 +211,8 @@ fn dry_run(config: Config) -> Result<String, String> {
 
 #[tauri::command]
 fn create_desktop_entry(config: Config) -> Result<String, String> {
-    let exe = std::env::current_exe().map_err(err)?;
-    launch::write_desktop_entry(&config, &[exe.to_string_lossy().into_owned()]).map(|p| p.display().to_string()).map_err(err)
+    let exec = vilauncher_core::host::self_exec("vilauncher-app");
+    launch::write_desktop_entry(&config, &exec).map(|p| p.display().to_string()).map_err(err)
 }
 
 /// Starts the game. Its output arrives as `game-log` events and is also written

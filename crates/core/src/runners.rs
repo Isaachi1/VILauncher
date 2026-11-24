@@ -16,7 +16,7 @@ use std::process::Command;
 use serde::Serialize;
 
 use crate::config::{Config, RunnerKind};
-use crate::paths;
+use crate::{host, paths};
 use crate::{Error, Result};
 
 pub const VKD3D_DLLS: [&str; 2] = ["d3d12.dll", "d3d12core.dll"];
@@ -195,13 +195,13 @@ impl WineRunner {
             log(format!("creating the Wine prefix {} (wineboot)", self.prefix.display()));
             fs::create_dir_all(&self.prefix)?;
             let env = Runner::Wine(self.clone()).env(&std::env::vars().collect());
-            let status = Command::new(&self.wine).args(["wineboot", "-u"]).envs(&env).status()?;
+            let status = host::command(&[self.wine.clone().into(), "wineboot".into(), "-u".into()], &env, None).status()?;
             if !status.success() {
                 return Err(Error::Runner(format!("wineboot failed ({status})")));
             }
             let server = self.wine.with_file_name("wineserver");
             let server = if server.is_file() { server } else { PathBuf::from("wineserver") };
-            let _ = Command::new(server).arg("-w").envs(&env).status();
+            let _ = host::command(&[server.into(), "-w".into()], &env, None).status();
         }
         let Some(vkd3d) = &self.vkd3d_dir else {
             return Err(Error::Runner(
@@ -324,9 +324,9 @@ impl Runner {
             Runner::Proton(p) => p.proton_dir.join("files/bin/wineserver"),
         };
         let server = if server.is_file() { server } else { PathBuf::from("wineserver") };
-        let mut cmd = Command::new(server);
-        cmd.arg("-k").env("WINEPREFIX", self.wineprefix());
-        cmd
+        let mut env: std::collections::BTreeMap<String, String> = std::env::vars().collect();
+        env.insert("WINEPREFIX".into(), self.wineprefix().to_string_lossy().into_owned());
+        host::command(&[server.into(), "-k".into()], &env, None)
     }
 
     pub fn vkd3d_installed(&self) -> bool {
@@ -341,7 +341,7 @@ impl Runner {
 
     pub fn version(&self) -> String {
         match self {
-            Runner::Wine(w) => match Command::new(&w.wine).arg("--version").output() {
+            Runner::Wine(w) => match host::simple(&[w.wine.clone().into(), "--version".into()]).output() {
                 Ok(o) => {
                     let s = String::from_utf8_lossy(if o.stdout.is_empty() { &o.stderr } else { &o.stdout }).trim().to_owned();
                     if s.is_empty() { "unknown".into() } else { s }

@@ -45,9 +45,8 @@ impl Launch {
     pub fn command(&self) -> Result<Command> {
         fs::create_dir_all(&self.cwd)?;
         fs::create_dir_all(&self.cache)?;
-        let mut cmd = Command::new(&self.argv[0]);
-        cmd.args(&self.argv[1..]).envs(&self.env).current_dir(&self.cwd);
-        Ok(cmd)
+        let argv: Vec<std::ffi::OsString> = self.argv.iter().map(Into::into).collect();
+        Ok(crate::host::command(&argv, &self.env, Some(&self.cwd)))
     }
 
     /// The launch as shell lines: the environment, the folder, the command.

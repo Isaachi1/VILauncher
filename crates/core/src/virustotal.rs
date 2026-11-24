@@ -112,12 +112,31 @@ pub fn verdict(file: &str, sha256: &str, report: Option<&str>) -> Result<Verdict
     Ok(v)
 }
 
-/// The `.exe` and `.dll` files directly in `dir`, by name.
+/// The executable kind of `path` from its first bytes, as scripts/virustotal-scan.py
+/// recognises them: Windows PE, ELF (programs, `.so`, AppImage), Debian package,
+/// MSI, Mach-O, or a `#!` script.
+pub fn kind_of(path: &Path) -> Option<&'static str> {
+    const MAGIC: &[(&[u8], &str)] = &[
+        (b"MZ", "pe"),
+        (b"\x7fELF", "elf"),
+        (b"!<arch>\ndebian", "deb"),
+        (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", "msi"),
+        (b"\xcf\xfa\xed\xfe", "macho"),
+        (b"\xca\xfe\xba\xbe", "macho"),
+        (b"#!", "script"),
+    ];
+    let mut head = [0u8; 16];
+    let n = std::io::Read::read(&mut fs::File::open(path).ok()?, &mut head).ok()?;
+    MAGIC.iter().find(|(m, _)| head[..n].starts_with(m)).map(|(_, k)| *k)
+}
+
+/// The executables directly in `dir` (any kind [`kind_of`] knows), by name.
 pub fn binaries(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut out: Vec<PathBuf> = fs::read_dir(dir)?
-        .filter_map(|e| e.ok().map(|e| e.path()))
-        .filter(|p| p.is_file())
-        .filter(|p| p.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("exe") || e.eq_ignore_ascii_case("dll")))
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
+        .map(|e| e.path())
+        .filter(|p| kind_of(p).is_some())
         .collect();
     out.sort();
     Ok(out)
@@ -244,6 +263,7 @@ mod tests {
         let exe = testutil::fake_pe(&t.path().join("xcl.exe"), 0x8664);
         fs::write(t.path().join("opus.DLL"), "MZ another file").unwrap();
         fs::write(t.path().join("XCL_COMMIT.txt"), "xcl abc\n").unwrap();
+        fs::write(t.path().join("dll-named.dll"), "not really a dll").unwrap();
         fs::create_dir_all(t.path().join("licenses")).unwrap();
         let exe_sha = sha256_file(&exe).unwrap();
 
@@ -259,6 +279,25 @@ mod tests {
         let why = blocking(&v).unwrap();
         assert!(why.contains("xcl.exe: 2 of 68"), "{why}");
         assert_eq!(blocking(&v[..1]), None);
+    }
+
+    #[test]
+    fn executables_are_recognised_by_content() {
+        let t = tempfile::tempdir().unwrap();
+        let w = |name: &str, data: &[u8]| {
+            fs::write(t.path().join(name), data).unwrap();
+            t.path().join(name)
+        };
+        assert_eq!(kind_of(&w("a.exe", b"MZ\x90\x00")), Some("pe"));
+        assert_eq!(kind_of(&w("tool", b"\x7fELF\x02\x01")), Some("elf"));
+        assert_eq!(kind_of(&w("libx.so.1", b"\x7fELF\x02")), Some("elf"));
+        assert_eq!(kind_of(&w("App.AppImage", b"\x7fELF\x02\x01\x01\x00AI\x02")), Some("elf"));
+        assert_eq!(kind_of(&w("p.deb", b"!<arch>\ndebian-binary   ")), Some("deb"));
+        assert_eq!(kind_of(&w("s.msi", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1\x00")), Some("msi"));
+        assert_eq!(kind_of(&w("run.sh", b"#!/bin/sh\n")), Some("script"));
+        assert_eq!(kind_of(&w("notes.txt", b"hello")), None);
+        assert_eq!(kind_of(&w("empty", b"")), None);
+        assert_eq!(binaries(t.path()).unwrap().len(), 7);
     }
 
     #[test]
