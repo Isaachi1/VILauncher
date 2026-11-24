@@ -33,10 +33,13 @@ Usage:
   vilauncher config               print the configuration
   vilauncher desktop              add a menu entry that runs the game
   vilauncher status               where VIctory, XCL and the others stand (PortWatch VI)
-  vilauncher update [victory|xcl] [--force]
-                                  the installed and the newest builds; with a backend,
-                                  install its newest build and use it. With a VirusTotal
-                                  key, a build VirusTotal flags is not installed (--force: is)
+  vilauncher update [victory|xcl|best] [--force]
+                                  the installed and the newest builds (built by CI from the
+                                  most advanced public VIctory / XCL trees on PortWatch VI and
+                                  scanned on VirusTotal); with a backend, install its newest
+                                  build and use it; `best` is the one ranked higher. A build
+                                  VirusTotal flags is never installed; with a local key the
+                                  files are looked up again (--force skips only that)
   vilauncher virustotal [--upload FILE]
                                   look up the backend folder's .exe/.dll on VirusTotal by hash;
                                   --upload sends one of them (by name) for analysis
@@ -125,15 +128,27 @@ fn update_cmd(args: &[String]) -> ExitCode {
         None => None,
         Some("victory") => Some(BackendKind::Victory),
         Some("xcl") => Some(BackendKind::Xcl),
-        Some(other) => return fail(format!("unknown backend {other}; victory or xcl")),
+        Some("best") => match update::fetch_manifest().map(|m| m.recommended) {
+            Ok(Some(k)) => Some(k),
+            Ok(None) => return fail("runtimes.json names no recommended backend"),
+            Err(e) => return fail(e),
+        },
+        Some(other) => return fail(format!("unknown backend {other}; victory, xcl or best")),
     };
     let Some(kind) = kind else {
         return match update::status() {
-            Ok(list) => {
-                for r in list {
-                    let latest = r.latest.as_ref().map_or("none published".to_string(), |a| format!("{} ({} bytes)", a.commit, a.size));
+            Ok(rt) => {
+                for r in &rt.backends {
+                    let latest = r.latest.as_ref().map_or("none published".to_string(), |a| {
+                        let vt = a.virustotal.as_ref().map_or("not scanned", |s| s.verdict.as_str());
+                        format!("{} {} (VirusTotal: {vt})", a.repo.as_deref().unwrap_or("?"), &a.commit[..a.commit.len().min(12)])
+                    });
                     let flag = if r.update { "  <- update available" } else { "" };
-                    println!("{:<8} installed {:<42} newest {latest}{flag}", r.backend.name(), r.installed.as_deref().unwrap_or("-"));
+                    let installed = r.installed.as_deref().map_or("-", |c| &c[..c.len().min(12)]);
+                    println!("{:<8} installed {installed:<13} newest {latest}{flag}", r.backend.name());
+                }
+                if let Some(best) = rt.recommended {
+                    println!("most advanced on PortWatch VI: {} (`vilauncher update best`)", best.name());
                 }
                 ExitCode::SUCCESS
             }
@@ -153,10 +168,9 @@ fn update_cmd(args: &[String]) -> ExitCode {
     };
     let key = virustotal::key();
     let mut check = |dir: &std::path::Path| -> vilauncher_core::Result<()> {
-        let Some(key) = &key else {
-            eprintln!("\nno VirusTotal key: the build is not looked up (`vilauncher virustotal --key KEY`)");
-            return Ok(());
-        };
+        // The workflow's VirusTotal result is checked by `update::install` itself; a
+        // local key only adds a second, fresh lookup.
+        let Some(key) = &key else { return Ok(()) };
         let list = virustotal::check_dir(dir, key)?;
         eprintln!();
         print_verdicts(&list);

@@ -21,7 +21,7 @@ use vilauncher_core::launch;
 use vilauncher_core::paths;
 use vilauncher_core::runners::{self, ProtonInstall, Runner};
 use vilauncher_core::status::{self, Report};
-use vilauncher_core::update::{self, RuntimeStatus};
+use vilauncher_core::update::{self, Runtimes};
 use vilauncher_core::virustotal::{self, Verdict};
 
 /// The game the window started, if it is still running.
@@ -118,9 +118,10 @@ async fn portwatch_status() -> Result<Report, String> {
     tauri::async_runtime::spawn_blocking(status::report).await.map_err(err)?.map_err(err)
 }
 
-/// The installed and the newest builds of VIctory and XCL (the `runtimes` release).
+/// The installed and the newest builds of VIctory and XCL (the `runtimes` release), with
+/// the repository each comes from, its VirusTotal result and the tracker's pick.
 #[tauri::command]
-async fn runtime_status() -> Result<Vec<RuntimeStatus>, String> {
+async fn runtime_status() -> Result<Runtimes, String> {
     tauri::async_runtime::spawn_blocking(update::status).await.map_err(err)?.map_err(err)
 }
 

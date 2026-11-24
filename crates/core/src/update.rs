@@ -1,14 +1,19 @@
 //! Keeps VIctory and XCL up to date from this repository's own builds.
 //!
-//! The `build` workflow compiles `victory.exe` and `xcl.exe` from the newest
-//! commits of LPortVI/VIctory and LPortVI/xcl every night and publishes them on
-//! the `runtimes` release of LPortVI/VILauncher, with a `runtimes.json` that
-//! names each archive, the commit it was built from, its size and its SHA-256.
+//! Every night the `build` workflow picks, from PortWatch VI's tracker, the most
+//! advanced effort with public code of each family it can build (a VIctory tree
+//! or an XCL tree, `scripts/select-runtimes.sh`), compiles it on Windows, scans
+//! the binaries on VirusTotal (`scripts/virustotal-scan.py`) and publishes them on
+//! the `runtimes` release of LPortVI/VILauncher. `runtimes.json` names each
+//! archive, the repository and commit it was built from, its size, its SHA-256,
+//! the VirusTotal result for that build, and the tracker's ranking.
 //!
-//! Only that release is used: an archive is downloaded only from the folder the
-//! manifest itself came from, its SHA-256 must match, and it is unpacked next to
-//! the running build and swapped in only once it is complete. Nothing from other
-//! projects (including the ones PortWatch VI lists) is ever downloaded.
+//! The launcher downloads only from that release: an archive comes only from the
+//! folder the manifest came from, its SHA-256 must match, the binaries inside
+//! must be the ones VirusTotal scanned, a flagged build is refused, and it is
+//! unpacked next to the running build and swapped in only once it is complete.
+//! Compiling happens in the workflow because both backends are Windows (MSVC)
+//! programs; nothing is built or fetched from the projects' repositories here.
 //!
 //! An installed build lives in `~/.local/share/vilauncher/runtimes/<backend>`,
 //! with the `VICTORY_COMMIT.txt` / `XCL_COMMIT.txt` the workflow writes.
@@ -41,6 +46,52 @@ pub struct Manifest {
     pub victory: Option<Asset>,
     #[serde(default)]
     pub xcl: Option<Asset>,
+    /// The backend whose effort ranks higher on the tracker.
+    #[serde(default)]
+    pub recommended: Option<BackendKind>,
+    /// How the workflow chose: every effort it looked at, and why it took or skipped it.
+    #[serde(default)]
+    pub candidates: Vec<Candidate>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Candidate {
+    pub repo: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub family: Option<String>,
+    #[serde(default)]
+    pub result: String,
+}
+
+/// What `scripts/virustotal-scan.py` found for one build.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Scan {
+    /// `clean`, `flagged`, `pending` (not analysed yet), `skipped` (no key) or `error`.
+    pub verdict: String,
+    #[serde(default)]
+    pub scanned_at: Option<String>,
+    #[serde(default)]
+    pub files: Vec<ScannedFile>,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct ScannedFile {
+    pub name: String,
+    pub sha256: String,
+    #[serde(default)]
+    pub malicious: u32,
+    #[serde(default)]
+    pub suspicious: u32,
+    #[serde(default)]
+    pub engines: u32,
+    #[serde(default)]
+    pub link: Option<String>,
+    #[serde(default)]
+    pub state: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -53,6 +104,11 @@ pub struct Asset {
     /// `owner/name` of the repository it was built from.
     #[serde(default)]
     pub repo: Option<String>,
+    /// The tracker's name for the effort behind that repository.
+    #[serde(default)]
+    pub effort: Option<String>,
+    #[serde(default)]
+    pub virustotal: Option<Scan>,
 }
 
 impl Manifest {
@@ -70,6 +126,9 @@ pub fn exe_name(kind: BackendKind) -> &'static str {
         BackendKind::Xcl => "xcl.exe",
     }
 }
+
+/// Written next to an installed build: the manifest entry it came from.
+const SOURCE_FILE: &str = "VILAUNCHER_SOURCE.json";
 
 fn commit_file(kind: BackendKind) -> &'static str {
     match kind {
@@ -126,13 +185,27 @@ pub struct RuntimeStatus {
     pub backend: BackendKind,
     /// The launcher-managed build, if one is installed.
     pub installed: Option<String>,
+    /// The manifest entry the installed build came from.
+    pub source: Option<Asset>,
     pub exe: Option<PathBuf>,
     pub latest: Option<Asset>,
     pub update: bool,
 }
 
-pub fn status_from(manifest: Option<&Manifest>, root: &Path) -> Vec<RuntimeStatus> {
-    [BackendKind::Victory, BackendKind::Xcl]
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Runtimes {
+    pub published_at: Option<String>,
+    pub recommended: Option<BackendKind>,
+    pub candidates: Vec<Candidate>,
+    pub backends: Vec<RuntimeStatus>,
+}
+
+pub fn installed_source(dir: &Path) -> Option<Asset> {
+    serde_json::from_str(&fs::read_to_string(dir.join(SOURCE_FILE)).ok()?).ok()
+}
+
+pub fn status_from(manifest: Option<&Manifest>, root: &Path) -> Runtimes {
+    let backends = [BackendKind::Victory, BackendKind::Xcl]
         .into_iter()
         .map(|kind| {
             let dir = root.join(kind.name());
@@ -140,9 +213,32 @@ pub fn status_from(manifest: Option<&Manifest>, root: &Path) -> Vec<RuntimeStatu
             let exe = Some(dir.join(exe_name(kind))).filter(|e| e.is_file());
             let latest = manifest.and_then(|m| m.asset(kind)).cloned();
             let update = latest.as_ref().is_some_and(|l| installed.as_deref() != Some(l.commit.as_str()) || exe.is_none());
-            RuntimeStatus { backend: kind, installed, exe, latest, update }
+            RuntimeStatus { backend: kind, installed, source: installed_source(&dir), exe, latest, update }
         })
-        .collect()
+        .collect();
+    Runtimes {
+        published_at: manifest.and_then(|m| m.published_at.clone()),
+        recommended: manifest.and_then(|m| m.recommended),
+        candidates: manifest.map(|m| m.candidates.clone()).unwrap_or_default(),
+        backends,
+    }
+}
+
+/// Refuses a build VirusTotal flagged, and one whose binaries are not the ones
+/// that were scanned. A build that was not scanned (no key, still pending) passes.
+pub fn check_scan(asset: &Asset, staging: &Path) -> Result<()> {
+    let Some(scan) = &asset.virustotal else { return Ok(()) };
+    if scan.verdict == "flagged" {
+        let names: Vec<&str> = scan.files.iter().filter(|f| f.malicious > 0).map(|f| f.name.as_str()).collect();
+        return Err(Error::Config(format!("VirusTotal flagged this build ({}); not installed", names.join(", "))));
+    }
+    for f in &scan.files {
+        let ok = !f.name.contains(['/', '\\']) && sha256_file(&staging.join(&f.name)).is_ok_and(|h| h.eq_ignore_ascii_case(&f.sha256));
+        if !ok {
+            return Err(Error::Config(format!("{} is not the file VirusTotal scanned; not installed", f.name)));
+        }
+    }
+    Ok(())
 }
 
 fn fetch_manifest_from(url: &str) -> Result<Manifest> {
@@ -159,7 +255,7 @@ pub fn fetch_manifest() -> Result<Manifest> {
 }
 
 /// What is installed and what the newest builds are.
-pub fn status() -> Result<Vec<RuntimeStatus>> {
+pub fn status() -> Result<Runtimes> {
     let m = fetch_manifest()?;
     Ok(status_from(Some(&m), &runtimes_dir()))
 }
@@ -277,7 +373,14 @@ pub fn install(
 
     let dir = install_dir(kind);
     let staging = dir.with_extension("new");
-    let result = unpack(kind, &archive, &staging).and_then(|_| check(&staging)).and_then(|_| swap_in(&staging, &dir));
+    let result = unpack(kind, &archive, &staging)
+        .and_then(|_| check_scan(&asset, &staging))
+        .and_then(|_| check(&staging))
+        .and_then(|_| {
+            let json = serde_json::to_string_pretty(&asset).map_err(|e| Error::Config(e.to_string()))?;
+            fs::write(staging.join(SOURCE_FILE), json)?;
+            swap_in(&staging, &dir)
+        });
     let _ = fs::remove_file(&archive);
     if result.is_err() && staging.exists() {
         let _ = fs::remove_dir_all(&staging);
@@ -330,26 +433,74 @@ mod tests {
     fn status_compares_commits() {
         let t = tempfile::tempdir().unwrap();
         let m = parse_manifest(MANIFEST).unwrap();
-        let s = status_from(Some(&m), t.path());
+        let s = status_from(Some(&m), t.path()).backends;
         assert_eq!((s[1].backend, s[1].installed.as_deref(), s[1].update), (BackendKind::Xcl, None, true));
         assert!(!s[0].update, "no victory build published");
 
         let dir = t.path().join("xcl");
         testutil::fake_pe(&dir.join("xcl.exe"), 0x8664);
         fs::write(dir.join("XCL_COMMIT.txt"), "xcl abc\nDXC v1.8\n").unwrap();
-        let s = status_from(Some(&m), t.path());
+        let s = status_from(Some(&m), t.path()).backends;
         assert_eq!((s[1].installed.as_deref(), s[1].update), (Some("abc"), false));
         assert_eq!(s[1].exe, Some(dir.join("xcl.exe")));
 
         fs::write(dir.join("XCL_COMMIT.txt"), "xcl old\n").unwrap();
-        assert!(status_from(Some(&m), t.path())[1].update);
+        assert!(status_from(Some(&m), t.path()).backends[1].update);
+    }
+
+    // The shape the workflow writes (scripts/select-runtimes.sh + virustotal-scan.py).
+    const FULL: &str = r#"{"schema": 1, "recommended": "victory",
+      "victory": {"file": "victory-fff.tar.gz", "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+                  "size": 5, "commit": "fff", "repo": "someone/victory-fork", "effort": "Fork",
+                  "virustotal": {"repo": "someone/victory-fork", "commit": "fff", "verdict": "clean",
+                                 "files": [{"name": "victory.exe", "sha256": "SHA", "malicious": 0, "engines": 70, "state": "clean"}]}},
+      "candidates": [{"repo": "someone/victory-fork", "name": "Fork", "rank": 5073, "family": "victory", "result": "selected"},
+                     {"repo": "x/y", "name": "Other", "rank": 2500, "family": null, "result": "no build recipe"}]}"#;
+
+    #[test]
+    fn manifest_carries_the_tracker_pick_and_the_scan() {
+        let m = parse_manifest(FULL).unwrap();
+        assert_eq!(m.recommended, Some(BackendKind::Victory));
+        assert_eq!(m.candidates[1].family, None);
+        let v = m.victory.as_ref().unwrap();
+        assert_eq!((v.repo.as_deref(), v.effort.as_deref()), (Some("someone/victory-fork"), Some("Fork")));
+        assert_eq!(v.virustotal.as_ref().unwrap().files[0].engines, 70);
+        let t = tempfile::tempdir().unwrap();
+        let s = status_from(Some(&m), t.path());
+        assert_eq!((s.recommended, s.candidates.len()), (Some(BackendKind::Victory), 2));
+    }
+
+    #[test]
+    fn scan_must_be_clean_and_match_the_files() {
+        let t = tempfile::tempdir().unwrap();
+        let exe = testutil::fake_pe(&t.path().join("victory.exe"), 0x8664);
+        let sha = sha256_file(&exe).unwrap();
+        let mut asset = parse_manifest(&FULL.replace("\"SHA\"", &format!("\"{sha}\""))).unwrap().victory.unwrap();
+        check_scan(&asset, t.path()).unwrap();
+
+        fs::write(&exe, "MZ changed after the scan").unwrap();
+        assert!(check_scan(&asset, t.path()).is_err());
+
+        let scan = asset.virustotal.as_mut().unwrap();
+        scan.verdict = "flagged".into();
+        scan.files[0].malicious = 3;
+        let why = check_scan(&asset, t.path()).unwrap_err().to_string();
+        assert!(why.contains("flagged") && why.contains("victory.exe"), "{why}");
+
+        asset.virustotal = None;
+        check_scan(&asset, t.path()).unwrap();
+        let mut skipped = parse_manifest(FULL).unwrap().victory.unwrap();
+        let scan = skipped.virustotal.as_mut().unwrap();
+        scan.verdict = "skipped".into();
+        scan.files.clear();
+        check_scan(&skipped, t.path()).unwrap();
     }
 
     #[test]
     fn download_must_match_size_and_hash() {
         let t = tempfile::tempdir().unwrap();
         let data = b"0123456789".to_vec();
-        let good = Asset { file: "f".into(), sha256: sha256_hex(&data), size: 10, commit: "c".into(), repo: None };
+        let good = Asset { file: "f".into(), sha256: sha256_hex(&data), size: 10, commit: "c".into(), repo: None, effort: None, virustotal: None };
         let dest = t.path().join("d/f");
         let mut seen = 0;
         save_verified(&data[..], &dest, &good, &mut |n| seen = n).unwrap();
