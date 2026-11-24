@@ -124,6 +124,8 @@ function appendLog(line, stream) {
 function setRunning(running) {
   $("#play").hidden = running;
   $("#stop").hidden = !running;
+  $("#live").classList.toggle("on", running);
+  $("#live-text").textContent = running ? "Rodando" : "Pronto";
 }
 
 const STATUS_TEXT = { ok: "OK", warn: "AVISO", fail: "FALHA" };
@@ -174,23 +176,54 @@ function showEfforts(report) {
   $("#status-info").textContent = report.stale
     ? `Sem conexão; mostrando a cópia salva (atualizada em ${when}). ${report.stale}`
     : `Atualizado pelo PortWatch VI em ${when}`;
+  let rank = 0;
   for (const e of report.efforts) {
-    const card = el("article", `effort${e.backend ? " ours" : ""}${e.tier === "watchlist" ? " watch" : ""}`);
+    const watch = e.tier === "watchlist";
+    const card = el("article", `effort${e.backend ? " ours" : ""}${watch ? " watch" : ""}`);
+    card.append(el("span", "rank", watch ? "–" : String(++rank)));
+    const body = el("div", "effort-body");
     const head = el("header");
-    head.append(el("h3", null, e.name));
-    if (e.backend) head.append(el("span", "pill ok", `backend ${BACKEND_NAME[e.backend]}`));
-    head.append(el("span", `pill ${stageClass(e.gta)}`, e.partial ? `${e.stage} (em parte)` : e.stage));
-    if (e.gta.fps > 0) head.append(el("span", "fps", `~${e.gta.fps} fps`));
-    card.append(head);
-    card.append(el("p", "repo", e.repo ? `github.com/${e.repo}` : "Código fechado: ninguém fora do projeto consegue rodar"));
+    const title = el("div", "effort-title");
+    title.append(el("h3", null, e.name));
+    title.append(el("p", "repo", e.repo ? `github.com/${e.repo}` : "Código fechado: ninguém fora do projeto consegue rodar"));
+    head.append(title);
+    const chips = el("div", "chips");
+    if (e.backend) chips.append(el("span", "pill violet", `backend ${BACKEND_NAME[e.backend]}`));
+    chips.append(el("span", `pill ${stageClass(e.gta)}`, e.partial ? `${e.stage} (em parte)` : e.stage));
+    if (e.gta.fps > 0) chips.append(el("span", "pill gold", `~${e.gta.fps} fps`));
+    head.append(chips);
+    body.append(head, milestoneBar(e.gta));
+    const lists = el("div", "lists");
     for (const [list, cls] of [[e.highlights, "good"], [e.blockers, "bad"]]) {
       if (!list.length) continue;
       const ul = el("ul", cls);
       for (const item of list) ul.append(el("li", null, item));
-      card.append(ul);
+      lists.append(ul);
     }
+    if (lists.childElementCount) body.append(lists);
+    card.append(body);
     box.append(card);
   }
+}
+
+// The tracker's steps as one segmented bar: a full segment per step reached, half for "in part".
+const STEPS = [["loads", "Carrega"], ["boots", "Inicia"], ["menu", "Menus"], ["world", "No mundo"], ["playable", "Jogável"], ["story", "História"]];
+
+function milestoneBar(gta) {
+  const wrap = el("div", "milestones");
+  const bar = el("div", "bar");
+  const legend = el("div", "legend");
+  for (const [key, label] of STEPS) {
+    const v = Math.max(0, Math.min(1, gta[key] || 0));
+    const seg = el("span", "seg");
+    const fill = el("i");
+    fill.style.width = `${v * 100}%`;
+    seg.append(fill);
+    bar.append(seg);
+    legend.append(el("span", v > 0 ? "hit" : null, label));
+  }
+  wrap.append(bar, legend);
+  return wrap;
 }
 
 // -- runtime updates ---------------------------------------------------------------------------

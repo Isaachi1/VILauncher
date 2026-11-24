@@ -44,7 +44,7 @@ desempacotada de um jogo seu, e recusa uma pasta que tenha um pacote.
 | `crates/cli` | `vilauncher`: a linha de comando (scripts, atalho do menu, SSH) |
 | `app` | `vilauncher-app`: a janela Tauri 2 |
 | `ui` | a interface da janela (HTML/CSS/JS sem build; tudo roda no Rust) |
-| `ui/fonts` | Oswald (SIL Open Font License, `ui/fonts/OFL.txt`) |
+| `ui/fonts` | Inter e Inter Tight (SIL Open Font License, `ui/fonts/OFL-*.txt`) |
 
 O visual é inspirado no estilo do menu e do material de divulgação do GTA VI: um pôr do sol de
 Vice City (azul-cobalto, magenta, rosa e laranja) com palmeiras, abas no estilo do menu de pausa e
