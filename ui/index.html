@@ -101,6 +101,13 @@
           <span class="status" id="runtimes-info">Builds do VIctory e do XCL compiladas toda noite pelo CI deste projeto.</span>
         </div>
         <table id="runtimes"><tbody></tbody></table>
+        <div class="actions vt">
+          <input id="vt-key" type="password" autocomplete="off" placeholder="Chave da API do VirusTotal">
+          <button id="vt-save" class="ghost">Salvar chave</button>
+          <button id="vt-check">Verificar build atual no VirusTotal</button>
+        </div>
+        <span class="status" id="vt-info"></span>
+        <table id="vt"><tbody></tbody></table>
       </div>
       <label class="field">
         <span>Executável do backend <em>(build Windows: victory.exe ou xcl.exe)</em></span>

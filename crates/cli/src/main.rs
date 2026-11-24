@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use vilauncher_core::config::{self, BackendKind, Config, Console, RunnerKind};
 use vilauncher_core::doctor::{self, Status};
 use vilauncher_core::runners::{self, Runner};
-use vilauncher_core::{gamedir, launch, paths, status, update};
+use vilauncher_core::{gamedir, launch, paths, status, update, virustotal};
 
 const HELP: &str = "\
 vilauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
@@ -33,8 +33,14 @@ Usage:
   vilauncher config               print the configuration
   vilauncher desktop              add a menu entry that runs the game
   vilauncher status               where VIctory, XCL and the others stand (PortWatch VI)
-  vilauncher update [victory|xcl] the installed and the newest builds; with a backend,
-                                  install its newest build and use it
+  vilauncher update [victory|xcl] [--force]
+                                  the installed and the newest builds; with a backend,
+                                  install its newest build and use it. With a VirusTotal
+                                  key, a build VirusTotal flags is not installed (--force: is)
+  vilauncher virustotal [--upload FILE]
+                                  look up the backend folder's .exe/.dll on VirusTotal by hash;
+                                  --upload sends one of them (by name) for analysis
+  vilauncher virustotal --key KEY save the API key (\"\" removes it); or VILAUNCHER_VT_KEY
 ";
 
 fn fail(msg: impl std::fmt::Display) -> ExitCode {
@@ -59,7 +65,62 @@ fn print_status(r: &status::Report) {
     }
 }
 
+fn print_verdicts(list: &[virustotal::Verdict]) {
+    for v in list {
+        let what = match v.state {
+            virustotal::State::Clean => format!("clean ({} engines, {} suspicious)", v.engines, v.suspicious),
+            virustotal::State::Flagged => format!("FLAGGED: {} of {} engines call it malicious", v.malicious, v.engines),
+            virustotal::State::Unknown => "not known to VirusTotal yet".into(),
+        };
+        println!("{:<20} {what}  {}", v.file, v.link);
+    }
+}
+
+fn virustotal_cmd(args: &[String]) -> ExitCode {
+    if args.first().map(String::as_str) == Some("--key") {
+        return match virustotal::save_key(args.get(1).map_or("", String::as_str)) {
+            Ok(()) => {
+                println!("saved in {}", virustotal::key_file().display());
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(e),
+        };
+    }
+    let Some(key) = virustotal::key() else {
+        return fail("no VirusTotal API key: `vilauncher virustotal --key KEY` or VILAUNCHER_VT_KEY");
+    };
+    let cfg = match load() {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+    let dir = match virustotal::backend_dir(&cfg) {
+        Ok(d) => d,
+        Err(e) => return fail(e),
+    };
+    if args.first().map(String::as_str) == Some("--upload") {
+        let Some(name) = args.get(1) else { return fail("--upload needs a file name") };
+        let found = virustotal::binaries(&dir).ok().and_then(|l| l.into_iter().find(|p| p.file_name().is_some_and(|n| n.to_string_lossy() == name.as_str())));
+        let Some(path) = found else { return fail(format!("{name} is not a binary in {}", dir.display())) };
+        return match virustotal::upload(&key, &path) {
+            Ok(id) => {
+                println!("sent {}; analysis {id}. Run `vilauncher virustotal` again in a few minutes.", path.display());
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(e),
+        };
+    }
+    match virustotal::check_dir(&dir, &key) {
+        Ok(list) => {
+            print_verdicts(&list);
+            if virustotal::blocking(&list).is_some() { ExitCode::FAILURE } else { ExitCode::SUCCESS }
+        }
+        Err(e) => fail(e),
+    }
+}
+
 fn update_cmd(args: &[String]) -> ExitCode {
+    let force = args.iter().any(|a| a == "--force");
+    let args: Vec<String> = args.iter().filter(|a| *a != "--force").cloned().collect();
     let kind = match args.first().map(String::as_str) {
         None => None,
         Some("victory") => Some(BackendKind::Victory),
@@ -90,7 +151,21 @@ fn update_cmd(args: &[String]) -> ExitCode {
             eprint!("\rdownloading {}: {}%", kind.name(), done * 100 / total.max(1));
         }
     };
-    match update::install(kind, &mut progress, &mut |_| Ok(())) {
+    let key = virustotal::key();
+    let mut check = |dir: &std::path::Path| -> vilauncher_core::Result<()> {
+        let Some(key) = &key else {
+            eprintln!("\nno VirusTotal key: the build is not looked up (`vilauncher virustotal --key KEY`)");
+            return Ok(());
+        };
+        let list = virustotal::check_dir(dir, key)?;
+        eprintln!();
+        print_verdicts(&list);
+        match virustotal::blocking(&list) {
+            Some(why) if !force => Err(vilauncher_core::Error::Config(format!("{why}\nnot installed; `--force` installs it anyway"))),
+            _ => Ok(()),
+        }
+    };
+    match update::install(kind, &mut progress, &mut check) {
         Ok(exe) => {
             eprintln!();
             cfg.backend.kind = kind;
@@ -332,6 +407,7 @@ fn main() -> ExitCode {
             }
         }
         Some("update") => update_cmd(rest),
+        Some("virustotal") => virustotal_cmd(rest),
         Some("status") => match status::report() {
             Ok(r) => {
                 print_status(&r);

@@ -153,6 +153,24 @@ tamanho e o SHA-256, descompacta numa pasta à parte e só então troca a build 
 algo falhar, a build anterior fica como estava. O launcher só baixa dessa release: nada dos outros
 projetos (nem dos que o PortWatch VI lista) é baixado.
 
+### VirusTotal
+
+Com uma chave da API do [VirusTotal](https://www.virustotal.com) (uma conta gratuita tem uma),
+salva em **Compatibilidade** ou com `vilauncher virustotal --key CHAVE` (fica em
+`~/.config/vilauncher/virustotal.key`, só legível por você; ou use `VILAUNCHER_VT_KEY`):
+
+- antes de trocar a build, cada `.exe` e `.dll` da build nova é consultado pelo SHA-256; se algum
+  antivírus a acusa de maliciosa, ela **não** é instalada e a anterior fica, a não ser que você
+  escolha **Instalar mesmo assim** (`vilauncher update xcl --force`);
+- **Verificar build atual no VirusTotal** (`vilauncher virustotal`) consulta os `.exe` e `.dll` da
+  pasta do executável do backend em uso, mesmo que você tenha compilado ou baixado à mão.
+
+Só o hash sai da máquina. Um arquivo que o VirusTotal ainda não conhece pode ser enviado para
+análise em **Enviar para análise** (`vilauncher virustotal --upload xcl.exe`); aí o arquivo fica
+disponível para o VirusTotal e os parceiros dele. Só os binários da pasta do backend podem ser
+consultados ou enviados, e a pasta é recusada se tiver o jogo ou estiver dentro dele. A chave gratuita
+permite 4 consultas por minuto.
+
 ## Linha de comando
 
 ```sh
@@ -170,6 +188,7 @@ vilauncher run -- -argumento    # argumentos para o jogo
 vilauncher desktop              # cria a entrada no menu de aplicativos
 vilauncher status               # onde cada projeto está, segundo o PortWatch VI
 vilauncher update [xcl|victory] # mostra / instala a build mais nova do backend
+vilauncher virustotal           # consulta o backend em uso no VirusTotal
 ```
 
 ## Configuração

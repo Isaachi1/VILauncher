@@ -22,6 +22,7 @@ use vilauncher_core::paths;
 use vilauncher_core::runners::{self, ProtonInstall, Runner};
 use vilauncher_core::status::{self, Report};
 use vilauncher_core::update::{self, RuntimeStatus};
+use vilauncher_core::virustotal::{self, Verdict};
 
 /// The game the window started, if it is still running.
 #[derive(Default)]
@@ -37,6 +38,18 @@ struct AppState {
     protons: Vec<ProtonInstall>,
     log_file: PathBuf,
     running: bool,
+    /// A VirusTotal API key is saved (the key itself never goes to the window).
+    virustotal: bool,
+}
+
+#[derive(Serialize)]
+struct Installed {
+    /// The new build's executable; None when VirusTotal stopped the install.
+    exe: Option<String>,
+    /// Whether VirusTotal was asked (there is a key).
+    checked: bool,
+    verdicts: Vec<Verdict>,
+    blocked: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -64,6 +77,7 @@ fn get_state(running: State<Running>) -> Result<AppState, String> {
         protons: runners::find_protons(&paths::home()),
         log_file: launch::log_file(),
         running: running.child.lock().unwrap().is_some(),
+        virustotal: virustotal::key().is_some(),
     })
 }
 
@@ -110,10 +124,11 @@ async fn runtime_status() -> Result<Vec<RuntimeStatus>, String> {
     tauri::async_runtime::spawn_blocking(update::status).await.map_err(err)?.map_err(err)
 }
 
-/// Downloads, checks and installs the newest build of `backend`; returns its executable.
-/// Progress arrives as `runtime-progress` events.
+/// Downloads, checks and installs the newest build of `backend`. With a VirusTotal
+/// key, its binaries are looked up first and a flagged build is not installed
+/// unless `force`. Progress arrives as `runtime-progress` events.
 #[tauri::command]
-async fn install_runtime(app: AppHandle, running: State<'_, Running>, backend: config::BackendKind) -> Result<String, String> {
+async fn install_runtime(app: AppHandle, running: State<'_, Running>, backend: config::BackendKind, force: bool) -> Result<Installed, String> {
     if running.child.lock().unwrap().is_some() {
         return Err("stop the game before updating its runtime".into());
     }
@@ -126,11 +141,66 @@ async fn install_runtime(app: AppHandle, running: State<'_, Running>, backend: c
                 let _ = app.emit("runtime-progress", Progress { backend, done, total });
             }
         };
-        update::install(backend, &mut progress, &mut |_| Ok(())).map(|p| p.display().to_string())
+        let key = virustotal::key();
+        let mut verdicts = Vec::new();
+        let mut blocked = None;
+        let result = update::install(backend, &mut progress, &mut |dir| {
+            let Some(key) = &key else { return Ok(()) };
+            verdicts = virustotal::check_dir(dir, key)?;
+            match virustotal::blocking(&verdicts).filter(|_| !force) {
+                Some(why) => {
+                    blocked = Some(why.clone());
+                    Err(vilauncher_core::Error::Config(why))
+                }
+                None => Ok(()),
+            }
+        });
+        let checked = key.is_some();
+        match result {
+            Ok(exe) => Ok(Installed { exe: Some(exe.display().to_string()), checked, verdicts, blocked: None }),
+            Err(_) if blocked.is_some() => Ok(Installed { exe: None, checked, verdicts, blocked }),
+            Err(e) => Err(e),
+        }
     })
     .await
     .map_err(err)?
     .map_err(err)
+}
+
+/// Saves the VirusTotal API key (an empty one removes it).
+#[tauri::command]
+fn virustotal_key(key: String) -> Result<bool, String> {
+    virustotal::save_key(&key).map_err(err)?;
+    Ok(virustotal::key().is_some())
+}
+
+/// Looks up the binaries next to the backend executable in use.
+#[tauri::command]
+async fn virustotal_check(config: Config) -> Result<Vec<Verdict>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let key = virustotal::key().ok_or("no VirusTotal API key is saved")?;
+        let dir = virustotal::backend_dir(&config).map_err(err)?;
+        virustotal::check_dir(&dir, &key).map_err(err)
+    })
+    .await
+    .map_err(err)?
+}
+
+/// Sends one binary of the backend's folder (by name) to VirusTotal for analysis.
+#[tauri::command]
+async fn virustotal_upload(config: Config, file: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let key = virustotal::key().ok_or("no VirusTotal API key is saved")?;
+        let dir = virustotal::backend_dir(&config).map_err(err)?;
+        let path = virustotal::binaries(&dir)
+            .map_err(err)?
+            .into_iter()
+            .find(|p| p.file_name().is_some_and(|n| n.to_string_lossy() == file))
+            .ok_or_else(|| format!("{file} is not a binary of the backend's folder"))?;
+        virustotal::upload(&key, &path).map_err(err)
+    })
+    .await
+    .map_err(err)?
 }
 
 #[tauri::command]
@@ -239,6 +309,9 @@ fn main() {
             portwatch_status,
             runtime_status,
             install_runtime,
+            virustotal_key,
+            virustotal_check,
+            virustotal_upload,
             create_desktop_entry,
             launch_game,
             stop_game

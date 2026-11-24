@@ -230,12 +230,65 @@ function useRuntime(backend, exe) {
   return save().then(() => $("#runtimes-check").click());
 }
 
-async function installRuntime(backend, button) {
+async function installRuntime(backend, button, force = false) {
   $("#runtimes-info").textContent = `Baixando ${BACKEND_NAME[backend]}…`;
-  const exe = await invoke("install_runtime", { backend });
-  $("#runtimes-info").textContent = `${BACKEND_NAME[backend]} instalado em ${exe}`;
+  const r = await invoke("install_runtime", { backend, force });
+  showVerdicts(r.verdicts);
+  if (r.blocked) {
+    $("#runtimes-info").textContent = `${BACKEND_NAME[backend]} não foi instalado.`;
+    showBanner(`${r.blocked}\n\nA build instalada continua a mesma.`, false);
+    const again = el("button", "danger", "Instalar mesmo assim");
+    again.addEventListener("click", () => guarded(again, () => installRuntime(backend, again, true)));
+    button.replaceWith(again);
+    return;
+  }
+  const vt = r.checked ? "conferido no VirusTotal" : "sem VirusTotal (nenhuma chave salva)";
+  $("#runtimes-info").textContent = `${BACKEND_NAME[backend]} instalado em ${r.exe} (${vt})`;
   button.hidden = true;
-  await useRuntime(backend, exe);
+  await useRuntime(backend, r.exe);
+}
+
+// -- VirusTotal ----------------------------------------------------------------------------------
+
+const VT_TEXT = { clean: "LIMPO", flagged: "ALERTA", unknown: "DESCONHECIDO" };
+const VT_PILL = { clean: "ok", flagged: "fail", unknown: "warn" };
+
+function showVerdicts(list) {
+  const body = $("#vt tbody");
+  body.replaceChildren();
+  for (const v of list) {
+    const tr = el("tr");
+    const pill = el("span", `pill ${VT_PILL[v.state]}`, VT_TEXT[v.state]);
+    const tdS = el("td");
+    tdS.append(pill);
+    tr.append(tdS, el("td", "name", v.file));
+    let detail;
+    if (v.state === "unknown") detail = "O VirusTotal ainda não conhece este arquivo.";
+    else detail = `${v.malicious} de ${v.engines} antivírus acusam; ${v.suspicious} suspeito(s). ${v.link}`;
+    const tdD = el("td", null, detail);
+    if (v.state === "unknown") {
+      const up = el("button", "ghost", "Enviar para análise");
+      up.title = "O arquivo é enviado ao VirusTotal e fica disponível para ele e seus parceiros.";
+      up.addEventListener("click", () =>
+        guarded(up, async () => {
+          await invoke("virustotal_upload", { config: readForm(), file: v.file });
+          up.replaceWith(el("span", "status", " Enviado; verifique de novo em alguns minutos."));
+        }),
+      );
+      tdD.append(" ", up);
+    }
+    tr.append(tdD);
+    body.append(tr);
+  }
+}
+
+function showVtKey(saved) {
+  $("#vt-key").value = "";
+  $("#vt-key").placeholder = saved ? "Chave salva (digite outra para trocar, ou salve vazio para apagar)" : "Chave da API do VirusTotal";
+  $("#vt-check").disabled = !saved;
+  $("#vt-info").textContent = saved
+    ? "Só o SHA-256 dos .exe e .dll do backend é consultado; nenhum arquivo é enviado sem você pedir."
+    : "Sem chave, as builds não são conferidas no VirusTotal. Uma conta gratuita do VirusTotal tem uma.";
 }
 
 // -- actions -----------------------------------------------------------------------------
@@ -277,6 +330,7 @@ async function init() {
   fillForm();
   refreshTitle();
   setRunning(state.running);
+  showVtKey(state.virustotal);
   $("#config-path").textContent = `Configuração: ${state.config_path}`;
   $("#log-path").textContent = `Também gravado em ${state.log_file}`;
   const list = $("#protons");
@@ -346,6 +400,18 @@ async function init() {
     }),
   );
   $("#log-clear").addEventListener("click", () => $("#log").replaceChildren());
+  $("#vt-save").addEventListener("click", () =>
+    guarded($("#vt-save"), async () => showVtKey(await invoke("virustotal_key", { key: $("#vt-key").value }))),
+  );
+  $("#vt-check").addEventListener("click", () =>
+    guarded($("#vt-check"), async () => {
+      $("#vt-info").textContent = "Consultando o VirusTotal…";
+      const list = await invoke("virustotal_check", { config: readForm() });
+      showVerdicts(list);
+      const flagged = list.filter((v) => v.state === "flagged").length;
+      $("#vt-info").textContent = `${list.length} arquivo(s) conferido(s); ${flagged} com alerta.`;
+    }),
+  );
   $("#runtimes-check").addEventListener("click", () =>
     guarded($("#runtimes-check"), async () => showRuntimes(await invoke("runtime_status"))),
   );
