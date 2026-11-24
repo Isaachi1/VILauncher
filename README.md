@@ -116,7 +116,7 @@ Os pacotes saem do CI (a release de uma tag `v*`, ou os artefatos de uma execuç
 
 O `.deb`, o `.rpm` e o AppImage são compilados no Ubuntu 22.04, então rodam em distros com glibc
 2.35 ou mais nova. O pacote do Arch usa a `webkit2gtk-4.1` do sistema, e o Flatpak usa a do runtime
-GNOME 47.
+GNOME 50.
 
 **No Flatpak**, o launcher roda dentro do sandbox, mas o Proton e o Wine rodam no sistema: ele os
 inicia com `flatpak-spawn --host`. Por isso o Flatpak pede acesso à pasta pessoal (o jogo, o Proton
