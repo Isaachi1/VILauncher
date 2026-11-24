@@ -2,8 +2,9 @@
    palette (cobalt -> magenta -> hot pink -> burnt orange); no game art or logos. */
 
 @font-face {
-  font-family: "Anton";
-  src: url("fonts/Anton-Regular.ttf") format("truetype");
+  font-family: "Oswald";
+  src: url("fonts/Oswald.ttf") format("truetype");
+  font-weight: 200 700;
   font-display: swap;
 }
 
@@ -23,7 +24,7 @@
   --ok: #3ee6a8;
   --warn: #ffc15e;
   --fail: #ff5d6c;
-  --display: "Anton", "Bebas Neue", Impact, "Arial Narrow", sans-serif;
+  --display: "Oswald", "Bebas Neue", "Arial Narrow", sans-serif;
   color-scheme: dark;
 }
 
@@ -114,14 +115,14 @@ body {
   gap: 12px;
   align-items: center;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
 }
 .brand {
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: 500;
   font-size: 15px;
   letter-spacing: 0.08em;
   padding: 2px 8px;
@@ -131,7 +132,7 @@ body {
 .hero h1 {
   margin: 10px 0 6px;
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: 300;
   font-size: clamp(40px, 7vw, 76px);
   line-height: 0.95;
   text-transform: uppercase;
@@ -142,13 +143,13 @@ body {
   color: transparent;
   filter: drop-shadow(0 4px 18px rgba(255, 62, 138, 0.35));
 }
-.sub { margin: 0; color: var(--muted); font-weight: 500; }
+.sub { margin: 0; color: var(--muted); font-weight: 400; }
 
 /* -- buttons ------------------------------------------------------------------------------ */
 
 button {
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--panel-line);
@@ -200,7 +201,7 @@ button.big:hover { transform: translateY(-2px); }
 }
 .tabs button {
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: 300;
   font-size: 17px;
   letter-spacing: 0.08em;
   padding: 8px 22px;
@@ -223,7 +224,7 @@ main { flex: 1; padding: 4px 48px 24px; }
 .panel h2 {
   margin: 22px 0 10px;
   font-family: var(--display);
-  font-weight: 400;
+  font-weight: 300;
   font-size: 18px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -238,11 +239,11 @@ main { flex: 1; padding: 4px 48px 24px; }
   display: block;
   margin-bottom: 6px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.field em { color: var(--muted); font-style: normal; font-weight: 500; text-transform: none; letter-spacing: 0; }
+.field em { color: var(--muted); font-style: normal; font-weight: 400; text-transform: none; letter-spacing: 0; }
 .row { display: flex; gap: 6px; }
 .row input { flex: 1; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 16px; }
@@ -276,13 +277,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-bottom-color: 
 table { width: 100%; border-collapse: collapse; }
 td { padding: 9px 10px; border-bottom: 1px solid var(--panel-line); vertical-align: top; }
 tr:hover td { background: rgba(255, 255, 255, 0.04); }
-td.name { white-space: nowrap; font-weight: 700; text-transform: uppercase; font-size: 12px; letter-spacing: 0.06em; }
+td.name { white-space: nowrap; font-weight: 500; text-transform: uppercase; font-size: 12px; letter-spacing: 0.06em; }
 .pill {
   display: inline-block;
   min-width: 60px;
   text-align: center;
   padding: 2px 8px;
   font-family: var(--display);
+  font-weight: 500;
   font-size: 13px;
   letter-spacing: 0.08em;
   color: var(--ink);
@@ -324,7 +326,7 @@ kbd {
   min-width: 20px;
   margin: 0 2px 0 8px;
   padding: 1px 6px;
-  font: 700 11px/1.4 system-ui, sans-serif;
+  font: 500 11px/1.4 system-ui, sans-serif;
   text-align: center;
   color: var(--ink);
   background: #fff;
