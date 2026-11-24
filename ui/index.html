@@ -199,12 +199,48 @@
       <pre id="log"></pre>
     </section>
 
-    <section id="tab-status" class="panel" hidden>
-      <p class="kicker">PortWatch VI</p>
-      <h2>A corrida</h2>
-      <div class="actions">
-        <button id="status-refresh">Atualizar</button>
-        <span class="status" id="status-info"></span>
+    <section id="tab-status" class="panel bare" hidden>
+      <div class="overall">
+        <div class="ov-head">
+          <div class="ov-main">
+            <p class="kicker">Progresso geral · projeto mais perto de ser jogável</p>
+            <div class="big-score"><span id="ov-score">0</span><span class="pct">%</span></div>
+            <p class="ov-leader" id="ov-leader">&nbsp;</p>
+          </div>
+          <div class="ov-stats">
+            <div class="ov-stat"><b id="ov-stage">-</b><small>Marco mais avançado</small></div>
+            <div class="ov-stat"><b id="ov-top3">-</b><small>Média do top 3</small></div>
+            <div class="ov-stat"><b id="ov-boot">-</b><small>Iniciam o GTA VI</small></div>
+            <div class="ov-stat"><b id="ov-count">-</b><small>Projetos acompanhados</small></div>
+          </div>
+        </div>
+        <div class="mega">
+          <div class="mega-markers" id="mega-markers"></div>
+          <div class="mega-track"><div class="mega-fill" id="mega-fill"></div><div class="mega-ticks" id="mega-ticks"></div></div>
+          <div class="mega-labels" id="mega-labels"></div>
+        </div>
+        <div class="ov-history" id="ov-history" hidden>
+          <p>Pontuação do líder, dia a dia</p>
+          <svg id="ov-chart" viewBox="0 0 1000 70" preserveAspectRatio="none" aria-label="Pontuação do líder por dia">
+            <defs>
+              <linearGradient id="hg" x1="0" x2="1"><stop offset="0" stop-color="#7a5cff"/><stop offset=".55" stop-color="#ff2e7e"/><stop offset="1" stop-color="#ff8a3d"/></linearGradient>
+              <linearGradient id="hf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff2e7e" stop-opacity=".2"/><stop offset="1" stop-color="#ff2e7e" stop-opacity="0"/></linearGradient>
+            </defs>
+            <path id="ov-area" fill="url(#hf)"/>
+            <path id="ov-line" fill="none" stroke="url(#hg)" stroke-width="3" vector-effect="non-scaling-stroke"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="race-head">
+        <div>
+          <p class="kicker">PortWatch VI</p>
+          <h2>A corrida</h2>
+        </div>
+        <div class="actions">
+          <span class="status" id="status-info"></span>
+          <button id="status-refresh">Atualizar</button>
+        </div>
       </div>
       <div id="efforts"></div>
       <div class="note">

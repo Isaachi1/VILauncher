@@ -60,11 +60,17 @@ fn print_status(r: &status::Report) {
     if let Some(e) = &r.stale {
         println!("offline, showing the cached copy: {e}");
     }
+    let o = &r.overall;
+    let leader = o.leader.as_deref().and_then(|id| r.efforts.iter().find(|e| e.id == id)).map_or("-", |e| e.name.as_str());
+    println!(
+        "overall {}% (leader: {leader}), top-3 average {}%, {}/{} boot the game\n",
+        o.score, o.top3, o.booted, o.tracked
+    );
     for e in &r.efforts {
         let ours = e.backend.map(|b| format!(" [backend {}]", b.name())).unwrap_or_default();
         let stage = if e.partial { format!("{} (em parte)", e.stage) } else { e.stage.clone() };
         let fps = if e.gta.fps > 0.0 { format!(", ~{} fps", e.gta.fps) } else { String::new() };
-        println!("{:<26} {:<34} {}{fps}{ours}", e.name, e.repo.as_deref().unwrap_or("(código fechado)"), stage);
+        println!("{:>5}%  {:<26} {:<34} {}{fps}{ours}", e.score, e.name, e.repo.as_deref().unwrap_or("(código fechado)"), stage);
     }
 }
 

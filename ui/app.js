@@ -164,12 +164,195 @@ function el(tag, cls, text) {
   return e;
 }
 
-function stageClass(gta) {
-  if (gta.playable > 0) return "ok";
-  return gta.world > 0 || gta.menu > 0 ? "warn" : "fail";
+const SVG = "http://www.w3.org/2000/svg";
+
+function svgEl(tag, attrs = {}) {
+  const e = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  return e;
 }
 
+const pct = (v) => (Math.round(v * 10) / 10).toLocaleString("pt-BR");
+let milestones = [];
+const msLabel = (key) => (milestones.find((m) => m[0] === key) || [key, key])[1];
+const TRACK_NAMES = "História · Gráficos · Desempenho · Estabilidade";
+
+function lockIcon() {
+  const s = svgEl("svg", { viewBox: "0 0 16 16", class: "lock", "aria-hidden": "true" });
+  s.append(svgEl("path", { d: "M4.5 7V5a3.5 3.5 0 0 1 7 0v2h.5a1 1 0 0 1 1 1v5.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h.5Zm1.6 0h3.8V5a1.9 1.9 0 0 0-3.8 0v2Z" }));
+  return s;
+}
+
+function countUp(node, to) {
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / 900);
+    const v = to * (1 - Math.pow(1 - t, 3));
+    node.textContent = t < 1 ? String(Math.round(v)) : pct(to);
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+// The headline card, after PortWatch VI's own: the leader's score, four numbers, the
+// whole scale as one bar with the best efforts above it, and the leader's score by day.
+function showOverall(report) {
+  const o = report.overall;
+  milestones = o.milestones;
+  const byId = new Map(report.efforts.map((e) => [e.id, e]));
+  const leader = o.leader ? byId.get(o.leader) : null;
+
+  countUp($("#ov-score"), o.score);
+  const line = $("#ov-leader");
+  line.replaceChildren();
+  if (leader) {
+    line.append("Líder: ", el("b", null, leader.name), " ");
+    if (leader.repo) line.append(`de ${leader.repo.split("/")[0]}. `);
+    else if (leader.based_on.length) {
+      const priv = el("span", "ov-private");
+      priv.append(lockIcon(), "versão privada baseada em ", el("b", null, leader.based_on.join(", ")));
+      line.append(priv, ". ");
+    }
+    line.append(leader.reached === "groundwork" ? "Ainda na preparação." : `Chegou a “${msLabel(leader.reached)}”.`);
+  } else line.textContent = "Nenhum projeto acompanhado.";
+
+  $("#ov-stage").textContent = msLabel(o.furthest);
+  $("#ov-top3").textContent = `${pct(o.top3)}%`;
+  $("#ov-boot").textContent = `${o.booted} / ${o.tracked}`;
+  $("#ov-count").textContent = String(o.tracked);
+
+  const furthest = milestones.findIndex((m) => m[0] === o.furthest);
+  const ticks = $("#mega-ticks");
+  ticks.replaceChildren();
+  for (const m of milestones.slice(1, -1)) {
+    const i = el("i");
+    i.style.left = `${m[2]}%`;
+    ticks.append(i);
+  }
+  const labels = $("#mega-labels");
+  labels.replaceChildren();
+  milestones.forEach((m, i) => {
+    const cls = i <= furthest ? "is-reached" : i === furthest + 1 ? "is-next" : "";
+    const label = el("div", `mega-label ${cls}`);
+    label.style.left = `${m[2]}%`;
+    label.append(el("b", null, `${m[2]}%`), el("span", "dot"), m[1]);
+    labels.append(label);
+  });
+  labels.append(el("p", "mega-zone", TRACK_NAMES));
+
+  const fill = $("#mega-fill");
+  fill.style.setProperty("--p", "0%");
+  requestAnimationFrame(() => requestAnimationFrame(() => fill.style.setProperty("--p", `${o.score}%`)));
+
+  const draw = () => {
+    drawMarkers(o.top, o.leader);
+    layoutLabels();
+  };
+  draw();
+  document.fonts?.ready.then(draw);
+  showHistory(o.history);
+}
+
+// Markers sit in one row above the bar, spread so they never overlap, with a curved
+// line down to each effort's true place. Initials stand in for avatars: the launcher
+// loads nothing from other sites.
+function drawMarkers(top, leaderId) {
+  const box = $("#mega-markers");
+  const W = box.clientWidth;
+  const H = box.clientHeight;
+  if (!W) return;
+  const GAP = 42;
+  const items = top.map((m) => ({ m, x: (m.score / 100) * W })).sort((a, b) => a.x - b.x);
+  items.forEach((it, i) => { it.a = i ? Math.max(it.x, items[i - 1].a + GAP) : it.x; });
+  const shift = items.reduce((s, it) => s + (it.x - it.a), 0) / Math.max(1, items.length);
+  items.forEach((it, i) => {
+    it.a += shift;
+    it.a = Math.max(18, i ? Math.max(it.a, items[i - 1].a + GAP) : it.a);
+  });
+  const overflow = items.length ? items[items.length - 1].a - (W - 18) : 0;
+  if (overflow > 0) items.forEach((it) => { it.a -= overflow; });
+
+  box.replaceChildren();
+  const svg = svgEl("svg", { width: W, height: H, class: "mk-lines", "aria-hidden": "true" });
+  const y0 = H - 34;
+  for (const it of items) {
+    const lead = it.m.id === leaderId;
+    const kind = lead ? "lead" : it.m.private ? "priv" : "pub";
+    const path = svgEl("path", { d: `M${it.a} ${y0} C ${it.a} ${y0 + 16}, ${it.x} ${H - 16}, ${it.x} ${H}`, class: `mk-line ${kind}` });
+    svg.append(path, svgEl("circle", { cx: it.x, cy: H - 1, r: 3, class: `mk-dot ${kind}` }));
+  }
+  box.append(svg);
+  items.forEach((it, i) => {
+    const lead = it.m.id === leaderId;
+    const mk = el("span", `marker${lead ? " is-leader" : ""}${it.m.private ? " is-private" : ""}`);
+    mk.style.left = `${it.a}px`;
+    mk.style.setProperty("--i", i);
+    mk.title = `${it.m.name} · ${pct(it.m.score)}%`;
+    mk.append(el("span", "mk-name", `${it.m.name} · ${pct(it.m.score)}%`));
+    const face = el("span", "mk-face");
+    face.append(el("span", "mk-initials", it.m.name.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2).toUpperCase() || "?"));
+    if (it.m.private) {
+      const badge = el("span", "mk-lock");
+      badge.append(lockIcon());
+      face.append(badge);
+    }
+    mk.append(face);
+    box.append(mk);
+  });
+}
+
+// The step names sit under their ticks. When neighbours would touch, they are dealt into
+// the fewest rows that keep each row clear (1-2-1-2, then 1-2-3…), so each row reads left to right.
+function layoutLabels() {
+  const box = $("#mega-labels");
+  const labels = [...box.querySelectorAll(".mega-label")];
+  if (!labels.length || !box.clientWidth) return;
+  for (const l of labels) l.style.top = "0px";
+  const span = (e) => {
+    const r = e.getBoundingClientRect();
+    return [r.left, r.right];
+  };
+  const spans = labels.map(span);
+  const zone = box.querySelector(".mega-zone");
+  const zoneSpan = zone && zone.getClientRects().length ? span(zone) : null;
+  const last = labels.length - 1;
+  const clear = (a, b) => a[1] + 10 <= b[0] || b[1] + 10 <= a[0];
+  const fits = (rows) =>
+    spans.every((a, i) => (i % rows || i === last || !zoneSpan || clear(a, zoneSpan)) && spans.every((b, j) => j <= i || (j - i) % rows || clear(a, b)));
+  let rows = 1;
+  while (rows < labels.length && !fits(rows)) rows++;
+  const h = Math.max(...labels.map((l) => l.offsetHeight));
+  labels.forEach((l, i) => {
+    if (i !== last) l.style.top = `${(i % rows) * (h + 4)}px`;
+  });
+  box.style.height = `${rows * (h + 4)}px`;
+}
+
+function showHistory(history) {
+  const box = $("#ov-history");
+  box.hidden = history.length < 2;
+  if (box.hidden) return;
+  const W = 1000, H = 70;
+  const max = Math.max(30, ...history.map((p) => p.score)) * 1.1;
+  const x = (i) => (i / (history.length - 1)) * W;
+  const y = (v) => H - (v / max) * (H - 6) - 3;
+  const d = history.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(p.score).toFixed(1)}`).join(" ");
+  $("#ov-line").setAttribute("d", d);
+  $("#ov-area").setAttribute("d", `${d} L${W} ${H} L0 ${H} Z`);
+}
+
+window.addEventListener("resize", () => {
+  if (lastReport && !$("#tab-status").hidden) {
+    drawMarkers(lastReport.overall.top, lastReport.overall.leader);
+    layoutLabels();
+  }
+});
+
+let lastReport = null;
+
 function showEfforts(report) {
+  lastReport = report;
+  showOverall(report);
   const box = $("#efforts");
   box.replaceChildren();
   const when = report.updated ? new Date(report.updated).toLocaleString("pt-BR") : "?";
@@ -184,15 +367,22 @@ function showEfforts(report) {
     const body = el("div", "effort-body");
     const head = el("header");
     const title = el("div", "effort-title");
-    title.append(el("h3", null, e.name));
-    title.append(el("p", "repo", e.repo ? `github.com/${e.repo}` : "Código fechado: ninguém fora do projeto consegue rodar"));
-    head.append(title);
+    const h3 = el("h3", null, e.name);
+    if (e.private) h3.append(lockIcon());
+    title.append(h3);
+    title.append(el("p", "repo", e.repo ? `github.com/${e.repo}` : e.based_on.length ? `Versão privada baseada em ${e.based_on.join(", ")}` : "Código fechado: ninguém fora do projeto consegue rodar"));
     const chips = el("div", "chips");
     if (e.backend) chips.append(el("span", "pill violet", `backend ${BACKEND_NAME[e.backend]}`));
-    chips.append(el("span", `pill ${stageClass(e.gta)}`, e.partial ? `${e.stage} (em parte)` : e.stage));
+    if (e.partial) chips.append(el("span", "pill warn", `${e.stage} em parte`));
     if (e.gta.fps > 0) chips.append(el("span", "pill gold", `~${e.gta.fps} fps`));
-    head.append(chips);
-    body.append(head, milestoneBar(e.gta));
+    if (watch) chips.append(el("span", "pill", "Em observação"));
+    if (chips.childElementCount) title.append(chips);
+    const score = el("div", "e-score");
+    const big = el("b", null, pct(e.score));
+    big.append(el("small", null, "%"));
+    score.append(big, el("span", null, msLabel(e.reached)));
+    head.append(title, score);
+    body.append(head, effortBar(e));
     const lists = el("div", "lists");
     for (const [list, cls] of [[e.highlights, "good"], [e.blockers, "bad"]]) {
       if (!list.length) continue;
@@ -206,23 +396,24 @@ function showEfforts(report) {
   }
 }
 
-// The tracker's steps as one segmented bar: a full segment per step reached, half for "in part".
-const STEPS = [["loads", "Carrega"], ["boots", "Inicia"], ["menu", "Menus"], ["world", "No mundo"], ["playable", "Jogável"], ["story", "História"]];
-
-function milestoneBar(gta) {
-  const wrap = el("div", "milestones");
-  const bar = el("div", "bar");
-  const legend = el("div", "legend");
-  for (const [key, label] of STEPS) {
-    const v = Math.max(0, Math.min(1, gta[key] || 0));
-    const seg = el("span", "seg");
-    const fill = el("i");
-    fill.style.width = `${v * 100}%`;
-    seg.append(fill);
-    bar.append(seg);
-    legend.append(el("span", v > 0 ? "hit" : null, label));
+// Each effort on the same scale as the headline bar: one gradient revealed up to its
+// score, ticks at every step, and the steps it reached named below.
+function effortBar(e) {
+  const wrap = el("div", "e-bar");
+  const track = el("div", "bar-track");
+  const fill = el("div", "bar-fill");
+  fill.style.setProperty("--p", `${e.score}%`);
+  const ticks = el("div", "bar-ticks");
+  for (const m of milestones.slice(1, -1)) {
+    const i = el("i");
+    i.style.left = `${m[2]}%`;
+    ticks.append(i);
   }
-  wrap.append(bar, legend);
+  track.append(fill, ticks);
+  const reached = milestones.findIndex((m) => m[0] === e.reached);
+  const legend = el("div", "legend");
+  milestones.slice(0, Math.max(1, reached + 1)).forEach((m) => legend.append(el("span", "hit", m[1])));
+  wrap.append(track, legend);
   return wrap;
 }
 
