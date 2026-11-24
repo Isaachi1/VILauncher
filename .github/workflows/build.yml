@@ -1,17 +1,23 @@
 # Builds the three programs VILauncher puts together and packs them for Linux:
 #
 # * launcher: VILauncher itself on Linux (the `vilauncher` CLI, the Tauri window, .deb, AppImage)
-# * xcl:      LPortVI/xcl on Windows (xcl.exe), with DXC (dxcompiler.dll + dxil.dll) and
+# * select:   which repositories to build: from PortWatch VI's tracker, the most advanced
+#             effort with public code of each family VILauncher can build (a VIctory tree or
+#             an XCL tree), at its newest commit (scripts/select-runtimes.sh)
+# * xcl:      that XCL tree on Windows (xcl.exe), with DXC (dxcompiler.dll + dxil.dll) and
 #             libopus (opus.dll) next to it, where xcl.exe looks for them by itself
-# * victory:  LPortVI/VIctory on Windows (victory.exe), with the toolchain its repo pins
+# * victory:  that VIctory tree on Windows (victory.exe), with the toolchain its repo pins
 # * bundle:   one tarball with the launcher and both backends, laid out as described in README.md
-# * runtimes: on main, xcl and VIctory on the `runtimes` release, which the launcher updates from
+# * runtimes: on main, both builds are scanned on VirusTotal (scripts/virustotal-scan.py, with
+#             the VT_API_KEY secret) and published on the `runtimes` release with the result, the
+#             repository and the commit; a build VirusTotal flags is not published
 #
 # xcl and VIctory are Windows programs (MSVC target, windows / windows-sys crates); under Linux
 # they run through Proton or Wine, so they are built on Windows runners, not cross-compiled.
 #
-# Runs on pushes to main, on pull requests, every night (to pick up new xcl / VIctory commits)
-# and by hand (Actions > build > Run workflow, with any branch, tag or commit of xcl and VIctory).
+# Runs on pushes to main, on pull requests, every night (to pick up new commits and a new leader
+# on the tracker) and by hand (Actions > build > Run workflow; a branch, tag or commit given there
+# builds LPortVI/xcl or LPortVI/VIctory at that ref instead of the tracker's pick).
 # A `v*` tag also publishes the files as a GitHub release.
 name: build
 
@@ -25,11 +31,11 @@ on:
   workflow_dispatch:
     inputs:
       xcl_ref:
-        description: 'xcl: branch, tag or commit'
-        default: main
+        description: 'LPortVI/xcl branch, tag or commit (empty: the tracker''s pick)'
+        default: ''
       victory_ref:
-        description: 'VIctory: branch, tag or commit'
-        default: main
+        description: 'LPortVI/VIctory branch, tag or commit (empty: the tracker''s pick)'
+        default: ''
       dxc_tag:
         description: 'DXC release tag (empty: the latest release)'
         default: ''
@@ -44,10 +50,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
-  XCL_REPO: LPortVI/xcl
-  VICTORY_REPO: LPortVI/VIctory
-  XCL_REF: ${{ inputs.xcl_ref || 'main' }}
-  VICTORY_REF: ${{ inputs.victory_ref || 'main' }}
+  TRACKER_URL: https://raw.githubusercontent.com/4lwayz/portwatch-vi/main/data/tracker.json
 
 jobs:
   launcher:
@@ -94,8 +97,37 @@ jobs:
           path: out/
           if-no-files-found: error
 
+  select:
+    name: Pick the runtimes (PortWatch VI)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      victory_repo: ${{ inputs.victory_ref && 'LPortVI/VIctory' || steps.pick.outputs.victory_repo }}
+      victory_ref: ${{ inputs.victory_ref || steps.pick.outputs.victory_ref }}
+      victory_effort: ${{ !inputs.victory_ref && steps.pick.outputs.victory_effort || '' }}
+      xcl_repo: ${{ inputs.xcl_ref && 'LPortVI/xcl' || steps.pick.outputs.xcl_repo }}
+      xcl_ref: ${{ inputs.xcl_ref || steps.pick.outputs.xcl_ref }}
+      xcl_effort: ${{ !inputs.xcl_ref && steps.pick.outputs.xcl_effort || '' }}
+      recommended: ${{ steps.pick.outputs.recommended }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rank the tracker's efforts and pick one per family
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL --retry 3 "$TRACKER_URL" -o tracker.json
+          bash scripts/select-runtimes.sh tracker.json selection.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: selection
+          path: selection.json
+
   xcl:
     name: xcl (Windows)
+    needs: select
     runs-on: windows-2025
     timeout-minutes: 60
     defaults:
@@ -104,8 +136,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: ${{ env.XCL_REPO }}
-          ref: ${{ env.XCL_REF }}
+          repository: ${{ needs.select.outputs.xcl_repo }}
+          ref: ${{ needs.select.outputs.xcl_ref }}
           path: xcl
 
       - name: Rust (stable, MSVC)
@@ -166,6 +198,7 @@ jobs:
 
   victory:
     name: VIctory (Windows)
+    needs: select
     runs-on: windows-2025
     timeout-minutes: 60
     defaults:
@@ -174,8 +207,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          repository: ${{ env.VICTORY_REPO }}
-          ref: ${{ env.VICTORY_REF }}
+          repository: ${{ needs.select.outputs.victory_repo }}
+          ref: ${{ needs.select.outputs.victory_ref }}
           path: victory
 
       # The version and target pinned in VIctory's rust-toolchain.toml.
@@ -244,47 +277,75 @@ jobs:
           if-no-files-found: error
 
   # The launcher's "Atualizar runtime" reads this release: one .tar.gz per backend, named after
-  # the commit it was built from, and runtimes.json with each archive's commit, size and SHA-256.
-  # Only builds of main with the default refs are published here; the archives go up first and
-  # the manifest last, so the manifest never names an archive that is not there yet.
+  # the commit it was built from, and runtimes.json with each archive's repository, commit, size,
+  # SHA-256 and VirusTotal result, plus the tracker's ranking. Only scheduled, main and default
+  # manual builds publish. A build VirusTotal flags is not published: the previous one of that
+  # backend stays. Archives go up before the manifest, so it never names a missing archive.
+  # Third-party code only runs in the Windows build jobs, which have no write access; this job
+  # only packs, scans and uploads.
   runtimes:
-    name: Publish runtimes
+    name: Scan and publish runtimes
     if: >-
       github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
-      (inputs.xcl_ref || 'main') == 'main' && (inputs.victory_ref || 'main') == 'main'
-    needs: [xcl, victory]
+      !inputs.xcl_ref && !inputs.victory_ref
+    needs: [select, xcl, victory]
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 60
     permissions:
       contents: write
     concurrency:
       group: runtimes-release
       cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
-          pattern: '*-windows-x64'
           path: dl
 
+      - name: VirusTotal
+        env:
+          VT_API_KEY: ${{ secrets.VT_API_KEY }}
+        run: |
+          set -euo pipefail
+          python3 -I scripts/virustotal-scan.py dl/xcl-windows-x64 vt-xcl.json \
+            --repo "${{ needs.select.outputs.xcl_repo }}" --commit "$(head -n1 dl/xcl-windows-x64/XCL_COMMIT.txt | awk '{print $2}')"
+          python3 -I scripts/virustotal-scan.py dl/victory-windows-x64 vt-victory.json \
+            --repo "${{ needs.select.outputs.victory_repo }}" --commit "$(head -n1 dl/victory-windows-x64/VICTORY_COMMIT.txt | awk '{print $2}')"
+
       - name: Pack and write runtimes.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           mkdir out
-          entry() {  # backend, artifact folder, commit file
-            local kind=$1 dir=$2 commit
+          # The manifest now on the release, to keep the previous build of a backend whose new one is flagged.
+          gh release download runtimes --pattern runtimes.json --output previous.json 2>/dev/null || echo '{}' > previous.json
+          entry() {  # backend, artifact folder, commit file, repo, effort
+            local kind=$1 dir=$2 commit file
+            if [ "$(jq -r .verdict "vt-$kind.json")" = flagged ]; then
+              echo "::warning::VirusTotal flags the new $kind build ($4); keeping the published one" >&2
+              jq -c --arg k "$kind" '.[$k] // null' previous.json
+              return
+            fi
             commit=$(head -n1 "$dir/$3" | awk '{print $2}')
-            local file="$kind-${commit:0:12}.tar.gz"
+            file="$kind-${commit:0:12}.tar.gz"
+            cp "vt-$kind.json" "out/$kind-${commit:0:12}.virustotal.json"
             tar -C "$dir" --owner=0 --group=0 --numeric-owner -czf "out/$file" .
             jq -n --arg file "$file" --arg sha "$(sha256sum "out/$file" | cut -d' ' -f1)" \
-              --argjson size "$(stat -c %s "out/$file")" --arg commit "$commit" --arg repo "$4" \
-              '{file: $file, sha256: $sha, size: $size, commit: $commit, repo: $repo}'
+              --argjson size "$(stat -c %s "out/$file")" --arg commit "$commit" --arg repo "$4" --arg effort "$5" \
+              --slurpfile vt "vt-$kind.json" \
+              '{file: $file, sha256: $sha, size: $size, commit: $commit, repo: $repo,
+                effort: (if $effort == "" then null else $effort end), virustotal: $vt[0]}'
           }
-          xcl=$(entry xcl dl/xcl-windows-x64 XCL_COMMIT.txt "$XCL_REPO")
-          victory=$(entry victory dl/victory-windows-x64 VICTORY_COMMIT.txt "$VICTORY_REPO")
-          jq -n --argjson xcl "$xcl" --argjson victory "$victory" \
+          xcl=$(entry xcl dl/xcl-windows-x64 XCL_COMMIT.txt "${{ needs.select.outputs.xcl_repo }}" "${{ needs.select.outputs.xcl_effort }}")
+          victory=$(entry victory dl/victory-windows-x64 VICTORY_COMMIT.txt "${{ needs.select.outputs.victory_repo }}" "${{ needs.select.outputs.victory_effort }}")
+          jq -n --argjson xcl "$xcl" --argjson victory "$victory" --slurpfile sel dl/selection/selection.json \
             --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            '{schema: 1, published_at: $at, run_url: $run, xcl: $xcl, victory: $victory}' > out/runtimes.json
+            '{schema: 1, published_at: $at, run_url: $run, xcl: $xcl, victory: $victory,
+              recommended: $sel[0].recommended, candidates: $sel[0].candidates}' > out/runtimes.json
           cat out/runtimes.json
           ls -l out
 
@@ -296,17 +357,18 @@ jobs:
           set -euo pipefail
           if ! gh release view runtimes >/dev/null 2>&1; then
             gh release create runtimes --prerelease --target "$GITHUB_SHA" --title "Runtimes (nightly)" \
-              --notes "victory.exe and xcl.exe built every night from the newest commits of LPortVI/VIctory and LPortVI/xcl. VILauncher installs them from Compatibilidade > Atualizar runtime."
+              --notes "victory.exe and xcl.exe built every night from the most advanced public VIctory and XCL trees on PortWatch VI, with their VirusTotal results. VILauncher installs them from Compatibilidade > Atualizar runtime."
           fi
-          gh release upload runtimes out/*.tar.gz --clobber
+          shopt -s nullglob
+          files=(out/*.tar.gz out/*.virustotal.json)
+          if [ ${#files[@]} -gt 0 ]; then gh release upload runtimes "${files[@]}" --clobber; fi
           gh release upload runtimes out/runtimes.json --clobber
-          # Drop archives the new manifest no longer names.
-          keep=$(jq -r '.xcl.file, .victory.file' out/runtimes.json)
+          # Drop files the new manifest no longer names.
+          keep=$(jq -r '.xcl.file // empty, .victory.file // empty' out/runtimes.json | sed 's/\.tar\.gz$//')
           for a in $(gh release view runtimes --json assets -q '.assets[].name'); do
-            case "$a" in
-              runtimes.json) ;;
-              *) grep -qxF "$a" <<<"$keep" || gh release delete-asset runtimes "$a" --yes ;;
-            esac
+            [ "$a" = runtimes.json ] && continue
+            base=${a%.tar.gz}; base=${base%.virustotal.json}
+            grep -qxF "$base" <<<"$keep" || gh release delete-asset runtimes "$a" --yes
           done
 
   release:

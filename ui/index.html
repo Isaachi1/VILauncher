@@ -98,8 +98,16 @@
       <div class="runtimes">
         <div class="actions">
           <button id="runtimes-check">Procurar builds novas</button>
-          <span class="status" id="runtimes-info">Builds do VIctory e do XCL compiladas toda noite pelo CI deste projeto.</span>
+          <span class="status" id="runtimes-info">Toda noite o CI deste projeto compila o port mais avançado com código público de cada família (VIctory e XCL), segundo o PortWatch VI, e o verifica no VirusTotal.</span>
         </div>
+        <div class="actions" id="runtimes-best" hidden>
+          <span id="runtimes-best-text"></span>
+          <button id="runtimes-best-go" class="primary">Instalar e usar</button>
+        </div>
+        <details id="runtimes-why" hidden>
+          <summary>Como o CI escolheu</summary>
+          <ul id="runtimes-candidates"></ul>
+        </details>
         <table id="runtimes"><tbody></tbody></table>
         <div class="actions vt">
           <input id="vt-key" type="password" autocomplete="off" placeholder="Chave da API do VirusTotal">

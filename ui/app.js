@@ -197,15 +197,47 @@ function showEfforts(report) {
 
 const short = (c) => (c ? c.slice(0, 10) : "—");
 
-function showRuntimes(list) {
+const SCAN_TEXT = { clean: "VirusTotal: limpo", flagged: "VirusTotal: ALERTA", pending: "VirusTotal: em análise", skipped: "VirusTotal: não verificado", error: "VirusTotal: falhou" };
+const SCAN_PILL = { clean: "ok", flagged: "fail" };
+
+function sourceLine(a) {
+  if (!a) return "";
+  return [a.effort, a.repo ? `github.com/${a.repo}` : null, short(a.commit)].filter(Boolean).join(" · ");
+}
+
+function showRuntimes(rt) {
   const body = $("#runtimes tbody");
   body.replaceChildren();
   const current = $('[data-path="backend.exe"]').value.trim();
-  for (const r of list) {
+  const best = rt.backends.find((r) => r.backend === rt.recommended);
+  const pick = $("#runtimes-best");
+  pick.hidden = !best || !best.latest;
+  if (best && best.latest) {
+    $("#runtimes-best-text").textContent = `Mais avançado com código público no PortWatch VI: ${sourceLine(best.latest)} (${BACKEND_NAME[best.backend]})`;
+    const b = $("#runtimes-best-go");
+    b.onclick = () => guarded(b, () => (best.update ? installRuntime(best.backend, b) : useRuntime(best.backend, best.exe)));
+    b.textContent = best.update ? "Instalar e usar" : "Usar";
+  }
+  const cands = $("#runtimes-candidates");
+  cands.replaceChildren();
+  for (const c of rt.candidates) cands.append(el("li", null, `${c.name} (${c.repo}): ${c.result}`));
+  $("#runtimes-why").hidden = rt.candidates.length === 0;
+  for (const r of rt.backends) {
     const tr = el("tr");
     tr.append(el("td", "name", BACKEND_NAME[r.backend]));
-    const latest = r.latest ? `${short(r.latest.commit)} (${(r.latest.size / 1048576).toFixed(1)} MB)` : "nenhuma publicada";
-    tr.append(el("td", null, `Instalada: ${short(r.installed)} · Mais nova: ${latest}`));
+    const info = el("td");
+    const latest = r.latest ? `${sourceLine(r.latest)} (${(r.latest.size / 1048576).toFixed(1)} MB)` : "nenhuma publicada";
+    info.append(el("div", null, `Mais nova: ${latest}`));
+    info.append(el("div", "status", `Instalada: ${r.installed ? sourceLine(r.source) || short(r.installed) : "nenhuma"}`));
+    const scan = r.latest && r.latest.virustotal;
+    if (scan) {
+      const pill = el("span", `pill ${SCAN_PILL[scan.verdict] || "warn"}`, SCAN_TEXT[scan.verdict] || scan.verdict);
+      const flagged = scan.files.filter((f) => f.malicious > 0).map((f) => `${f.name}: ${f.malicious}/${f.engines}`);
+      const line = el("div", null);
+      line.append(pill, " ", flagged.length ? flagged.join(", ") : scan.files.map((f) => `${f.name} ${f.malicious}/${f.engines}`).join(" · "));
+      info.append(line);
+    }
+    tr.append(info);
     const td = el("td");
     if (r.latest && r.update) {
       const b = el("button", "primary", r.installed ? "Atualizar" : "Instalar");
