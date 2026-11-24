@@ -1,0 +1,262 @@
+# Builds the three programs VILauncher puts together and packs them for Linux:
+#
+# * launcher: VILauncher itself on Linux (the `vilauncher` CLI, the Tauri window, .deb, AppImage)
+# * xcl:      LPortVI/xcl on Windows (xcl.exe), with DXC (dxcompiler.dll + dxil.dll) and
+#             libopus (opus.dll) next to it, where xcl.exe looks for them by itself
+# * victory:  LPortVI/VIctory on Windows (victory.exe), with the toolchain its repo pins
+# * bundle:   one tarball with the launcher and both backends, laid out as described in README.md
+#
+# xcl and VIctory are Windows programs (MSVC target, windows / windows-sys crates); under Linux
+# they run through Proton or Wine, so they are built on Windows runners, not cross-compiled.
+#
+# Runs on pushes to main, on pull requests, every night (to pick up new xcl / VIctory commits)
+# and by hand (Actions > build > Run workflow, with any branch, tag or commit of xcl and VIctory).
+# A `v*` tag also publishes the files as a GitHub release.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      xcl_ref:
+        description: 'xcl: branch, tag or commit'
+        default: main
+      victory_ref:
+        description: 'VIctory: branch, tag or commit'
+        default: main
+      dxc_tag:
+        description: 'DXC release tag (empty: the latest release)'
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  XCL_REPO: LPortVI/xcl
+  VICTORY_REPO: LPortVI/VIctory
+  XCL_REF: ${{ inputs.xcl_ref || 'main' }}
+  VICTORY_REF: ${{ inputs.victory_ref || 'main' }}
+
+jobs:
+  launcher:
+    name: VILauncher (Linux)
+    # The oldest supported runner, so the AppImage and the binaries run on older glibc too.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tauri system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev librsvg2-dev \
+            build-essential pkg-config patchelf file
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Tauri CLI
+        run: cargo tauri --version || cargo install tauri-cli --version '^2' --locked
+
+      - name: Build the CLI
+        run: cargo build --release --locked -p vilauncher-cli
+
+      - name: Build the window, .deb and AppImage
+        working-directory: app
+        env:
+          # linuxdeploy is an AppImage itself; the runner has no FUSE.
+          APPIMAGE_EXTRACT_AND_RUN: 1
+        run: cargo tauri build
+
+      - name: Collect
+        run: |
+          mkdir -p out
+          cp target/release/vilauncher target/release/vilauncher-app out/
+          cp target/release/bundle/deb/*.deb target/release/bundle/appimage/*.AppImage out/
+          echo "VILauncher $(git rev-parse HEAD)" > out/VILAUNCHER_COMMIT.txt
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vilauncher-linux-x64
+          path: out/
+          if-no-files-found: error
+
+  xcl:
+    name: xcl (Windows)
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.XCL_REPO }}
+          ref: ${{ env.XCL_REF }}
+          path: xcl
+
+      - name: Rust (stable, MSVC)
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustc --version
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: xcl
+
+      - name: Build xcl.exe
+        working-directory: xcl
+        run: cargo build --release -p xcl
+
+      - name: DXC (dxcompiler.dll, dxil.dll)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DXC_TAG: ${{ inputs.dxc_tag }}
+        run: |
+          $repo = 'microsoft/DirectXShaderCompiler'
+          $tag = if ($env:DXC_TAG) { $env:DXC_TAG } else { gh release view -R $repo --json tagName -q .tagName }
+          if (-not $tag) { throw 'no DXC release found' }
+          gh release download $tag -R $repo --pattern 'dxc_*.zip' --dir dxc-dl
+          if ($LASTEXITCODE -ne 0) { throw "could not download DXC $tag" }
+          $zip = Get-ChildItem dxc-dl -Filter 'dxc_*.zip' | Select-Object -First 1
+          Expand-Archive $zip.FullName -DestinationPath dxc
+          "DXC $tag ($($zip.Name))" | Set-Content dxc-version.txt
+          Get-Content dxc-version.txt
+
+      - name: libopus (opus.dll)
+        run: |
+          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install opus:x64-windows
+          if ($LASTEXITCODE -ne 0) { throw 'vcpkg install opus failed' }
+
+      - name: Collect
+        run: |
+          $out = New-Item -ItemType Directory -Force out
+          $lic = New-Item -ItemType Directory -Force out\licenses
+          Copy-Item xcl\target\release\xcl.exe $out
+          Copy-Item xcl\target\release\xcl.pdb $out -ErrorAction SilentlyContinue
+          Copy-Item dxc\bin\x64\dxcompiler.dll, dxc\bin\x64\dxil.dll $out
+          Get-ChildItem dxc -Filter 'LICENSE*' | ForEach-Object { Copy-Item $_.FullName "$lic\DXC-$($_.Name).txt" }
+          $vcpkg = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows"
+          Copy-Item "$vcpkg\bin\opus.dll" $out
+          Copy-Item "$vcpkg\share\opus\copyright" "$lic\opus-COPYING.txt"
+          Copy-Item xcl\LICENSE "$lic\xcl-LICENSE.txt"
+          $commit = git -C xcl rev-parse HEAD
+          @("xcl $commit", (Get-Content dxc-version.txt)) | Set-Content out\XCL_COMMIT.txt
+          Get-ChildItem -Recurse out | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xcl-windows-x64
+          path: out/
+          if-no-files-found: error
+
+  victory:
+    name: VIctory (Windows)
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.VICTORY_REPO }}
+          ref: ${{ env.VICTORY_REF }}
+          path: victory
+
+      # The version and target pinned in VIctory's rust-toolchain.toml.
+      - name: Rust (pinned)
+        working-directory: victory
+        run: |
+          rustup toolchain install
+          rustc --version
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: victory
+
+      - name: Build victory.exe
+        working-directory: victory
+        run: cargo build --release --locked -p victory
+
+      - name: Collect
+        run: |
+          $out = New-Item -ItemType Directory -Force out
+          $lic = New-Item -ItemType Directory -Force out\licenses
+          Copy-Item victory\target\release\victory.exe $out
+          Copy-Item victory\target\release\victory.pdb $out -ErrorAction SilentlyContinue
+          Copy-Item victory\LICENSE "$lic\VIctory-LICENSE.txt"
+          "VIctory $(git -C victory rev-parse HEAD)" | Set-Content out\VICTORY_COMMIT.txt
+          Get-ChildItem -Recurse out | Format-Table Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: victory-windows-x64
+          path: out/
+          if-no-files-found: error
+
+  bundle:
+    name: Bundle
+    needs: [launcher, xcl, victory]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dl
+
+      - name: Lay out the bundle
+        run: |
+          b=vilauncher-linux-x64
+          mkdir -p "$b/backends"
+          cp dl/vilauncher-linux-x64/vilauncher dl/vilauncher-linux-x64/vilauncher-app "$b/"
+          chmod +x "$b/vilauncher" "$b/vilauncher-app"
+          cp -r dl/xcl-windows-x64 "$b/backends/xcl"
+          cp -r dl/victory-windows-x64 "$b/backends/victory"
+          cat dl/vilauncher-linux-x64/VILAUNCHER_COMMIT.txt "$b/backends/xcl/XCL_COMMIT.txt" \
+            "$b/backends/victory/VICTORY_COMMIT.txt" > "$b/BUILD.txt"
+          echo "Built by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$b/BUILD.txt"
+          cat "$b/BUILD.txt"
+          tar -czf "$b.tar.gz" "$b"
+          mkdir release
+          mv "$b.tar.gz" release/
+          cp dl/vilauncher-linux-x64/*.deb dl/vilauncher-linux-x64/*.AppImage release/
+          ls -l release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vilauncher-bundle
+          path: release/
+          if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: bundle
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vilauncher-bundle
+          path: release
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" release/* --repo "${{ github.repository }}" --title "VILauncher $TAG" --generate-notes
