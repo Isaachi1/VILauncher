@@ -54,6 +54,7 @@
     <button role="tab" data-tab="compat">Compatibilidade</button>
     <button role="tab" data-tab="doctor">Verificação</button>
     <button role="tab" data-tab="log">Log</button>
+    <button role="tab" data-tab="status">Status</button>
   </nav>
 
   <main>
@@ -166,9 +167,22 @@
       </div>
       <pre id="log"></pre>
     </section>
+
+    <section id="tab-status" class="panel" hidden>
+      <div class="actions">
+        <button id="status-refresh">Atualizar</button>
+        <span class="status" id="status-info"></span>
+      </div>
+      <div id="efforts"></div>
+      <div class="note">
+        Dados do PortWatch VI (portwatch-vi.xyz), um site independente que acompanha os projetos. As etapas
+        são estimativas do site e muitas são relatadas pelos próprios projetos. O launcher só lê esses
+        dados: não baixa nem roda nada dos projetos listados.
+      </div>
+    </section>
   </main>
 
-  <footer><span id="config-path"></span><span class="prompts"><kbd>Ctrl</kbd><kbd>Enter</kbd> Jogar <kbd>Ctrl</kbd><kbd>D</kbd> Verificar <kbd>Ctrl</kbd><kbd>1-4</kbd> Abas</span></footer>
+  <footer><span id="config-path"></span><span class="prompts"><kbd>Ctrl</kbd><kbd>Enter</kbd> Jogar <kbd>Ctrl</kbd><kbd>D</kbd> Verificar <kbd>Ctrl</kbd><kbd>1-5</kbd> Abas</span></footer>
   <script src="app.js"></script>
 </body>
 </html>

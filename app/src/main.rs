@@ -19,6 +19,7 @@ use vilauncher_core::gamedir::{self, GameInfo};
 use vilauncher_core::launch;
 use vilauncher_core::paths;
 use vilauncher_core::runners::{self, ProtonInstall, Runner};
+use vilauncher_core::status::{self, Report};
 
 /// The game the window started, if it is still running.
 #[derive(Default)]
@@ -86,6 +87,12 @@ async fn setup_prefix(config: Config) -> Result<Vec<String>, String> {
     })
     .await
     .map_err(err)?
+}
+
+/// Where each effort stands, from PortWatch VI (read only; the cached copy when offline).
+#[tauri::command]
+async fn portwatch_status() -> Result<Report, String> {
+    tauri::async_runtime::spawn_blocking(status::report).await.map_err(err)?.map_err(err)
 }
 
 #[tauri::command]
@@ -191,6 +198,7 @@ fn main() {
             game_info,
             setup_prefix,
             dry_run,
+            portwatch_status,
             create_desktop_entry,
             launch_game,
             stop_game

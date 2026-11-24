@@ -51,14 +51,18 @@ Vice City (azul-cobalto, magenta, rosa e laranja) com palmeiras, abas no estilo 
 tipografia condensada em caixa alta. Tudo é desenho próprio, em CSS e SVG. O launcher não inclui
 logo, arte, fonte ou imagem da Rockstar.
 
-A janela tem quatro abas:
+A janela tem cinco abas:
 
 - **Jogo:** a pasta do jogo, o executável e os argumentos.
 - **Compatibilidade:** o backend, o Proton ou o Wine, o vkd3d-proton, o DXC e o Opus.
 - **Verificação:** as checagens da máquina e da configuração, e o comando exato que vai rodar.
 - **Log:** a saída do jogo ao vivo, gravada também em `~/.local/state/vilauncher/last-run.log`.
+- **Status:** onde cada projeto está (VIctory, XCL e os outros), segundo o
+  [PortWatch VI](https://portwatch-vi.xyz). O launcher só lê o `data/tracker.json` do site (a última
+  cópia fica em `~/.cache/vilauncher/portwatch-tracker.json` para quando estiver sem rede); não baixa
+  nem roda nada dos projetos listados. No terminal: `vilauncher status`.
 
-Atalhos: `Ctrl+Enter` joga, `Ctrl+D` verifica e `Ctrl+1` a `Ctrl+4` trocam de aba. O botão **Jogar** se recusa a rodar enquanto alguma checagem da configuração falha. Dá para forçar
+Atalhos: `Ctrl+Enter` joga, `Ctrl+D` verifica e `Ctrl+1` a `Ctrl+5` trocam de aba. O botão **Jogar** se recusa a rodar enquanto alguma checagem da configuração falha. Dá para forçar
 mesmo assim.
 
 ## Estado
@@ -151,6 +155,7 @@ vilauncher run --dry-run        # mostra o comando e o ambiente, sem rodar
 vilauncher run                  # roda
 vilauncher run -- -argumento    # argumentos para o jogo
 vilauncher desktop              # cria a entrada no menu de aplicativos
+vilauncher status               # onde cada projeto está, segundo o PortWatch VI
 ```
 
 ## Configuração

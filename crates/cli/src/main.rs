@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use vilauncher_core::config::{self, BackendKind, Config, Console, RunnerKind};
 use vilauncher_core::doctor::{self, Status};
 use vilauncher_core::runners::{self, Runner};
-use vilauncher_core::{gamedir, launch, paths};
+use vilauncher_core::{gamedir, launch, paths, status};
 
 const HELP: &str = "\
 vilauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
@@ -32,6 +32,7 @@ Usage:
   vilauncher protons              the Proton installs found
   vilauncher config               print the configuration
   vilauncher desktop              add a menu entry that runs the game
+  vilauncher status               where VIctory, XCL and the others stand (PortWatch VI)
 ";
 
 fn fail(msg: impl std::fmt::Display) -> ExitCode {
@@ -41,6 +42,19 @@ fn fail(msg: impl std::fmt::Display) -> ExitCode {
 
 fn abs(s: &str) -> PathBuf {
     paths::normalize(&paths::expand(PathBuf::from(s).as_path()))
+}
+
+fn print_status(r: &status::Report) {
+    println!("PortWatch VI ({}), updated {}", r.source, r.updated.as_deref().unwrap_or("?"));
+    if let Some(e) = &r.stale {
+        println!("offline, showing the cached copy: {e}");
+    }
+    for e in &r.efforts {
+        let ours = e.backend.map(|b| format!(" [backend {}]", b.name())).unwrap_or_default();
+        let stage = if e.partial { format!("{} (em parte)", e.stage) } else { e.stage.clone() };
+        let fps = if e.gta.fps > 0.0 { format!(", ~{} fps", e.gta.fps) } else { String::new() };
+        println!("{:<26} {:<34} {}{fps}{ours}", e.name, e.repo.as_deref().unwrap_or("(código fechado)"), stage);
+    }
 }
 
 fn setup(args: &[String]) -> ExitCode {
@@ -266,6 +280,13 @@ fn main() -> ExitCode {
                 Err(e) => fail(e),
             }
         }
+        Some("status") => match status::report() {
+            Ok(r) => {
+                print_status(&r);
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(e),
+        },
         Some("--version") => {
             println!("vilauncher {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS

@@ -10,6 +10,7 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 let config = null;
 let pendingForce = false;
+let statusLoaded = false;
 const MAX_LOG_LINES = 5000;
 
 // -- the form <-> the configuration --------------------------------------------------------
@@ -103,6 +104,10 @@ function hideBanner() {
 function selectTab(name) {
   for (const b of $$(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
   for (const p of $$(".panel")) p.hidden = p.id !== `tab-${name}`;
+  if (name === "status" && !statusLoaded) {
+    statusLoaded = true;
+    $("#status-refresh").click();
+  }
 }
 
 function appendLog(line, stream) {
@@ -144,6 +149,48 @@ function showChecks(checks) {
   const fails = checks.filter((c) => c.status === "fail").length;
   const warns = checks.filter((c) => c.status === "warn").length;
   $("#doctor-status").textContent = `${fails} falha(s), ${warns} aviso(s), ${checks.length - fails - warns} ok`;
+}
+
+// -- status (PortWatch VI) --------------------------------------------------------------------
+
+const BACKEND_NAME = { victory: "VIctory", xcl: "XCL" };
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function stageClass(gta) {
+  if (gta.playable > 0) return "ok";
+  return gta.world > 0 || gta.menu > 0 ? "warn" : "fail";
+}
+
+function showEfforts(report) {
+  const box = $("#efforts");
+  box.replaceChildren();
+  const when = report.updated ? new Date(report.updated).toLocaleString("pt-BR") : "?";
+  $("#status-info").textContent = report.stale
+    ? `Sem conexão; mostrando a cópia salva (atualizada em ${when}). ${report.stale}`
+    : `Atualizado pelo PortWatch VI em ${when}`;
+  for (const e of report.efforts) {
+    const card = el("article", `effort${e.backend ? " ours" : ""}${e.tier === "watchlist" ? " watch" : ""}`);
+    const head = el("header");
+    head.append(el("h3", null, e.name));
+    if (e.backend) head.append(el("span", "pill ok", `backend ${BACKEND_NAME[e.backend]}`));
+    head.append(el("span", `pill ${stageClass(e.gta)}`, e.partial ? `${e.stage} (em parte)` : e.stage));
+    if (e.gta.fps > 0) head.append(el("span", "fps", `~${e.gta.fps} fps`));
+    card.append(head);
+    card.append(el("p", "repo", e.repo ? `github.com/${e.repo}` : "Código fechado: ninguém fora do projeto consegue rodar"));
+    for (const [list, cls] of [[e.highlights, "good"], [e.blockers, "bad"]]) {
+      if (!list.length) continue;
+      const ul = el("ul", cls);
+      for (const item of list) ul.append(el("li", null, item));
+      card.append(ul);
+    }
+    box.append(card);
+  }
 }
 
 // -- actions -----------------------------------------------------------------------------
@@ -254,16 +301,22 @@ async function init() {
     }),
   );
   $("#log-clear").addEventListener("click", () => $("#log").replaceChildren());
+  $("#status-refresh").addEventListener("click", () =>
+    guarded($("#status-refresh"), async () => {
+      $("#status-info").textContent = "Buscando…";
+      showEfforts(await invoke("portwatch_status"));
+    }),
+  );
 
   // Console-style shortcuts, shown in the footer.
-  const tabs = ["game", "compat", "doctor", "log"];
+  const tabs = ["game", "compat", "doctor", "log", "status"];
   document.addEventListener("keydown", (ev) => {
     if (!ev.ctrlKey || ev.altKey || ev.metaKey) return;
     if (ev.key === "Enter" && !$("#play").hidden) $("#play").click();
     else if (ev.key.toLowerCase() === "d") {
       selectTab("doctor");
       $("#doctor").click();
-    } else if (ev.key >= "1" && ev.key <= "4") selectTab(tabs[Number(ev.key) - 1]);
+    } else if (ev.key >= "1" && ev.key <= "5") selectTab(tabs[Number(ev.key) - 1]);
     else return;
     ev.preventDefault();
   });
