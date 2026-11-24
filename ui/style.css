@@ -309,6 +309,29 @@ pre#log, pre#dry-out {
 }
 pre#log .stderr { color: #ff9fb0; }
 
+/* -- runtime updates ------------------------------------------------------------------------- */
+
+.runtimes { margin-bottom: 18px; padding: 4px 12px 8px; background: rgba(255, 255, 255, 0.04); border-left: 3px solid var(--teal); }
+#runtimes td:last-child { text-align: right; white-space: nowrap; }
+.actions.vt { margin-top: 14px; }
+.actions.vt input { flex: 1; min-width: 220px; }
+#vt td:last-child { word-break: break-all; }
+
+/* -- status (PortWatch VI) ----------------------------------------------------------------- */
+
+#efforts { display: grid; gap: 10px; max-height: 58vh; overflow: auto; }
+.effort { padding: 12px 14px; background: rgba(255, 255, 255, 0.04); border-left: 3px solid var(--panel-line); }
+.effort.ours { border-left-color: var(--pink); background: rgba(255, 62, 138, 0.07); }
+.effort.watch { opacity: 0.8; }
+.effort header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.effort h3 { margin: 0 6px 0 0; font-family: var(--display); font-weight: 400; font-size: 20px; letter-spacing: 0.04em; }
+.effort .pill { min-width: 0; }
+.effort .fps { color: var(--gold); font-weight: 500; }
+.effort .repo { margin: 6px 0 4px; color: var(--muted); font-size: 12px; }
+.effort ul { margin: 4px 0 0; padding-left: 18px; }
+.effort ul.good li::marker { color: var(--ok); }
+.effort ul.bad li::marker { color: var(--fail); }
+
 /* -- footer: console-style prompts ---------------------------------------------------------- */
 
 footer {

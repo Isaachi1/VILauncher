@@ -87,6 +87,7 @@ impl TempHome {
             std::env::set_var("XDG_STATE_HOME", home.join(".local/state"));
             std::env::remove_var("VILAUNCHER_CONFIG");
             std::env::remove_var("PROTON_USE_WINED3D");
+            std::env::remove_var("VILAUNCHER_VT_KEY");
         }
         TempHome { root, _guard: guard }
     }

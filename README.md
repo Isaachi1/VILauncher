@@ -51,14 +51,18 @@ Vice City (azul-cobalto, magenta, rosa e laranja) com palmeiras, abas no estilo 
 tipografia condensada em caixa alta. Tudo é desenho próprio, em CSS e SVG. O launcher não inclui
 logo, arte, fonte ou imagem da Rockstar.
 
-A janela tem quatro abas:
+A janela tem cinco abas:
 
 - **Jogo:** a pasta do jogo, o executável e os argumentos.
 - **Compatibilidade:** o backend, o Proton ou o Wine, o vkd3d-proton, o DXC e o Opus.
 - **Verificação:** as checagens da máquina e da configuração, e o comando exato que vai rodar.
 - **Log:** a saída do jogo ao vivo, gravada também em `~/.local/state/vilauncher/last-run.log`.
+- **Status:** onde cada projeto está (VIctory, XCL e os outros), segundo o
+  [PortWatch VI](https://portwatch-vi.xyz). O launcher só lê o `data/tracker.json` do site (a última
+  cópia fica em `~/.cache/vilauncher/portwatch-tracker.json` para quando estiver sem rede); não baixa
+  nem roda nada dos projetos listados. No terminal: `vilauncher status`.
 
-Atalhos: `Ctrl+Enter` joga, `Ctrl+D` verifica e `Ctrl+1` a `Ctrl+4` trocam de aba. O botão **Jogar** se recusa a rodar enquanto alguma checagem da configuração falha. Dá para forçar
+Atalhos: `Ctrl+Enter` joga, `Ctrl+D` verifica e `Ctrl+1` a `Ctrl+5` trocam de aba. O botão **Jogar** se recusa a rodar enquanto alguma checagem da configuração falha. Dá para forçar
 mesmo assim.
 
 ## Estado
@@ -136,6 +140,37 @@ vilauncher-linux-x64/
 O `xcl.exe` procura o DXC e o `opus.dll` na própria pasta, então para o XCL basta apontar o
 executável do backend para `backends/xcl/xcl.exe`; `dxc_dir` e `opus_dir` podem ficar vazios.
 
+### Atualizar o runtime
+
+Na `main` (push, a execução de toda noite e a manual com os refs padrão), o workflow também publica
+o `xcl.exe` e o `victory.exe` na release `runtimes` deste repositório: um `.tar.gz` por backend,
+com o nome do commit, e um `runtimes.json` com o commit, o tamanho e o SHA-256 de cada um.
+
+Em **Compatibilidade › Procurar builds novas** (ou `vilauncher update`), o launcher compara a build
+instalada com a mais nova; **Atualizar** (ou `vilauncher update xcl` / `victory`) baixa, confere o
+tamanho e o SHA-256, descompacta numa pasta à parte e só então troca a build em
+`~/.local/share/vilauncher/runtimes/<backend>`, e passa a usá-la como executável do backend. Se
+algo falhar, a build anterior fica como estava. O launcher só baixa dessa release: nada dos outros
+projetos (nem dos que o PortWatch VI lista) é baixado.
+
+### VirusTotal
+
+Com uma chave da API do [VirusTotal](https://www.virustotal.com) (uma conta gratuita tem uma),
+salva em **Compatibilidade** ou com `vilauncher virustotal --key CHAVE` (fica em
+`~/.config/vilauncher/virustotal.key`, só legível por você; ou use `VILAUNCHER_VT_KEY`):
+
+- antes de trocar a build, cada `.exe` e `.dll` da build nova é consultado pelo SHA-256; se algum
+  antivírus a acusa de maliciosa, ela **não** é instalada e a anterior fica, a não ser que você
+  escolha **Instalar mesmo assim** (`vilauncher update xcl --force`);
+- **Verificar build atual no VirusTotal** (`vilauncher virustotal`) consulta os `.exe` e `.dll` da
+  pasta do executável do backend em uso, mesmo que você tenha compilado ou baixado à mão.
+
+Só o hash sai da máquina. Um arquivo que o VirusTotal ainda não conhece pode ser enviado para
+análise em **Enviar para análise** (`vilauncher virustotal --upload xcl.exe`); aí o arquivo fica
+disponível para o VirusTotal e os parceiros dele. Só os binários da pasta do backend podem ser
+consultados ou enviados, e a pasta é recusada se tiver o jogo ou estiver dentro dele. A chave gratuita
+permite 4 consultas por minuto.
+
 ## Linha de comando
 
 ```sh
@@ -151,6 +186,9 @@ vilauncher run --dry-run        # mostra o comando e o ambiente, sem rodar
 vilauncher run                  # roda
 vilauncher run -- -argumento    # argumentos para o jogo
 vilauncher desktop              # cria a entrada no menu de aplicativos
+vilauncher status               # onde cada projeto está, segundo o PortWatch VI
+vilauncher update [xcl|victory] # mostra / instala a build mais nova do backend
+vilauncher virustotal           # consulta o backend em uso no VirusTotal
 ```
 
 ## Configuração
@@ -187,6 +225,7 @@ Onde ficam os arquivos:
 | saves, configurações e logs do jogo | `~/.local/share/vilauncher/<backend>/data` (`VICTORY_DATA_DIR`, `XCL_DATA_ROOT`) |
 | cache de shaders e dados convertidos | `~/.cache/vilauncher/<backend>` (`VICTORY_CACHE_DIR`) |
 | saída da última execução | `~/.local/state/vilauncher/last-run.log` |
+| builds instaladas pelo launcher | `~/.local/share/vilauncher/runtimes/<backend>` |
 
 Como o VIctory, o launcher recusa pastas de dados, de cache ou do jogo que fiquem dentro da árvore
 do VIctory (`.victory-root`), para que nada derivado do jogo vá parar num repositório.
