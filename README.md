@@ -100,6 +100,30 @@ sudo sysctl -w vm.max_map_count=1048576          # títulos grandes mapeiam muit
 sudo sysctl -w vm.unprivileged_userfaultfd=1     # o vkd3d-proton precisa ver as escritas na memória do jogo (XCL #175)
 ```
 
+## Instalar
+
+Os pacotes saem do CI (a release de uma tag `v*`, ou os artefatos de uma execução do workflow
+`build`). Escolha o da sua distribuição:
+
+| Distribuição | Pacote | Como instalar |
+|---|---|---|
+| Ubuntu, Debian, Mint, Pop!_OS, Zorin | `.deb` | `sudo apt install ./VILauncher_*_amd64.deb` |
+| Fedora, openSUSE, Nobara, RHEL | `.rpm` | `sudo dnf install ./VILauncher-*.x86_64.rpm` (openSUSE: `sudo zypper install ./…rpm`) |
+| Arch, Manjaro, EndeavourOS, CachyOS | `PKGBUILD` | `cd packaging/arch && makepkg -si` (compila a release do código-fonte) |
+| Steam Deck (SteamOS), Bazzite e qualquer distro com Flatpak | `.flatpak` | `flatpak install --user ./vilauncher.flatpak` |
+| Qualquer distro x86-64 | AppImage | `chmod +x VILauncher_*.AppImage && ./VILauncher_*.AppImage` |
+| Qualquer distro, com os backends juntos | `.tar.gz` | descompacte e rode `vilauncher-app` |
+
+O `.deb`, o `.rpm` e o AppImage são compilados no Ubuntu 22.04, então rodam em distros com glibc
+2.35 ou mais nova. O pacote do Arch usa a `webkit2gtk-4.1` do sistema, e o Flatpak usa a do runtime
+GNOME 47.
+
+**No Flatpak**, o launcher roda dentro do sandbox, mas o Proton e o Wine rodam no sistema: ele os
+inicia com `flatpak-spawn --host`. Por isso o Flatpak pede acesso à pasta pessoal (o jogo, o Proton
+do Steam e o prefixo Wine ficam nela) e a `org.freedesktop.Flatpak`. Use o Proton (do Steam ou o
+GE-Proton): um Wine instalado em `/usr` não aparece dentro do sandbox. Os atalhos de menu que o
+launcher cria chamam `flatpak run`.
+
 ## Compilar
 
 As dependências do Tauri no Debian/Ubuntu:
@@ -128,7 +152,8 @@ toda noite (para pegar commits novos e um novo líder no tracker) e à mão, em 
 workflow**, onde um branch, tag ou commit informado compila o LPortVI/xcl ou o LPortVI/VIctory
 naquele ponto em vez da escolha do tracker. Uma tag `v*` publica tudo como release.
 
-O artefato `vilauncher-bundle` traz o `.deb`, o AppImage e `vilauncher-linux-x64.tar.gz`:
+O artefato `vilauncher-bundle` traz o `.deb`, o `.rpm`, o AppImage e `vilauncher-linux-x64.tar.gz`;
+o `vilauncher-flatpak` traz o `vilauncher.flatpak`. Uma tag `v*` publica todos na release:
 
 ```
 vilauncher-linux-x64/

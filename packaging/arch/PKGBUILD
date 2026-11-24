@@ -1,0 +1,48 @@
+# VILauncher for Arch Linux and derivatives (Manjaro, EndeavourOS, CachyOS).
+# Builds a tagged release from source:  makepkg -si
+# For the newest main instead of a release, set _ref=branch=main and pkgver accordingly.
+pkgname=vilauncher
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Runs VIctory or XCL on Linux through Proton or Wine"
+arch=(x86_64)
+url="https://github.com/LPortVI/VILauncher"
+license=(GPL-3.0-or-later)
+depends=(webkit2gtk-4.1 gtk3 libsoup3 librsvg glib2 cairo pango gdk-pixbuf2 gcc-libs glibc)
+makedepends=(cargo git)
+optdepends=(
+  'steam: Proton (recommended)'
+  'wine: run with the system Wine and vkd3d-proton instead'
+  'vulkan-tools: the GPU check in Verificação'
+)
+_ref="tag=v${pkgver}"
+source=("${pkgname}::git+${url}.git#${_ref}")
+sha256sums=(SKIP)
+options=(!lto)
+
+prepare() {
+  cd "${pkgname}"
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "${pkgname}"
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release -p vilauncher-cli
+  cargo build --frozen --release -p vilauncher-app --features tauri/custom-protocol
+}
+
+check() {
+  cd "${pkgname}"
+  cargo test --frozen -p vilauncher-core
+}
+
+package() {
+  cd "${pkgname}"
+  install -Dm755 target/release/vilauncher-app "${pkgdir}/usr/bin/vilauncher-app"
+  install -Dm755 target/release/vilauncher "${pkgdir}/usr/bin/vilauncher"
+  install -Dm644 app/icons/128x128.png "${pkgdir}/usr/share/icons/hicolor/128x128/apps/io.github.lportvi.vilauncher.png"
+  install -Dm644 packaging/linux/io.github.lportvi.vilauncher.desktop "${pkgdir}/usr/share/applications/io.github.lportvi.vilauncher.desktop"
+  install -Dm644 packaging/linux/io.github.lportvi.vilauncher.metainfo.xml "${pkgdir}/usr/share/metainfo/io.github.lportvi.vilauncher.metainfo.xml"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}
