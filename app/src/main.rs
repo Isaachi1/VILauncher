@@ -1,4 +1,5 @@
-//! VILauncher's window (Tauri): configure, check, prepare the prefix, play, read the log.
+//! VILauncher's window (Tauri): configure, check, prepare the prefix, play, read the log,
+//! update the backends and see where each effort stands.
 //!
 //! Everything it does goes through `vilauncher-core`, the same code as the
 //! `vilauncher` command line.
@@ -20,6 +21,7 @@ use vilauncher_core::launch;
 use vilauncher_core::paths;
 use vilauncher_core::runners::{self, ProtonInstall, Runner};
 use vilauncher_core::status::{self, Report};
+use vilauncher_core::update::{self, RuntimeStatus};
 
 /// The game the window started, if it is still running.
 #[derive(Default)]
@@ -35,6 +37,13 @@ struct AppState {
     protons: Vec<ProtonInstall>,
     log_file: PathBuf,
     running: bool,
+}
+
+#[derive(Clone, Serialize)]
+struct Progress {
+    backend: config::BackendKind,
+    done: u64,
+    total: u64,
 }
 
 #[derive(Clone, Serialize)]
@@ -93,6 +102,35 @@ async fn setup_prefix(config: Config) -> Result<Vec<String>, String> {
 #[tauri::command]
 async fn portwatch_status() -> Result<Report, String> {
     tauri::async_runtime::spawn_blocking(status::report).await.map_err(err)?.map_err(err)
+}
+
+/// The installed and the newest builds of VIctory and XCL (the `runtimes` release).
+#[tauri::command]
+async fn runtime_status() -> Result<Vec<RuntimeStatus>, String> {
+    tauri::async_runtime::spawn_blocking(update::status).await.map_err(err)?.map_err(err)
+}
+
+/// Downloads, checks and installs the newest build of `backend`; returns its executable.
+/// Progress arrives as `runtime-progress` events.
+#[tauri::command]
+async fn install_runtime(app: AppHandle, running: State<'_, Running>, backend: config::BackendKind) -> Result<String, String> {
+    if running.child.lock().unwrap().is_some() {
+        return Err("stop the game before updating its runtime".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut last = 0u64;
+        let mut progress = |done: u64, total: u64| {
+            // About one event per percent.
+            if done == total || done - last >= total / 100 {
+                last = done;
+                let _ = app.emit("runtime-progress", Progress { backend, done, total });
+            }
+        };
+        update::install(backend, &mut progress, &mut |_| Ok(())).map(|p| p.display().to_string())
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)
 }
 
 #[tauri::command]
@@ -199,6 +237,8 @@ fn main() {
             setup_prefix,
             dry_run,
             portwatch_status,
+            runtime_status,
+            install_runtime,
             create_desktop_entry,
             launch_game,
             stop_game

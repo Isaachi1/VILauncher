@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use vilauncher_core::config::{self, BackendKind, Config, Console, RunnerKind};
 use vilauncher_core::doctor::{self, Status};
 use vilauncher_core::runners::{self, Runner};
-use vilauncher_core::{gamedir, launch, paths, status};
+use vilauncher_core::{gamedir, launch, paths, status, update};
 
 const HELP: &str = "\
 vilauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
@@ -33,6 +33,8 @@ Usage:
   vilauncher config               print the configuration
   vilauncher desktop              add a menu entry that runs the game
   vilauncher status               where VIctory, XCL and the others stand (PortWatch VI)
+  vilauncher update [victory|xcl] the installed and the newest builds; with a backend,
+                                  install its newest build and use it
 ";
 
 fn fail(msg: impl std::fmt::Display) -> ExitCode {
@@ -54,6 +56,55 @@ fn print_status(r: &status::Report) {
         let stage = if e.partial { format!("{} (em parte)", e.stage) } else { e.stage.clone() };
         let fps = if e.gta.fps > 0.0 { format!(", ~{} fps", e.gta.fps) } else { String::new() };
         println!("{:<26} {:<34} {}{fps}{ours}", e.name, e.repo.as_deref().unwrap_or("(código fechado)"), stage);
+    }
+}
+
+fn update_cmd(args: &[String]) -> ExitCode {
+    let kind = match args.first().map(String::as_str) {
+        None => None,
+        Some("victory") => Some(BackendKind::Victory),
+        Some("xcl") => Some(BackendKind::Xcl),
+        Some(other) => return fail(format!("unknown backend {other}; victory or xcl")),
+    };
+    let Some(kind) = kind else {
+        return match update::status() {
+            Ok(list) => {
+                for r in list {
+                    let latest = r.latest.as_ref().map_or("none published".to_string(), |a| format!("{} ({} bytes)", a.commit, a.size));
+                    let flag = if r.update { "  <- update available" } else { "" };
+                    println!("{:<8} installed {:<42} newest {latest}{flag}", r.backend.name(), r.installed.as_deref().unwrap_or("-"));
+                }
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(e),
+        };
+    };
+    let mut cfg = match load() {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+    let mut shown = 0u64;
+    let mut progress = |done: u64, total: u64| {
+        if done == total || done - shown >= total / 20 {
+            shown = done;
+            eprint!("\rdownloading {}: {}%", kind.name(), done * 100 / total.max(1));
+        }
+    };
+    match update::install(kind, &mut progress, &mut |_| Ok(())) {
+        Ok(exe) => {
+            eprintln!();
+            cfg.backend.kind = kind;
+            cfg.backend.exe = Some(exe.clone());
+            if let Err(e) = config::save(&cfg) {
+                return fail(e);
+            }
+            println!("installed {} and set it as the backend", exe.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!();
+            fail(e)
+        }
     }
 }
 
@@ -280,6 +331,7 @@ fn main() -> ExitCode {
                 Err(e) => fail(e),
             }
         }
+        Some("update") => update_cmd(rest),
         Some("status") => match status::report() {
             Ok(r) => {
                 print_status(&r);

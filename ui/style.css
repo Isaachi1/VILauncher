@@ -309,6 +309,11 @@ pre#log, pre#dry-out {
 }
 pre#log .stderr { color: #ff9fb0; }
 
+/* -- runtime updates ------------------------------------------------------------------------- */
+
+.runtimes { margin-bottom: 18px; padding: 4px 12px 8px; background: rgba(255, 255, 255, 0.04); border-left: 3px solid var(--teal); }
+#runtimes td:last-child { text-align: right; white-space: nowrap; }
+
 /* -- status (PortWatch VI) ----------------------------------------------------------------- */
 
 #efforts { display: grid; gap: 10px; max-height: 58vh; overflow: auto; }

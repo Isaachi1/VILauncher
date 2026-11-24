@@ -23,6 +23,7 @@ pub mod net;
 pub mod paths;
 pub mod runners;
 pub mod status;
+pub mod update;
 
 /// Everything that can stop a launch, as a message for the user.
 #[derive(Debug, thiserror::Error)]

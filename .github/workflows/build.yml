@@ -5,6 +5,7 @@
 #             libopus (opus.dll) next to it, where xcl.exe looks for them by itself
 # * victory:  LPortVI/VIctory on Windows (victory.exe), with the toolchain its repo pins
 # * bundle:   one tarball with the launcher and both backends, laid out as described in README.md
+# * runtimes: on main, xcl and VIctory on the `runtimes` release, which the launcher updates from
 #
 # xcl and VIctory are Windows programs (MSVC target, windows / windows-sys crates); under Linux
 # they run through Proton or Wine, so they are built on Windows runners, not cross-compiled.
@@ -241,6 +242,72 @@ jobs:
           name: vilauncher-bundle
           path: release/
           if-no-files-found: error
+
+  # The launcher's "Atualizar runtime" reads this release: one .tar.gz per backend, named after
+  # the commit it was built from, and runtimes.json with each archive's commit, size and SHA-256.
+  # Only builds of main with the default refs are published here; the archives go up first and
+  # the manifest last, so the manifest never names an archive that is not there yet.
+  runtimes:
+    name: Publish runtimes
+    if: >-
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
+      (inputs.xcl_ref || 'main') == 'main' && (inputs.victory_ref || 'main') == 'main'
+    needs: [xcl, victory]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    concurrency:
+      group: runtimes-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-windows-x64'
+          path: dl
+
+      - name: Pack and write runtimes.json
+        run: |
+          set -euo pipefail
+          mkdir out
+          entry() {  # backend, artifact folder, commit file
+            local kind=$1 dir=$2 commit
+            commit=$(head -n1 "$dir/$3" | awk '{print $2}')
+            local file="$kind-${commit:0:12}.tar.gz"
+            tar -C "$dir" --owner=0 --group=0 --numeric-owner -czf "out/$file" .
+            jq -n --arg file "$file" --arg sha "$(sha256sum "out/$file" | cut -d' ' -f1)" \
+              --argjson size "$(stat -c %s "out/$file")" --arg commit "$commit" --arg repo "$4" \
+              '{file: $file, sha256: $sha, size: $size, commit: $commit, repo: $repo}'
+          }
+          xcl=$(entry xcl dl/xcl-windows-x64 XCL_COMMIT.txt "$XCL_REPO")
+          victory=$(entry victory dl/victory-windows-x64 VICTORY_COMMIT.txt "$VICTORY_REPO")
+          jq -n --argjson xcl "$xcl" --argjson victory "$victory" \
+            --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{schema: 1, published_at: $at, run_url: $run, xcl: $xcl, victory: $victory}' > out/runtimes.json
+          cat out/runtimes.json
+          ls -l out
+
+      - name: Upload to the runtimes release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! gh release view runtimes >/dev/null 2>&1; then
+            gh release create runtimes --prerelease --target "$GITHUB_SHA" --title "Runtimes (nightly)" \
+              --notes "victory.exe and xcl.exe built every night from the newest commits of LPortVI/VIctory and LPortVI/xcl. VILauncher installs them from Compatibilidade > Atualizar runtime."
+          fi
+          gh release upload runtimes out/*.tar.gz --clobber
+          gh release upload runtimes out/runtimes.json --clobber
+          # Drop archives the new manifest no longer names.
+          keep=$(jq -r '.xcl.file, .victory.file' out/runtimes.json)
+          for a in $(gh release view runtimes --json assets -q '.assets[].name'); do
+            case "$a" in
+              runtimes.json) ;;
+              *) grep -qxF "$a" <<<"$keep" || gh release delete-asset runtimes "$a" --yes ;;
+            esac
+          done
 
   release:
     name: Release

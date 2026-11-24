@@ -140,6 +140,19 @@ vilauncher-linux-x64/
 O `xcl.exe` procura o DXC e o `opus.dll` na própria pasta, então para o XCL basta apontar o
 executável do backend para `backends/xcl/xcl.exe`; `dxc_dir` e `opus_dir` podem ficar vazios.
 
+### Atualizar o runtime
+
+Na `main` (push, a execução de toda noite e a manual com os refs padrão), o workflow também publica
+o `xcl.exe` e o `victory.exe` na release `runtimes` deste repositório: um `.tar.gz` por backend,
+com o nome do commit, e um `runtimes.json` com o commit, o tamanho e o SHA-256 de cada um.
+
+Em **Compatibilidade › Procurar builds novas** (ou `vilauncher update`), o launcher compara a build
+instalada com a mais nova; **Atualizar** (ou `vilauncher update xcl` / `victory`) baixa, confere o
+tamanho e o SHA-256, descompacta numa pasta à parte e só então troca a build em
+`~/.local/share/vilauncher/runtimes/<backend>`, e passa a usá-la como executável do backend. Se
+algo falhar, a build anterior fica como estava. O launcher só baixa dessa release: nada dos outros
+projetos (nem dos que o PortWatch VI lista) é baixado.
+
 ## Linha de comando
 
 ```sh
@@ -156,6 +169,7 @@ vilauncher run                  # roda
 vilauncher run -- -argumento    # argumentos para o jogo
 vilauncher desktop              # cria a entrada no menu de aplicativos
 vilauncher status               # onde cada projeto está, segundo o PortWatch VI
+vilauncher update [xcl|victory] # mostra / instala a build mais nova do backend
 ```
 
 ## Configuração
@@ -192,6 +206,7 @@ Onde ficam os arquivos:
 | saves, configurações e logs do jogo | `~/.local/share/vilauncher/<backend>/data` (`VICTORY_DATA_DIR`, `XCL_DATA_ROOT`) |
 | cache de shaders e dados convertidos | `~/.cache/vilauncher/<backend>` (`VICTORY_CACHE_DIR`) |
 | saída da última execução | `~/.local/state/vilauncher/last-run.log` |
+| builds instaladas pelo launcher | `~/.local/share/vilauncher/runtimes/<backend>` |
 
 Como o VIctory, o launcher recusa pastas de dados, de cache ou do jogo que fiquem dentro da árvore
 do VIctory (`.victory-root`), para que nada derivado do jogo vá parar num repositório.

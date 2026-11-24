@@ -18,6 +18,15 @@ pub fn error(url: &str, e: ureq::Error) -> Error {
     }
 }
 
+/// GET `url` as text, or None when the server says 404.
+pub fn get_text_opt(url: &str, timeout: Duration) -> Result<Option<String>> {
+    match agent(timeout).get(url).call() {
+        Ok(resp) => resp.into_string().map(Some).map_err(|e| Error::Config(format!("{url}: {e}"))),
+        Err(ureq::Error::Status(404, _)) => Ok(None),
+        Err(e) => Err(error(url, e)),
+    }
+}
+
 /// GET `url` as text (at most 10 MB).
 pub fn get_text(url: &str, timeout: Duration) -> Result<String> {
     let resp = agent(timeout).get(url).call().map_err(|e| error(url, e))?;

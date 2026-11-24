@@ -193,6 +193,51 @@ function showEfforts(report) {
   }
 }
 
+// -- runtime updates ---------------------------------------------------------------------------
+
+const short = (c) => (c ? c.slice(0, 10) : "—");
+
+function showRuntimes(list) {
+  const body = $("#runtimes tbody");
+  body.replaceChildren();
+  const current = $('[data-path="backend.exe"]').value.trim();
+  for (const r of list) {
+    const tr = el("tr");
+    tr.append(el("td", "name", BACKEND_NAME[r.backend]));
+    const latest = r.latest ? `${short(r.latest.commit)} (${(r.latest.size / 1048576).toFixed(1)} MB)` : "nenhuma publicada";
+    tr.append(el("td", null, `Instalada: ${short(r.installed)} · Mais nova: ${latest}`));
+    const td = el("td");
+    if (r.latest && r.update) {
+      const b = el("button", "primary", r.installed ? "Atualizar" : "Instalar");
+      b.addEventListener("click", () => guarded(b, () => installRuntime(r.backend, b)));
+      td.append(b);
+    } else if (r.exe && r.exe !== current) {
+      const b = el("button", null, "Usar esta build");
+      b.addEventListener("click", () => useRuntime(r.backend, r.exe));
+      td.append(b);
+    } else if (r.exe) {
+      td.append(el("span", "pill ok", "em uso"));
+    }
+    tr.append(td);
+    body.append(tr);
+  }
+}
+
+function useRuntime(backend, exe) {
+  $('[data-path="backend.kind"]').value = backend;
+  $('[data-path="backend.exe"]').value = exe;
+  refreshVisibility();
+  return save().then(() => $("#runtimes-check").click());
+}
+
+async function installRuntime(backend, button) {
+  $("#runtimes-info").textContent = `Baixando ${BACKEND_NAME[backend]}…`;
+  const exe = await invoke("install_runtime", { backend });
+  $("#runtimes-info").textContent = `${BACKEND_NAME[backend]} instalado em ${exe}`;
+  button.hidden = true;
+  await useRuntime(backend, exe);
+}
+
 // -- actions -----------------------------------------------------------------------------
 
 async function save() {
@@ -301,6 +346,9 @@ async function init() {
     }),
   );
   $("#log-clear").addEventListener("click", () => $("#log").replaceChildren());
+  $("#runtimes-check").addEventListener("click", () =>
+    guarded($("#runtimes-check"), async () => showRuntimes(await invoke("runtime_status"))),
+  );
   $("#status-refresh").addEventListener("click", () =>
     guarded($("#status-refresh"), async () => {
       $("#status-info").textContent = "Buscando…";
@@ -321,6 +369,11 @@ async function init() {
     ev.preventDefault();
   });
 
+  await listen("runtime-progress", (ev) => {
+    const { backend, done, total } = ev.payload;
+    const pct = total ? Math.floor((done * 100) / total) : 0;
+    $("#runtimes-info").textContent = `Baixando ${BACKEND_NAME[backend]}: ${pct}% de ${(total / 1048576).toFixed(1)} MB`;
+  });
   await listen("game-log", (ev) => appendLog(ev.payload.line, ev.payload.stream));
   await listen("game-exit", (ev) => {
     setRunning(false);
