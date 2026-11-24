@@ -114,6 +114,28 @@ cargo test --workspace
 Pacotes `.deb` / AppImage: `cargo install tauri-cli --version "^2"` e depois `cargo tauri build`
 dentro de `app/`.
 
+### Build pronto (CI)
+
+O workflow `build` (`.github/workflows/build.yml`) compila os três programas: o VILauncher no
+Linux e o `xcl.exe` e o `victory.exe` em runners Windows (os dois são programas Windows, que no
+Linux rodam pelo Proton/Wine). Ele roda a cada push na `main`, em cada PR, toda noite (para pegar
+os commits novos do xcl e do VIctory) e à mão, em **Actions › build › Run workflow**, onde dá para
+escolher o branch, a tag ou o commit do xcl e do VIctory. Uma tag `v*` publica tudo como release.
+
+O artefato `vilauncher-bundle` traz o `.deb`, o AppImage e `vilauncher-linux-x64.tar.gz`:
+
+```
+vilauncher-linux-x64/
+├── vilauncher, vilauncher-app        # CLI e janela
+├── BUILD.txt                         # os commits usados
+└── backends/
+    ├── xcl/      xcl.exe, dxcompiler.dll, dxil.dll, opus.dll, licenses/
+    └── victory/  victory.exe, licenses/
+```
+
+O `xcl.exe` procura o DXC e o `opus.dll` na própria pasta, então para o XCL basta apontar o
+executável do backend para `backends/xcl/xcl.exe`; `dxc_dir` e `opus_dir` podem ficar vazios.
+
 ## Linha de comando
 
 ```sh
