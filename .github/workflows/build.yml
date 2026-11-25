@@ -26,11 +26,13 @@
 #
 # Self-update: each release carries latest.json (Tauri updater format). The window reads it from
 # the latest release; an AppImage, .deb or .rpm installs the new version by itself when the
-# release is signed. Signing needs, in Settings > Secrets and variables > Actions:
-#   secret   TAURI_SIGNING_PRIVATE_KEY           the private key (`cargo tauri signer generate`)
-#   secret   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password (may be empty)
-#   variable TAURI_UPDATER_PUBKEY                the matching public key (the .pub file's text)
-# Without them the packages are built unsigned and the window only says a new version exists.
+# release is signed. The public key is in app/tauri.conf.json (plugins.updater.pubkey); signing
+# needs, in Settings > Secrets and variables > Actions:
+#   secret   TAURI_SIGNING_PRIVATE_KEY           the matching private key
+#   secret   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
+#   variable TAURI_UPDATER_PUBKEY                optional: replaces the public key in the build
+# Without the secrets the packages are built unsigned and the window only says a new version
+# exists. Losing the private key means installed copies refuse every later update.
 name: build
 
 on:
@@ -125,9 +127,7 @@ jobs:
           conf=app/tauri.conf.json
           if [ -n "$PUBKEY" ]; then
             jq --arg k "$PUBKEY" '.plugins.updater.pubkey = $k' "$conf" > conf.tmp && mv conf.tmp "$conf"
-            echo "updater public key set"
-          else
-            echo "::notice::no TAURI_UPDATER_PUBKEY variable: this build cannot install updates by itself"
+            echo "updater public key replaced by the TAURI_UPDATER_PUBKEY variable"
           fi
           if [ "$HAS_PRIVATE_KEY" = true ]; then
             jq '.bundle.createUpdaterArtifacts = true' "$conf" > conf.tmp && mv conf.tmp "$conf"
