@@ -3,7 +3,7 @@
 //! Every merge into main publishes a GitHub release (`v<major>.<minor>.<run>`) with a
 //! `latest.json` in the format of Tauri's updater: the version, the notes and, when the
 //! release was signed, one entry per package that can replace itself
-//! (`linux-x86_64-appimage`, `-deb`, `-rpm`). The release marked as latest serves it at
+//! (`linux-x86_64-appimage`, `-deb`, `-rpm`, `windows-x86_64-nsis`). The release marked as latest serves it at
 //! [`MANIFEST_URL`].
 //!
 //! The window installs an update through Tauri's updater, which checks the signature;
@@ -36,17 +36,20 @@ pub enum Install {
     Rpm,
     /// The Flatpak bundle: a new bundle is installed with `flatpak install`.
     Flatpak,
+    /// The Windows installer (NSIS): the updater runs the new installer, which replaces this copy.
+    Nsis,
     /// The tarball or a build from source: a new copy is downloaded by hand.
     Other,
 }
 
 impl Install {
-    /// The suffix of this package's entry in `latest.json` (`linux-x86_64-<suffix>`).
+    /// This package's entry in `latest.json`, as Tauri's updater looks it up.
     pub fn manifest_key(self) -> Option<&'static str> {
         match self {
-            Install::AppImage => Some("appimage"),
-            Install::Deb => Some("deb"),
-            Install::Rpm => Some("rpm"),
+            Install::AppImage => Some("linux-x86_64-appimage"),
+            Install::Deb => Some("linux-x86_64-deb"),
+            Install::Rpm => Some("linux-x86_64-rpm"),
+            Install::Nsis => Some("windows-x86_64-nsis"),
             Install::Flatpak | Install::Other => None,
         }
     }
@@ -55,13 +58,16 @@ impl Install {
 /// Where this process comes from. `packaged` is what Tauri's bundler stamped into the
 /// binary (`deb`, `rpm`, `appimage`), which the window passes; the stamp alone is not
 /// trusted, since the same binary also goes into the tarball: a .deb or .rpm must run
-/// from /usr, an AppImage must have `$APPIMAGE` set.
+/// from /usr, an AppImage must have `$APPIMAGE` set, and the Windows installer's copy has the
+/// installer's `uninstall.exe` beside it (the .zip carries the same binary without one).
 pub fn detect(packaged: Option<&str>, exe: &Path, appimage_env: Option<&str>, flatpak: bool) -> Install {
     if flatpak {
         return Install::Flatpak;
     }
     let from_usr = exe.starts_with("/usr/");
+    let installed = exe.parent().is_some_and(|d| d.join("uninstall.exe").is_file());
     match packaged {
+        Some("nsis") if installed => Install::Nsis,
         Some("appimage") if appimage_env.is_some_and(|p| !p.is_empty()) => Install::AppImage,
         Some("deb") if from_usr => Install::Deb,
         Some("rpm") if from_usr => Install::Rpm,
@@ -124,7 +130,7 @@ pub fn evaluate(manifest: &Manifest, current: &str, install: Install, can_verify
     let newer = compare(&manifest.version, current) == Some(Ordering::Greater);
     let has_entry = install
         .manifest_key()
-        .is_some_and(|k| manifest.platforms.contains_key(&format!("linux-x86_64-{k}")));
+        .is_some_and(|k| manifest.platforms.contains_key(k));
     let version = manifest.version.trim_start_matches('v');
     Check {
         current: current.to_string(),
@@ -180,6 +186,11 @@ mod tests {
         assert_eq!(detect(Some("appimage"), home, None, false), Install::Other);
         assert_eq!(detect(None, usr, None, false), Install::Other);
         assert_eq!(detect(Some("deb"), usr, None, true), Install::Flatpak);
+        let t = tempfile::tempdir().unwrap();
+        let app = t.path().join("sixlauncher-app.exe");
+        assert_eq!(detect(Some("nsis"), &app, None, false), Install::Other, "the .zip's copy");
+        std::fs::write(t.path().join("uninstall.exe"), "").unwrap();
+        assert_eq!(detect(Some("nsis"), &app, None, false), Install::Nsis);
     }
 
     #[test]
@@ -194,6 +205,9 @@ mod tests {
         assert!(!evaluate(&m, "0.1.57", Install::Deb, false).automatic);
         let same = evaluate(&m, "0.1.60", Install::Deb, true);
         assert!(!same.newer && !same.automatic);
+        let win = manifest("0.1.60", &["windows-x86_64-nsis"]);
+        assert!(evaluate(&win, "0.1.57", Install::Nsis, true).automatic);
+        assert!(!evaluate(&win, "0.1.57", Install::AppImage, true).automatic);
         let unsigned = evaluate(&manifest("0.1.60", &[]), "0.1.57", Install::AppImage, true);
         assert!(unsigned.newer && !unsigned.automatic);
     }

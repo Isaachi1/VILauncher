@@ -55,10 +55,12 @@ pub fn check_platform() -> Check {
 }
 
 /// Linux x86-64 runs the title's code directly; macOS on Apple Silicon runs it through Rosetta 2
-/// under a Wine with D3DMetal (VIctory for macOS).
+/// under a Wine with D3DMetal (VIctory for macOS); Windows x86-64 runs the backend natively.
 pub fn platform_check(os: &str, arch: &str) -> Check {
     if os == "linux" && arch == "x86_64" {
         check(Status::Ok, "platform", "Linux x86_64")
+    } else if os == "windows" && arch == "x86_64" {
+        check(Status::Ok, "platform", "Windows x86_64: VIctory and XCL run natively, with the system's D3D12")
     } else if os == "macos" && arch == "aarch64" {
         check(Status::Ok, "platform", "macOS on Apple Silicon: Rosetta 2 runs the title's x86-64 code under Wine with D3DMetal")
     } else if os == "macos" {
@@ -68,7 +70,7 @@ pub fn platform_check(os: &str, arch: &str) -> Check {
             Status::Fail,
             "platform",
             format!(
-                "{os} {arch}: the title's x86-64 code runs directly on the CPU, so an x86-64 Linux (or an Apple Silicon Mac) is required"
+                "{os} {arch}: the title's x86-64 code runs directly on the CPU, so an x86-64 Linux or Windows (or an Apple Silicon Mac) is required"
             ),
         )
     }
@@ -82,6 +84,15 @@ pub fn check_avx2(cpuinfo: Option<&str>) -> Check {
     } else {
         check(Status::Fail, "CPU", "no AVX2: the console's code uses it, and VIctory requires it")
     }
+}
+
+/// [`check_avx2`] asked of the CPU itself, where there is no /proc/cpuinfo (Windows).
+pub fn check_avx2_cpu() -> Check {
+    #[cfg(target_arch = "x86_64")]
+    let avx2 = std::arch::is_x86_feature_detected!("avx2");
+    #[cfg(not(target_arch = "x86_64"))]
+    let avx2 = false;
+    check_avx2(Some(if avx2 { "flags\t: avx2" } else { "flags\t:" }))
 }
 
 pub fn check_memory(meminfo: Option<&str>) -> Check {
@@ -180,7 +191,11 @@ fn vulkaninfo() -> Option<String> {
 }
 
 pub fn machine_checks() -> Vec<Check> {
-    // The other checks read Linux's /proc and Vulkan; on a Mac D3DMetal stands in for them.
+    // The other checks read Linux's /proc and Vulkan; on a Mac D3DMetal stands in for them, and
+    // on Windows the system's D3D12 driver.
+    if runners::WINDOWS {
+        return vec![check_platform(), check_avx2_cpu()];
+    }
     if runners::MACOS {
         return vec![check_platform()];
     }
@@ -203,6 +218,10 @@ pub fn check_runner(cfg: &Config) -> Vec<Check> {
         Err(e) => return vec![check(Status::Fail, "runner", e.to_string())],
     };
     let mut checks = vec![check(Status::Ok, "runner", format!("{} {}", runner.name(), runner.version()))];
+    if matches!(runner, Runner::Native) {
+        checks.push(check(Status::Ok, "d3d12", "the system's own D3D12 (the GPU driver's); no prefix needed"));
+        return checks;
+    }
     let is_wine = matches!(runner, Runner::Wine(_));
     if !is_wine && std::env::var_os("PROTON_USE_WINED3D").is_some_and(|v| !v.is_empty() && v != "0") {
         checks.push(check(Status::Fail, "vkd3d-proton", "PROTON_USE_WINED3D is set: unset it, D3D12 must go through vkd3d-proton"));
@@ -219,7 +238,7 @@ pub fn check_runner(cfg: &Config) -> Vec<Check> {
     } else {
         checks.push(check(Status::Warn, "vkd3d-proton", "not found in this Proton; it may not support D3D12"));
     }
-    let pfx = runner.wineprefix();
+    let pfx = runner.wineprefix().unwrap_or_default();
     let z = pfx.join("dosdevices/z:");
     let prefix_check = if !pfx.join("system.reg").is_file() {
         if is_wine {
@@ -276,7 +295,15 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
         checks.push(if ["opus.dll", "libopus.dll", "libopus-0.dll"].iter().any(|n| opus.join(n).is_file()) {
             check(Status::Ok, "Opus", opus.display().to_string())
         } else {
-            check(Status::Warn, "Opus", "no opus.dll: Wine has no Opus decoder of its own, so Opus audio stays silent")
+            check(
+                Status::Warn,
+                "Opus",
+                if runners::WINDOWS {
+                    "no opus.dll: without it XCL falls back to Windows' Opus decoder, when one is installed"
+                } else {
+                    "no opus.dll: Wine has no Opus decoder of its own, so Opus audio stays silent"
+                },
+            )
         });
     }
     for (name, dir) in [("data folder", cfg.data_dir()), ("cache folder", cfg.cache_dir())] {
@@ -403,7 +430,7 @@ pub fn config_checks(cfg: &Config) -> Vec<Check> {
     checks.extend(check_backend(cfg));
     checks.extend(check_game(cfg));
     // GPU choice, MangoHud and GameMode are Linux's (DRM, Vulkan layers, Feral's daemon).
-    if runners::MACOS {
+    if runners::MACOS || runners::WINDOWS {
         return checks;
     }
     checks.push(check_gpu(cfg, &gpu::list()));
@@ -434,7 +461,9 @@ mod tests {
         assert_eq!(platform_check("linux", "x86_64").status, Status::Ok);
         assert_eq!(platform_check("macos", "aarch64").status, Status::Ok);
         assert_eq!(platform_check("macos", "x86_64").status, Status::Fail);
-        assert_eq!(platform_check("windows", "x86_64").status, Status::Fail);
+        assert_eq!(platform_check("windows", "x86_64").status, Status::Ok);
+        assert_eq!(platform_check("windows", "aarch64").status, Status::Fail);
+        assert_eq!(platform_check("freebsd", "x86_64").status, Status::Fail);
         assert_eq!(check_avx2(Some("flags\t: fpu sse avx avx2 bmi2\n")).status, Status::Ok);
         assert_eq!(check_avx2(Some("flags\t: fpu sse avx\n")).status, Status::Fail);
         assert_eq!(check_memory(Some("MemTotal:       16000000 kB\nSwapTotal:       2000000 kB\n")).status, Status::Warn);

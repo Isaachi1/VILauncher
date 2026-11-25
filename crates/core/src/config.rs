@@ -39,12 +39,21 @@ pub enum RunnerKind {
     /// A wine binary: with vkd3d-proton copied into the prefix on Linux, or a Wine with
     /// D3DMetal (CrossOver, the Game Porting Toolkit) on macOS.
     Wine,
+    /// No compatibility layer: on Windows the backend's Windows build runs directly, with the
+    /// system's own D3D12. Windows only.
+    Native,
 }
 
-/// Proton on Linux; Wine on macOS, where Proton does not exist.
+/// Proton on Linux; Wine on macOS, where Proton does not exist; native on Windows.
 impl Default for RunnerKind {
     fn default() -> Self {
-        if cfg!(target_os = "macos") { RunnerKind::Wine } else { RunnerKind::Proton }
+        if cfg!(windows) {
+            RunnerKind::Native
+        } else if cfg!(target_os = "macos") {
+            RunnerKind::Wine
+        } else {
+            RunnerKind::Proton
+        }
     }
 }
 
@@ -269,7 +278,7 @@ impl Config {
         opt(&self.runner.prefix).unwrap_or_else(|| {
             paths::data_dir().join(match self.runner.kind {
                 RunnerKind::Proton => "compatdata",
-                RunnerKind::Wine => "prefix",
+                RunnerKind::Wine | RunnerKind::Native => "prefix",
             })
         })
     }

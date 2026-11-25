@@ -11,7 +11,8 @@ use sixlauncher_core::{gamedir, gpu, integrity, launch, paths, perf, protons, re
 
 const HELP: &str = "\
 sixlauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
-or XCL (LinuxCL), on Proton or Wine with vkd3d-proton.
+or XCL (LinuxCL), on Proton or Wine with vkd3d-proton; on macOS on a Wine with D3DMetal;
+on Windows natively (the `native` runner, the default there).
 
 Usage:
   sixlauncher setup [options]      write the configuration and prepare the prefix
@@ -20,7 +21,7 @@ Usage:
       --backend-exe FILE          victory.exe or xcl.exe (the Windows build)
       --backend victory|xcl       default: from the executable's name
       --console series-x|series-s victory only
-      --runner proton|wine
+      --runner proton|wine|native  native: Windows only
       --runner-path PATH          a Proton folder, or the wine binary
       --prefix DIR                where the prefix lives
       --vkd3d DIR                 wine: an unpacked vkd3d-proton release
@@ -453,7 +454,8 @@ fn setup(args: &[String]) -> ExitCode {
                 cfg.runner.kind = match v.as_str() {
                     "proton" => RunnerKind::Proton,
                     "wine" => RunnerKind::Wine,
-                    _ => return fail("--runner is proton or wine"),
+                    "native" => RunnerKind::Native,
+                    _ => return fail("--runner is proton, wine or native"),
                 }
             }
             "--runner-path" => cfg.runner.path = Some(abs(v)),

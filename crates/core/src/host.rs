@@ -56,6 +56,7 @@ pub fn command(argv: &[OsString], env: &BTreeMap<String, String>, cwd: Option<&P
     let (program, args) = wrap(argv, env, &base, cwd, flatpak);
     let mut cmd = Command::new(program);
     cmd.args(args);
+    no_console_window(&mut cmd);
     if !flatpak {
         cmd.envs(env);
         if let Some(dir) = cwd {
@@ -64,6 +65,22 @@ pub fn command(argv: &[OsString], env: &BTreeMap<String, String>, cwd: Option<&P
     }
     cmd
 }
+
+/// On Windows, a console program started from the window (which has no console) would open a
+/// console window of its own; it is started without one. From a terminal it keeps the
+/// terminal, so its output still shows there.
+#[cfg(windows)]
+fn no_console_window(cmd: &mut Command) {
+    use std::io::IsTerminal;
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    if !std::io::stderr().is_terminal() {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+}
+
+#[cfg(not(windows))]
+fn no_console_window(_: &mut Command) {}
 
 /// How a menu entry starts this launcher's `name` program (`sixlauncher` or
 /// `sixlauncher-app`): `flatpak run` inside a Flatpak, where the binary's own path

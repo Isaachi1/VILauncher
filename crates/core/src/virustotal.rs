@@ -12,6 +12,7 @@
 
 use std::fs;
 use std::io::Write;
+#[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -60,7 +61,12 @@ pub fn save_key(key: &str) -> Result<()> {
         fs::create_dir_all(dir)?;
     }
     let _ = fs::remove_file(&path);
-    let mut f = fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path)?;
+    let mut opts = fs::OpenOptions::new();
+    opts.write(true).create_new(true);
+    // On Windows the file inherits %APPDATA%'s access list, which is the user's alone.
+    #[cfg(unix)]
+    opts.mode(0o600);
+    let mut f = opts.open(&path)?;
     writeln!(f, "{key}")?;
     Ok(())
 }

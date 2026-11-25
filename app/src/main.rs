@@ -49,6 +49,8 @@ struct AppState {
     running: bool,
     /// A VirusTotal API key is saved (the key itself never goes to the window).
     virustotal: bool,
+    /// `linux`, `macos` or `windows`: which runners the window offers.
+    platform: &'static str,
 }
 
 #[derive(Serialize)]
@@ -87,6 +89,7 @@ fn get_state(running: State<Running>) -> Result<AppState, String> {
         log_file: launch::log_file(),
         running: running.child.lock().unwrap().is_some(),
         virustotal: virustotal::key().is_some(),
+        platform: std::env::consts::OS,
     })
 }
 
@@ -366,6 +369,7 @@ fn packaged() -> Option<&'static str> {
         BundleType::AppImage => Some("appimage"),
         BundleType::Deb => Some("deb"),
         BundleType::Rpm => Some("rpm"),
+        BundleType::Nsis => Some("nsis"),
         _ => None,
     }
 }
@@ -552,11 +556,15 @@ fn launch_game(app: AppHandle, running: State<Running>, config: Config, force: b
 
 #[tauri::command]
 fn stop_game(running: State<Running>) -> Result<(), String> {
+    let pid = running.child.lock().unwrap().as_ref().map(Child::id);
+    // On Windows the process tree hangs from the backend, so it goes first (taskkill /T).
+    if let Some(runner) = running.runner.lock().unwrap().as_ref()
+        && let Some(mut kill) = runner.kill_command(pid)
+    {
+        let _ = kill.status();
+    }
     if let Some(child) = running.child.lock().unwrap().as_mut() {
         let _ = child.kill();
-    }
-    if let Some(runner) = running.runner.lock().unwrap().as_ref() {
-        let _ = runner.kill_command().status();
     }
     Ok(())
 }

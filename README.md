@@ -4,7 +4,8 @@
 ports, [VIctory](https://github.com/Marvisak/VIctory) and its forks, and
 [XCL](https://github.com/xcl-dev/xcl), run the game's Xbox Series X|S build on a PC, from a copy of
 the game **that you own**. SixLauncher, written in **Rust + Tauri**, sets that up on Linux: it picks
-and installs the port, prepares Proton or Wine, checks your machine and runs the game.
+and installs the port, prepares Proton or Wine, checks your machine and runs the game. It also runs
+on Windows, where the ports run natively, and (experimentally) on Apple Silicon Macs.
 
 It relies on two outside services:
 
@@ -273,6 +274,26 @@ through Rosetta 2, with [VIctory for macOS](https://github.com/romainhedouin/VIc
   right-click › **Open**, or run `xattr -dr com.apple.quarantine /Applications/SixLauncher.app`.
 - Self-update does not cover the Mac yet: download the new release by hand.
 
+### Windows (x64)
+
+Every release also carries `SixLauncher_<version>_x64-setup.exe` (the installer) and
+`sixlauncher-windows-x64.zip` (the window, `sixlauncher-app.exe`, and the CLI, `sixlauncher.exe`, with
+nothing to install). On Windows the ports are what they already are, Windows programs, so they run
+**natively**:
+
+- **Runner:** `native`, the only one offered on Windows (and the default there). There is no Proton,
+  no Wine, no vkd3d-proton and no prefix: D3D12 is the GPU driver's own. Proton and Wine are refused
+  on Windows, and `native` everywhere else.
+- **Builds:** the **Backend** list offers the same VIctory and XCL builds as on Linux.
+- **Check:** the platform and AVX2 checks run; the Linux ones (kernel settings, Vulkan, GPU offload,
+  MangoHud, GameMode) do not, and those options are hidden.
+- **Installer:** per user, no administrator rights; it installs Microsoft Edge WebView2 if it is
+  missing (Windows 10 and 11 already have it). It is not Authenticode-signed, so SmartScreen warns the
+  first time: **More info › Run anyway**.
+- **Self-update:** the installed copy updates itself from the window when the release is signed (it
+  runs the new installer and closes while it works). The `.zip` is told where to download.
+- **Menu shortcut:** **Create menu shortcut** puts `<game> (SixLauncher).lnk` in the Start menu.
+
 ## First run, step by step
 
 1. **Install Proton.** The easiest way is from the window: **Compatibility › Proton versions › Find
@@ -387,7 +408,10 @@ sixlauncher virustotal --upload xcl.exe    # upload one of the backend's binarie
 ## Configuration and where files go
 
 The configuration lives in `~/.config/sixlauncher/config.toml`, or in `$SIXLAUNCHER_CONFIG`. The window
-and the CLI read and write the same file:
+and the CLI read and write the same file. On Windows, `~/.config/sixlauncher` is
+`%APPDATA%\io.github.lportvi.sixlauncher`, and the other folders below (`~/.local/share/sixlauncher`,
+`~/.cache/sixlauncher`, `~/.local/state/sixlauncher`) are `%LOCALAPPDATA%\io.github.lportvi.sixlauncher`,
+its `cache` and its `state` subfolders.
 
 ```toml
 [game]
@@ -402,7 +426,7 @@ console = "series-x"          # victory: or "series-s"
 unimplemented = "trap"        # victory: or "zero"
 
 [runner]
-kind = "proton"               # or "wine"
+kind = "proton"               # or "wine"; "native" on Windows
 path = "/home/you/.steam/root/compatibilitytools.d/GE-Proton10-1"
 
 [dirs]
@@ -440,9 +464,11 @@ GE-Proton releases) and `SIXLAUNCHER_VT_API` (another VirusTotal API).
 
 ## Requirements
 
-- x86-64 Linux and a CPU with AVX2 (or, experimentally, an Apple Silicon Mac: see
+- x86-64 Linux or Windows and a CPU with AVX2 (or, experimentally, an Apple Silicon Mac: see
   [Install](#install)).
-- A GPU whose Vulkan driver has `VK_EXT_mesh_shader` (a recent Mesa RADV, or NVIDIA). Both ports need
+- On Windows: a GPU and driver with D3D12, shader model 6.6 and mesh shaders. The Linux requirements
+  below (Vulkan, Proton or Wine, kernel settings) do not apply.
+- On Linux: a GPU whose Vulkan driver has `VK_EXT_mesh_shader` (a recent Mesa RADV, or NVIDIA). Both ports need
   shader model 6.6 and mesh shaders, which only vkd3d-proton offers; Wine's own `d3d12` does not.
 - **Proton** (GE-Proton, which the launcher downloads by itself, or Steam's Proton Experimental)
   **or** Wine 9+ with an unpacked [vkd3d-proton](https://github.com/HansKristian-Work/vkd3d-proton/releases)
@@ -479,6 +505,7 @@ XCL come from [builder](https://github.com/SixLauncher/builder).
 | `flatpak` | builds `sixlauncher.flatpak` (`packaging/flatpak`) |
 | `bundle` | packs the CLI and the window into a `.tar.gz` |
 | `macos` | builds SixLauncher for macOS on Apple Silicon (`macos-15`): `SixLauncher.app` in a `.dmg`, and the CLI |
+| `windows` | builds SixLauncher for Windows x64 (`windows-2022`): the NSIS installer and a `.zip` with the window and the CLI, after a smoke run of `sixlauncher.exe doctor` |
 | `release` | on every merge into `main`: publishes a release with every package |
 
 **Launcher releases.** Every merge into `main` publishes a release without a tag having to be made by
@@ -489,8 +516,8 @@ On a pull request, the `Release` job only shows what it would publish.
 
 The release holds the `.deb`, the `.rpm`, the AppImage, `sixlauncher.flatpak` and
 `sixlauncher-linux-x64.tar.gz` (`sixlauncher`, `sixlauncher-app` and a `BUILD.txt` with the commit), the
-macOS `.dmg` and `sixlauncher-macos-arm64.tar.gz`, plus
-`latest.json` for self-update.
+macOS `.dmg` and `sixlauncher-macos-arm64.tar.gz`, the Windows `SixLauncher_<version>_x64-setup.exe` and
+`sixlauncher-windows-x64.zip`, plus `latest.json` for self-update.
 
 **VIctory and XCL builds.** The launcher downloads them from SixLauncher Builder's `runtimes` release
 (`SIXLAUNCHER_RUNTIMES_URL` changes the address). Its `runtimes.json` holds, for each build, the file,
@@ -501,9 +528,9 @@ Each archive holds the executable at its root (XCL's with DXC and `opus.dll` nex
 `xcl.exe` finds by itself), the licenses and a file with the commit.
 
 **Launcher self-update.** When the release is signed (the `TAURI_SIGNING_PRIVATE_KEY` secret), the
-AppImage, `.deb` and `.rpm` update themselves from the window, which checks the signature. The
-Flatpak, the tarball and builds from source are told about the new version and pointed to the
-release.
+AppImage, `.deb`, `.rpm` and the Windows installer's copy update themselves from the window, which
+checks the signature. The Flatpak, the tarball, the Windows `.zip` and builds from source are told
+about the new version and pointed to the release.
 
 ## Building
 
@@ -523,6 +550,11 @@ cargo test --workspace
 For the `.deb`, `.rpm` and AppImage packages: `cargo install tauri-cli --version "^2"`, then
 `cargo tauri build` inside `app/`. A production build of the window outside `cargo tauri` needs
 `--features tauri/custom-protocol`.
+
+On Windows (Rust's MSVC toolchain and the Visual Studio C++ build tools), `cargo build --release
+--workspace` builds `sixlauncher-app.exe` and `sixlauncher.exe`, and `cargo tauri build --bundles nsis`
+inside `app/` builds the installer. The unit tests drive Proton and Wine through shell scripts, so
+they run on Linux; on Windows, `cargo clippy --workspace` checks the code.
 
 The Flatpak:
 

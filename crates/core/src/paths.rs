@@ -1,4 +1,11 @@
 //! Where SixLauncher keeps its files, and how Linux paths look from inside Wine.
+//!
+//! On Linux and macOS the folders follow the XDG base directories (`~/.config/sixlauncher`,
+//! `~/.local/share/sixlauncher`, ...). On Windows they are `%APPDATA%\<identifier>` (the
+//! configuration) and `%LOCALAPPDATA%\<identifier>` (builds, data, cache, logs), named after
+//! the app's identifier as Tauri names its own folders (the installer's `%LOCALAPPDATA%\SixLauncher`
+//! holds only the program), and a path needs no translation: the backend runs natively and
+//! sees it as it is.
 
 use std::env;
 use std::path::{Component, Path, PathBuf};
@@ -9,8 +16,35 @@ pub const APP: &str = "sixlauncher";
 /// game-derived data below it (docs/asset-policy.md in VILinux).
 pub const VICTORY_ROOT_MARKER: &str = ".victory-root";
 
+/// The folders' name on Windows: the app's identifier (app/tauri.conf.json), as Tauri and the
+/// installer's "delete the application data" box name them.
+pub const WINDOWS_APP: &str = "io.github.lportvi.sixlauncher";
+
 pub fn home() -> PathBuf {
-    env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/"))
+    let var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    match env::var_os(var) {
+        Some(v) if !v.is_empty() => PathBuf::from(v),
+        _ => PathBuf::from("/"),
+    }
+}
+
+/// A Windows known folder from its variable (`APPDATA`, `LOCALAPPDATA`), or its usual place
+/// under the profile.
+fn windows_dir(var: &str, fallback: &str) -> PathBuf {
+    match env::var_os(var) {
+        Some(v) if !v.is_empty() => PathBuf::from(v),
+        _ => home().join(fallback),
+    }
+}
+
+/// `%APPDATA%\<identifier>`: the configuration and the VirusTotal key (roams with the profile).
+fn windows_roaming() -> PathBuf {
+    windows_dir("APPDATA", r"AppData\Roaming").join(WINDOWS_APP)
+}
+
+/// `%LOCALAPPDATA%\<identifier>`: builds, data, cache and logs (large, kept on this machine).
+fn windows_local() -> PathBuf {
+    windows_dir("LOCALAPPDATA", r"AppData\Local").join(WINDOWS_APP)
 }
 
 fn xdg(var: &str, fallback: &str) -> PathBuf {
@@ -21,23 +55,29 @@ fn xdg(var: &str, fallback: &str) -> PathBuf {
 }
 
 pub fn config_dir() -> PathBuf {
-    xdg("XDG_CONFIG_HOME", ".config").join(APP)
+    if cfg!(windows) { windows_roaming() } else { xdg("XDG_CONFIG_HOME", ".config").join(APP) }
 }
 
 pub fn data_dir() -> PathBuf {
-    xdg("XDG_DATA_HOME", ".local/share").join(APP)
+    if cfg!(windows) { windows_local() } else { xdg("XDG_DATA_HOME", ".local/share").join(APP) }
 }
 
 pub fn cache_dir() -> PathBuf {
-    xdg("XDG_CACHE_HOME", ".cache").join(APP)
+    if cfg!(windows) { windows_local().join("cache") } else { xdg("XDG_CACHE_HOME", ".cache").join(APP) }
 }
 
 pub fn state_dir() -> PathBuf {
-    xdg("XDG_STATE_HOME", ".local/state").join(APP)
+    if cfg!(windows) { windows_local().join("state") } else { xdg("XDG_STATE_HOME", ".local/state").join(APP) }
 }
 
+/// Where menu entries go: the user's applications folder, or the Start menu's Programs on
+/// Windows.
 pub fn applications_dir() -> PathBuf {
-    xdg("XDG_DATA_HOME", ".local/share").join("applications")
+    if cfg!(windows) {
+        windows_dir("APPDATA", r"AppData\Roaming").join(r"Microsoft\Windows\Start Menu\Programs")
+    } else {
+        xdg("XDG_DATA_HOME", ".local/share").join("applications")
+    }
 }
 
 /// The name the launcher used before it became SixLauncher, and its old app id.
@@ -49,6 +89,10 @@ const LEGACY_FLATPAK_ID: &str = "io.github.lportvi.vilauncher";
 /// only moved when the new one does not exist yet; paths inside `config.toml` that
 /// pointed into the old folders are rewritten. Returns the folders that were moved.
 pub fn migrate_legacy_dirs() -> Vec<(PathBuf, PathBuf)> {
+    // The old name never shipped on Windows.
+    if cfg!(windows) {
+        return Vec::new();
+    }
     let flatpak = env::var_os("FLATPAK_ID").is_some();
     let kinds = [
         ("XDG_CONFIG_HOME", ".config", "config"),
@@ -117,6 +161,31 @@ pub fn expand(path: &Path) -> PathBuf {
 }
 
 /// `.` and `..` resolved by name, without touching the file system.
+#[cfg(windows)]
+pub fn normalize(path: &Path) -> PathBuf {
+    // The drive (`C:`) and the root stay; `..` never climbs above them.
+    let mut out = PathBuf::new();
+    let mut base = 0;
+    for c in path.components() {
+        match c {
+            Component::Prefix(_) | Component::RootDir => {
+                out.push(c.as_os_str());
+                base = out.components().count();
+            }
+            Component::ParentDir => {
+                if out.components().count() > base {
+                    out.pop();
+                }
+            }
+            Component::Normal(n) => out.push(n),
+            Component::CurDir => {}
+        }
+    }
+    out
+}
+
+/// `.` and `..` resolved by name, without touching the file system.
+#[cfg(not(windows))]
 pub fn normalize(path: &Path) -> PathBuf {
     let mut out = PathBuf::from("/");
     for c in path.components() {
@@ -131,14 +200,19 @@ pub fn normalize(path: &Path) -> PathBuf {
     out
 }
 
-/// The path as a program inside Wine sees it.
+/// The path as the Windows program sees it.
 ///
 /// A new Wine or Proton prefix maps drive Z: to the Linux root, so
 /// `/home/me/game` is `Z:\home\me\game`. Wine does not translate command-line
 /// arguments or environment variables, so every path handed to the Windows
 /// program goes through here. `doctor` checks the Z: mapping.
+///
+/// On Windows the program runs natively and the path is already its own (made absolute).
 pub fn to_windows(path: &Path) -> String {
     let p = normalize(&expand(path));
+    if cfg!(windows) {
+        return p.to_string_lossy().into_owned();
+    }
     format!("Z:{}", p.to_string_lossy().replace('/', "\\"))
 }
 

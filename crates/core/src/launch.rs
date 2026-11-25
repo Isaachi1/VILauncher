@@ -120,10 +120,77 @@ pub fn desktop_entry(cfg: &Config, exec: &[String]) -> String {
     )
 }
 
+/// A command-line argument as Windows programs split them (CommandLineToArgvW's rules).
+pub fn windows_quote(arg: &str) -> String {
+    if !arg.is_empty() && !arg.chars().any(|c| c == ' ' || c == '\t' || c == '"') {
+        return arg.to_owned();
+    }
+    let mut q = String::from("\"");
+    let mut slashes = 0;
+    for c in arg.chars() {
+        match c {
+            '\\' => slashes += 1,
+            '"' => {
+                q.push_str(&"\\".repeat(slashes * 2 + 1));
+                slashes = 0;
+            }
+            _ => {
+                q.push_str(&"\\".repeat(slashes));
+                slashes = 0;
+            }
+        }
+        if c != '\\' {
+            q.push(c);
+        }
+    }
+    q.push_str(&"\\".repeat(slashes * 2));
+    q.push('"');
+    q
+}
+
+/// The menu entry: a `.desktop` file in the applications folder, or on Windows a shortcut
+/// (`.lnk`) in the Start menu, written by PowerShell through WScript.Shell.
 pub fn write_desktop_entry(cfg: &Config, exec: &[String]) -> Result<PathBuf> {
+    if cfg!(windows) {
+        return write_start_menu_shortcut(cfg, exec);
+    }
     let path = paths::applications_dir().join("sixlauncher.desktop");
     fs::create_dir_all(path.parent().unwrap_or(Path::new("/")))?;
     fs::write(&path, desktop_entry(cfg, exec))?;
+    Ok(path)
+}
+
+fn write_start_menu_shortcut(cfg: &Config, exec: &[String]) -> Result<PathBuf> {
+    let title = cfg
+        .game_dir()
+        .and_then(|d| gamedir::inspect(&d).ok())
+        .map(|i| i.title())
+        .unwrap_or_else(|| "SixLauncher".into());
+    // Characters a file name cannot hold become spaces.
+    let name: String = title.chars().map(|c| if "<>:\"/\\|?*".contains(c) || c.is_control() { ' ' } else { c }).collect();
+    let dir = paths::applications_dir();
+    fs::create_dir_all(&dir)?;
+    let path = dir.join(format!("{} (SixLauncher).lnk", name.trim()));
+    let (target, args) = exec.split_first().ok_or_else(|| Error::Config("nothing to start from the shortcut".into()))?;
+    let args: Vec<String> = args.iter().map(|a| windows_quote(a)).collect();
+    // The values travel as variables, so no quoting of PowerShell's own is needed.
+    let script = "$s = (New-Object -ComObject WScript.Shell).CreateShortcut($env:SL_LNK); \
+                  $s.TargetPath = $env:SL_TARGET; $s.Arguments = $env:SL_ARGS; \
+                  $s.WorkingDirectory = Split-Path -Parent $env:SL_TARGET; $s.Save()";
+    let mut env: BTreeMap<String, String> = std::env::vars().collect();
+    env.insert("SL_LNK".into(), path.to_string_lossy().into_owned());
+    env.insert("SL_TARGET".into(), target.clone());
+    env.insert("SL_ARGS".into(), args.join(" "));
+    let argv: Vec<std::ffi::OsString> =
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command", script].iter().map(Into::into).collect();
+    let out = crate::host::command(&argv, &env, None).output()?;
+    if !out.status.success() || !path.is_file() {
+        return Err(Error::Config(format!(
+            "could not create the Start menu shortcut ({}): {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr).trim()
+        )));
+    }
     Ok(path)
 }
 
@@ -238,6 +305,15 @@ mod tests {
         let l = build_with(&cfg, &gpus, &tools).unwrap();
         assert_eq!(&l.argv[..3], ["/usr/bin/gamemoderun", &*proton.join("proton").to_string_lossy(), "waitforexitandrun"]);
         assert_eq!(l.argv[3], exe.to_string_lossy());
+    }
+
+    #[test]
+    fn windows_quoting() {
+        assert_eq!(windows_quote("run"), "run");
+        assert_eq!(windows_quote(""), "\"\"");
+        assert_eq!(windows_quote(r"C:\My Games\x.exe"), r#""C:\My Games\x.exe""#);
+        assert_eq!(windows_quote(r#"a"b"#), r#""a\"b""#);
+        assert_eq!(windows_quote(r"C:\dir with space\"), r#""C:\dir with space\\""#);
     }
 
     #[test]
