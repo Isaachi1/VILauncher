@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use vilauncher_core::config::{self, BackendKind, Config, Console, GpuProfile, RunnerKind};
 use vilauncher_core::doctor::{self, Status};
 use vilauncher_core::runners::{self, Runner};
-use vilauncher_core::{gamedir, gpu, launch, paths, perf, status, update, virustotal};
+use vilauncher_core::{gamedir, gpu, launch, paths, perf, protons, status, update, virustotal};
 
 const HELP: &str = "\
 vilauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
@@ -35,7 +35,13 @@ Usage:
   vilauncher doctor [--config-only]   check the machine and the configuration
   vilauncher run [--dry-run] [--force] [-- title args]
   vilauncher info [DIR]           what MicrosoftGame.config says about a game folder
-  vilauncher protons              the Proton installs found
+  vilauncher protons              the Proton installs found (Steam's and the launcher's own)
+  vilauncher proton available     GE-Proton releases on GitHub
+  vilauncher proton install [NAME|latest] [--use]
+                                  download a GE-Proton release (size and SHA-512 checked) into
+                                  ~/.local/share/vilauncher/protons; --use also selects it
+  vilauncher proton use NAME|PATH select an installed Proton (empty name: the best found)
+  vilauncher proton remove NAME   delete a Proton the launcher downloaded
   vilauncher gpus                 the GPUs, the one `auto` picks, MangoHud and GameMode
   vilauncher config               print the configuration
   vilauncher desktop              add a menu entry that runs the game
@@ -47,6 +53,9 @@ Usage:
                                   build and use it; `best` is the one ranked higher. A build
                                   VirusTotal flags is never installed; with a local key the
                                   files are looked up again (--force skips only that)
+  vilauncher rollback victory|xcl [ID]
+                                  list the builds earlier updates replaced (the last 3 are
+                                  kept); with an ID (or `last`), put that build back in place
   vilauncher virustotal [--upload FILE]
                                   look up the backend folder's .exe/.dll on VirusTotal by hash;
                                   --upload sends one of them (by name) for analysis
@@ -207,6 +216,140 @@ fn update_cmd(args: &[String]) -> ExitCode {
             eprintln!();
             fail(e)
         }
+    }
+}
+
+fn origin(o: runners::Origin) -> &'static str {
+    match o {
+        runners::Origin::Steam => "steam",
+        runners::Origin::Launcher => "vilauncher",
+        runners::Origin::System => "system",
+    }
+}
+
+fn proton_cmd(args: &[String]) -> ExitCode {
+    let use_it = args.iter().any(|a| a == "--use");
+    let args: Vec<&String> = args.iter().filter(|a| *a != "--use").collect();
+    match args.first().map(|a| a.as_str()) {
+        Some("available") => match protons::available() {
+            Ok(list) => {
+                for r in &list {
+                    let mark = if r.installed { "  (installed)" } else { "" };
+                    let date = r.published_at.as_deref().map_or("", |d| &d[..d.len().min(10)]);
+                    println!("{:<18} {date:<10} {:>6.0} MB{mark}", r.name, r.size as f64 / 1048576.0);
+                }
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(e),
+        },
+        Some("install") => {
+            let name = args.get(1).map_or("latest", |a| a.as_str());
+            let mut shown = 0u64;
+            let mut progress = |done: u64, total: u64| {
+                if done == total || done - shown >= total / 20 {
+                    shown = done;
+                    eprint!("\rdownloading {name}: {}%", done * 100 / total.max(1));
+                }
+            };
+            let installed = match protons::install(name, &mut progress) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!();
+                    return fail(e);
+                }
+            };
+            eprintln!();
+            println!("installed {} in {}", installed.name, installed.path.display());
+            if use_it {
+                return use_proton(Some(installed.path));
+            }
+            println!("`vilauncher proton use {}` selects it", installed.name);
+            ExitCode::SUCCESS
+        }
+        Some("use") => {
+            let Some(which) = args.get(1) else { return use_proton(None) };
+            let found = runners::find_protons(&paths::home());
+            let path = match found.into_iter().find(|p| &p.name == *which) {
+                Some(p) => p.path,
+                None => abs(which),
+            };
+            if !path.join("proton").is_file() {
+                return fail(format!("{which} is not an installed Proton (see `vilauncher protons`)"));
+            }
+            use_proton(Some(path))
+        }
+        Some("remove") => {
+            let Some(name) = args.get(1) else { return fail("proton remove needs a name") };
+            let cfg = match load() {
+                Ok(c) => c,
+                Err(code) => return code,
+            };
+            match protons::remove(name, &cfg) {
+                Ok(()) => {
+                    println!("removed {name}");
+                    ExitCode::SUCCESS
+                }
+                Err(e) => fail(e),
+            }
+        }
+        _ => fail("proton available | install [NAME|latest] [--use] | use NAME | remove NAME"),
+    }
+}
+
+fn use_proton(path: Option<PathBuf>) -> ExitCode {
+    let mut cfg = match load() {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+    cfg.runner.kind = RunnerKind::Proton;
+    cfg.runner.path = path.clone();
+    if let Err(e) = config::save(&cfg) {
+        return fail(e);
+    }
+    match path {
+        Some(p) => println!("the game runs with {}", p.display()),
+        None => println!("the game runs with the best Proton found"),
+    }
+    ExitCode::SUCCESS
+}
+
+fn rollback_cmd(args: &[String]) -> ExitCode {
+    let kind = match args.first().map(String::as_str) {
+        Some("victory") => BackendKind::Victory,
+        Some("xcl") => BackendKind::Xcl,
+        _ => return fail("rollback victory|xcl [ID|last]"),
+    };
+    let list = update::previous(kind);
+    let Some(id) = args.get(1) else {
+        if list.is_empty() {
+            println!("no previous {} build is kept (one is kept after each update)", kind.name());
+        }
+        for p in &list {
+            let from = p.source.as_ref().and_then(|s| s.repo.clone()).unwrap_or_else(|| "?".into());
+            println!("{:<14} {from}", p.id);
+        }
+        return ExitCode::SUCCESS;
+    };
+    let id = if id == "last" {
+        match list.first() {
+            Some(p) => p.id.clone(),
+            None => return fail(format!("no previous {} build is kept", kind.name())),
+        }
+    } else {
+        // A commit prefix is enough when it names one build.
+        let hits: Vec<&update::PreviousBuild> = list.iter().filter(|p| p.id.starts_with(id.as_str())).collect();
+        match hits.as_slice() {
+            [one] => one.id.clone(),
+            [] => return fail(format!("no previous {} build {id}; `vilauncher rollback {}` lists them", kind.name(), kind.name())),
+            _ => return fail(format!("{id} names more than one build")),
+        }
+    };
+    match update::rollback(kind, &id) {
+        Ok(exe) => {
+            println!("{} is back to {id} ({})", kind.name(), exe.display());
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(e),
     }
 }
 
@@ -460,10 +603,10 @@ fn main() -> ExitCode {
         Some("protons") => {
             let found = runners::find_protons(&paths::home());
             for p in &found {
-                println!("{:<24} {}", p.version, p.path.display());
+                println!("{:<24} {:<10} {}", p.version, origin(p.origin), p.path.display());
             }
             if found.is_empty() {
-                println!("no Proton found (install GE-Proton or Proton Experimental through Steam)");
+                println!("no Proton found: `vilauncher proton install latest` downloads GE-Proton");
             }
             ExitCode::SUCCESS
         }
@@ -491,6 +634,8 @@ fn main() -> ExitCode {
             }
         }
         Some("update") => update_cmd(rest),
+        Some("proton") => proton_cmd(rest),
+        Some("rollback") => rollback_cmd(rest),
         Some("virustotal") => virustotal_cmd(rest),
         Some("status") => match status::report() {
             Ok(r) => {
