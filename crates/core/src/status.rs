@@ -127,8 +127,33 @@ pub struct Milestones {
     pub story: f64,
     pub render: f64,
     pub fps: f64,
-    /// `unknown`, `constant`, `often`, `sometimes`, `rarely` or `stable`.
-    pub stability: Option<String>,
+    /// A word (`unknown`, `constant`, `often`, `sometimes`, `rarely`, `stable`) or, as the
+    /// tracker writes it for some efforts now, a fraction from 0 to 1.
+    pub stability: Option<Stability>,
+}
+
+/// How rarely an effort crashes, as the tracker gives it.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum Stability {
+    Fraction(f64),
+    Word(String),
+}
+
+impl Stability {
+    /// The stability track, 0 to 1, as the site scores it.
+    pub fn fraction(&self) -> f64 {
+        match self {
+            Stability::Fraction(v) => clamp01(*v),
+            Stability::Word(w) => match w.as_str() {
+                "often" => 0.25,
+                "sometimes" => 0.55,
+                "rarely" => 0.8,
+                "stable" => 1.0,
+                _ => 0.0,
+            },
+        }
+    }
 }
 
 impl Milestones {
@@ -177,13 +202,7 @@ impl Milestones {
             break;
         }
         if reached == "playable" {
-            let stability = match self.stability.as_deref() {
-                Some("often") => 0.25,
-                Some("sometimes") => 0.55,
-                Some("rarely") => 0.8,
-                Some("stable") => 1.0,
-                _ => 0.0,
-            };
+            let stability = self.stability.as_ref().map_or(0.0, Stability::fraction);
             let quality = 0.35 * clamp01(self.story) + 0.25 * clamp01(self.render) + 0.2 * clamp01(self.fps / 30.0) + 0.2 * stability;
             score = 50.0 + quality * 50.0;
             if quality >= 1.0 {
@@ -471,6 +490,21 @@ mod tests {
         assert_eq!(by("mid").score, 10.0);
         // Groundwork only: 10% * (0.2 * 1 + 0.32 * 0.5) = 3.6
         assert_eq!((by("early").score, by("early").reached.as_str()), (3.6, "groundwork"));
+    }
+
+    #[test]
+    fn stability_as_a_fraction() {
+        // As the tracker writes it for ZETTROX: a number, not a word.
+        let g: Milestones = serde_json::from_str(
+            r#"{"loads":1,"boots":1,"menu":1,"world":1,"playable":1,"story":0.1,"render":0.3,"fps":2,"stability":0.8}"#,
+        )
+        .unwrap();
+        assert_eq!(g.stability, Some(Stability::Fraction(0.8)));
+        // 50 + 50 * (0.35 * 0.1 + 0.25 * 0.3 + 0.2 * 2/30 + 0.2 * 0.8) = 64.17
+        let (score, reached) = g.score(0.0);
+        assert_eq!(((score * 100.0).round() / 100.0, reached), (64.17, "playable"));
+        assert_eq!(Stability::Word("rarely".into()).fraction(), 0.8);
+        assert_eq!(Stability::Fraction(3.0).fraction(), 1.0);
     }
 
     #[test]
