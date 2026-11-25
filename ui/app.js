@@ -8,6 +8,11 @@ const dialog = window.__TAURI__.dialog;
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 
+// Text in the player's language (i18n.js, locales/). say() keeps the key, so the message is
+// redrawn when the language changes; plain() is for text that is not ours.
+const say = (sel, key, vars) => I18N.text($(sel), key, vars);
+const plain = (sel, text) => I18N.raw($(sel), text);
+
 let config = null;
 let pendingForce = false;
 let statusLoaded = false;
@@ -66,24 +71,24 @@ function refreshVisibility() {
   for (const el of $$(".only-victory")) el.hidden = backend !== "victory";
   for (const el of $$(".only-xcl")) el.hidden = backend !== "xcl";
   for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
-  $("#runner-path-label").textContent = runner === "wine" ? "Binário do wine (vazio: o do PATH)" : "Pasta do Proton (vazio: o melhor encontrado)";
+  say("#runner-path-label", runner === "wine" ? "run.winePath" : "run.protonPath");
   $("#backend-label").textContent = `${backend === "xcl" ? "XCL" : "VIctory"} · ${runner === "wine" ? "Wine + vkd3d-proton" : "Proton"}`;
 }
 
 async function refreshTitle() {
   const dir = $('[data-path="game.dir"]').value.trim();
   if (!dir) {
-    $("#game-title").textContent = "Nenhum jogo escolhido";
-    $("#game-sub").textContent = "Escolha a pasta desempacotada de um jogo seu na aba Jogo.";
+    say("#game-title", "hero.noGame");
+    say("#game-sub", "hero.noGameSub");
     return;
   }
   try {
     const info = await invoke("game_info", { dir });
-    $("#game-title").textContent = info.display_name || info.identity || dir.split("/").pop();
-    $("#game-sub").textContent = [info.identity, info.version].filter(Boolean).join(" · ") || dir;
+    plain("#game-title", info.display_name || info.identity || dir.split("/").pop());
+    plain("#game-sub", [info.identity, info.version].filter(Boolean).join(" · ") || dir);
   } catch (e) {
-    $("#game-title").textContent = dir.split("/").pop() || dir;
-    $("#game-sub").textContent = String(e);
+    plain("#game-title", dir.split("/").pop() || dir);
+    plain("#game-sub", String(e));
   }
 }
 
@@ -125,19 +130,21 @@ function setRunning(running) {
   $("#play").hidden = running;
   $("#stop").hidden = !running;
   $("#live").classList.toggle("on", running);
-  $("#live-text").textContent = running ? "Rodando" : "Pronto";
+  say("#live-text", running ? "live.running" : "live.ready");
 }
 
-const STATUS_TEXT = { ok: "OK", warn: "AVISO", fail: "FALHA" };
+const STATUS_KEY = { ok: "check.ok", warn: "check.warn", fail: "check.fail" };
+let lastChecks = null;
 
 function showChecks(checks) {
+  lastChecks = checks;
   const body = $("#checks tbody");
   body.replaceChildren();
   for (const c of checks) {
     const tr = document.createElement("tr");
     const pill = document.createElement("span");
     pill.className = `pill ${c.status}`;
-    pill.textContent = STATUS_TEXT[c.status];
+    pill.textContent = t(STATUS_KEY[c.status]);
     const tdS = document.createElement("td");
     tdS.appendChild(pill);
     const tdN = document.createElement("td");
@@ -150,7 +157,7 @@ function showChecks(checks) {
   }
   const fails = checks.filter((c) => c.status === "fail").length;
   const warns = checks.filter((c) => c.status === "warn").length;
-  $("#doctor-status").textContent = `${fails} falha(s), ${warns} aviso(s), ${checks.length - fails - warns} ok`;
+  say("#doctor-status", "doctor.summary", { fails, warns, ok: checks.length - fails - warns });
 }
 
 // -- status (PortWatch VI) --------------------------------------------------------------------
@@ -172,10 +179,13 @@ function svgEl(tag, attrs = {}) {
   return e;
 }
 
-const pct = (v) => (Math.round(v * 10) / 10).toLocaleString("pt-BR");
+const pct = (v) => (Math.round(v * 10) / 10).toLocaleString(I18N.locale());
 let milestones = [];
-const msLabel = (key) => (milestones.find((m) => m[0] === key) || [key, key])[1];
-const TRACK_NAMES = "História · Gráficos · Desempenho · Estabilidade";
+// The steps come from the core with Portuguese labels; ours are by key.
+const msLabel = (key) => {
+  const own = t(`ms.${key}`);
+  return own !== `ms.${key}` ? own : (milestones.find((m) => m[0] === key) || [key, key])[1];
+};
 
 function lockIcon() {
   const s = svgEl("svg", { viewBox: "0 0 16 16", class: "lock", "aria-hidden": "true" });
@@ -206,15 +216,15 @@ function showOverall(report) {
   const line = $("#ov-leader");
   line.replaceChildren();
   if (leader) {
-    line.append("Líder: ", el("b", null, leader.name), " ");
-    if (leader.repo) line.append(`de ${leader.repo.split("/")[0]}. `);
+    line.append(`${t("ov.leader")} `, el("b", null, leader.name), " ");
+    if (leader.repo) line.append(`${t("ov.leaderOf", { owner: leader.repo.split("/")[0] })} `);
     else if (leader.based_on.length) {
       const priv = el("span", "ov-private");
-      priv.append(lockIcon(), "versão privada baseada em ", el("b", null, leader.based_on.join(", ")));
-      line.append(priv, ". ");
+      priv.append(lockIcon(), `${t("ov.privateBased")} `, el("b", null, leader.based_on.join(", ")));
+      line.append(priv, t("ov.sep"));
     }
-    line.append(leader.reached === "groundwork" ? "Ainda na preparação." : `Chegou a “${msLabel(leader.reached)}”.`);
-  } else line.textContent = "Nenhum projeto acompanhado.";
+    line.append(leader.reached === "groundwork" ? t("ov.groundwork") : t("ov.reached", { stage: msLabel(leader.reached) }));
+  } else line.textContent = t("ov.none");
 
   $("#ov-stage").textContent = msLabel(o.furthest);
   $("#ov-top3").textContent = `${pct(o.top3)}%`;
@@ -235,10 +245,10 @@ function showOverall(report) {
     const cls = i <= furthest ? "is-reached" : i === furthest + 1 ? "is-next" : "";
     const label = el("div", `mega-label ${cls}`);
     label.style.left = `${m[2]}%`;
-    label.append(el("b", null, `${m[2]}%`), el("span", "dot"), m[1]);
+    label.append(el("b", null, `${m[2]}%`), el("span", "dot"), msLabel(m[0]));
     labels.append(label);
   });
-  labels.append(el("p", "mega-zone", TRACK_NAMES));
+  labels.append(el("p", "mega-zone", t("ov.tracks")));
 
   const fill = $("#mega-fill");
   fill.style.setProperty("--p", "0%");
@@ -385,16 +395,19 @@ async function loadAvatars(report) {
   for (const face of $$("[data-avatar]")) paintFace(face);
 }
 
+// The core names an effort's furthest step in Portuguese (status.rs, Milestones::stage).
+const STAGE_KEY = { Story: "story", "Jogável": "playable", "No mundo": "world", Menus: "menu", Inicia: "boots", "Carrega o executável": "loads" };
+const stageLabel = (stage) => (STAGE_KEY[stage] ? msLabel(STAGE_KEY[stage]) : stage);
+
 function showEfforts(report) {
   lastReport = report;
   showOverall(report);
   loadAvatars(report).catch(() => {});
   const box = $("#efforts");
   box.replaceChildren();
-  const when = report.updated ? new Date(report.updated).toLocaleString("pt-BR") : "?";
-  $("#status-info").textContent = report.stale
-    ? `Sem conexão; mostrando a cópia salva (atualizada em ${when}). ${report.stale}`
-    : `Atualizado pelo PortWatch VI em ${when}`;
+  const when = report.updated ? new Date(report.updated).toLocaleString(I18N.locale()) : "?";
+  if (report.stale) say("#status-info", "status.stale", { when, reason: report.stale });
+  else say("#status-info", "status.updated", { when });
   let rank = 0;
   for (const e of report.efforts) {
     const watch = e.tier === "watchlist";
@@ -408,14 +421,14 @@ function showEfforts(report) {
     const h3 = el("h3", null, e.name);
     if (e.private) h3.append(lockIcon());
     names.append(h3);
-    names.append(el("p", "repo", e.repo ? `github.com/${e.repo}` : e.based_on.length ? `Versão privada baseada em ${e.based_on.join(", ")}` : "Código fechado: ninguém fora do projeto consegue rodar"));
+    names.append(el("p", "repo", e.repo ? `github.com/${e.repo}` : e.based_on.length ? t("effort.privateBased", { names: e.based_on.join(", ") }) : t("effort.closed")));
     who.append(avatarFace(e.id, e.name, "e-avatar"), names);
     title.append(who);
     const chips = el("div", "chips");
-    if (e.backend) chips.append(el("span", "pill violet", `backend ${BACKEND_NAME[e.backend]}`));
-    if (e.partial) chips.append(el("span", "pill warn", `${e.stage} em parte`));
+    if (e.backend) chips.append(el("span", "pill violet", t("effort.backend", { name: BACKEND_NAME[e.backend] })));
+    if (e.partial) chips.append(el("span", "pill warn", t("effort.partial", { stage: stageLabel(e.stage) })));
     if (e.gta.fps > 0) chips.append(el("span", "pill gold", `~${e.gta.fps} fps`));
-    if (watch) chips.append(el("span", "pill", "Em observação"));
+    if (watch) chips.append(el("span", "pill", t("effort.watch")));
     if (chips.childElementCount) title.append(chips);
     const score = el("div", "e-score");
     const big = el("b", null, pct(e.score));
@@ -452,7 +465,7 @@ function effortBar(e) {
   track.append(fill, ticks);
   const reached = milestones.findIndex((m) => m[0] === e.reached);
   const legend = el("div", "legend");
-  milestones.slice(0, Math.max(1, reached + 1)).forEach((m) => legend.append(el("span", "hit", m[1])));
+  milestones.slice(0, Math.max(1, reached + 1)).forEach((m) => legend.append(el("span", "hit", msLabel(m[0]))));
   wrap.append(track, legend);
   return wrap;
 }
@@ -461,7 +474,7 @@ function effortBar(e) {
 
 const short = (c) => (c ? c.slice(0, 10) : "—");
 
-const SCAN_TEXT = { clean: "VirusTotal: limpo", flagged: "VirusTotal: ALERTA", pending: "VirusTotal: em análise", skipped: "VirusTotal: não verificado", error: "VirusTotal: falhou" };
+const SCAN_KEYS = ["clean", "flagged", "pending", "skipped", "error"];
 const SCAN_PILL = { clean: "ok", flagged: "fail" };
 
 function sourceLine(a) {
@@ -469,7 +482,10 @@ function sourceLine(a) {
   return [a.effort, a.repo ? `github.com/${a.repo}` : null, short(a.commit)].filter(Boolean).join(" · ");
 }
 
+let lastRuntimes = null;
+
 function showRuntimes(rt) {
+  lastRuntimes = rt;
   const body = $("#runtimes tbody");
   body.replaceChildren();
   const current = $('[data-path="backend.exe"]').value.trim();
@@ -477,10 +493,10 @@ function showRuntimes(rt) {
   const pick = $("#runtimes-best");
   pick.hidden = !best || !best.latest;
   if (best && best.latest) {
-    $("#runtimes-best-text").textContent = `Mais avançado com código público no PortWatch VI: ${sourceLine(best.latest)} (${BACKEND_NAME[best.backend]})`;
+    $("#runtimes-best-text").textContent = t("runtimes.best", { source: sourceLine(best.latest), backend: BACKEND_NAME[best.backend] });
     const b = $("#runtimes-best-go");
     b.onclick = () => guarded(b, () => (best.update ? installRuntime(best.backend, b) : useRuntime(best.backend, best.exe)));
-    b.textContent = best.update ? "Instalar e usar" : "Usar";
+    I18N.text(b, best.update ? "runtimes.installUse" : "runtimes.use");
   }
   const cands = $("#runtimes-candidates");
   cands.replaceChildren();
@@ -490,12 +506,12 @@ function showRuntimes(rt) {
     const tr = el("tr");
     tr.append(el("td", "name", BACKEND_NAME[r.backend]));
     const info = el("td");
-    const latest = r.latest ? `${sourceLine(r.latest)} (${(r.latest.size / 1048576).toFixed(1)} MB)` : "nenhuma publicada";
-    info.append(el("div", null, `Mais nova: ${latest}`));
-    info.append(el("div", "status", `Instalada: ${r.installed ? sourceLine(r.source) || short(r.installed) : "nenhuma"}`));
+    const latest = r.latest ? `${sourceLine(r.latest)} (${(r.latest.size / 1048576).toFixed(1)} MB)` : t("runtimes.nonePublished");
+    info.append(el("div", null, t("runtimes.latest", { build: latest })));
+    info.append(el("div", "status", t("runtimes.installed", { build: r.installed ? sourceLine(r.source) || short(r.installed) : t("runtimes.noneInstalled") })));
     const scan = r.latest && r.latest.virustotal;
     if (scan) {
-      const pill = el("span", `pill ${SCAN_PILL[scan.verdict] || "warn"}`, SCAN_TEXT[scan.verdict] || scan.verdict);
+      const pill = el("span", `pill ${SCAN_PILL[scan.verdict] || "warn"}`, SCAN_KEYS.includes(scan.verdict) ? t(`scan.${scan.verdict}`) : scan.verdict);
       const flagged = scan.files.filter((f) => f.malicious > 0).map((f) => `${f.name}: ${f.malicious}/${f.engines}`);
       const line = el("div", null);
       line.append(pill, " ", flagged.length ? flagged.join(", ") : scan.files.map((f) => `${f.name} ${f.malicious}/${f.engines}`).join(" · "));
@@ -504,15 +520,15 @@ function showRuntimes(rt) {
     tr.append(info);
     const td = el("td");
     if (r.latest && r.update) {
-      const b = el("button", "primary", r.installed ? "Atualizar" : "Instalar");
+      const b = el("button", "primary", t(r.installed ? "runtimes.update" : "runtimes.install"));
       b.addEventListener("click", () => guarded(b, () => installRuntime(r.backend, b)));
       td.append(b);
     } else if (r.exe && r.exe !== current) {
-      const b = el("button", null, "Usar esta build");
+      const b = el("button", null, t("runtimes.useThis"));
       b.addEventListener("click", () => useRuntime(r.backend, r.exe));
       td.append(b);
     } else if (r.exe) {
-      td.append(el("span", "pill ok", "em uso"));
+      td.append(el("span", "pill ok", t("runtimes.inUse")));
     }
     tr.append(td);
     body.append(tr);
@@ -527,48 +543,50 @@ function useRuntime(backend, exe) {
 }
 
 async function installRuntime(backend, button, force = false) {
-  $("#runtimes-info").textContent = `Baixando ${BACKEND_NAME[backend]}…`;
+  say("#runtimes-info", "runtimes.downloading", { name: BACKEND_NAME[backend] });
   const r = await invoke("install_runtime", { backend, force });
   showVerdicts(r.verdicts);
   if (r.blocked) {
-    $("#runtimes-info").textContent = `${BACKEND_NAME[backend]} não foi instalado.`;
-    showBanner(`${r.blocked}\n\nA build instalada continua a mesma.`, false);
-    const again = el("button", "danger", "Instalar mesmo assim");
+    say("#runtimes-info", "runtimes.notInstalled", { name: BACKEND_NAME[backend] });
+    showBanner(`${r.blocked}\n\n${t("runtimes.keptOld")}`, false);
+    const again = el("button", "danger", t("runtimes.installAnyway"));
     again.addEventListener("click", () => guarded(again, () => installRuntime(backend, again, true)));
     button.replaceWith(again);
     return;
   }
-  const vt = r.checked ? "conferido no VirusTotal" : "sem VirusTotal (nenhuma chave salva)";
-  $("#runtimes-info").textContent = `${BACKEND_NAME[backend]} instalado em ${r.exe} (${vt})`;
+  const vt = { k: r.checked ? "runtimes.vtChecked" : "runtimes.vtNone" };
+  say("#runtimes-info", "runtimes.installedAt", { name: BACKEND_NAME[backend], exe: r.exe, vt });
   button.hidden = true;
   await useRuntime(backend, r.exe);
 }
 
 // -- VirusTotal ----------------------------------------------------------------------------------
 
-const VT_TEXT = { clean: "LIMPO", flagged: "ALERTA", unknown: "DESCONHECIDO" };
 const VT_PILL = { clean: "ok", flagged: "fail", unknown: "warn" };
+let lastVerdicts = null;
+let vtSaved = false;
 
 function showVerdicts(list) {
+  lastVerdicts = list;
   const body = $("#vt tbody");
   body.replaceChildren();
   for (const v of list) {
     const tr = el("tr");
-    const pill = el("span", `pill ${VT_PILL[v.state]}`, VT_TEXT[v.state]);
+    const pill = el("span", `pill ${VT_PILL[v.state]}`, t(`vt.${v.state}`));
     const tdS = el("td");
     tdS.append(pill);
     tr.append(tdS, el("td", "name", v.file));
     let detail;
-    if (v.state === "unknown") detail = "O VirusTotal ainda não conhece este arquivo.";
-    else detail = `${v.malicious} de ${v.engines} antivírus acusam; ${v.suspicious} suspeito(s). ${v.link}`;
+    if (v.state === "unknown") detail = t("vt.unknownDetail");
+    else detail = t("vt.detail", { malicious: v.malicious, engines: v.engines, suspicious: v.suspicious, link: v.link });
     const tdD = el("td", null, detail);
     if (v.state === "unknown") {
-      const up = el("button", "ghost", "Enviar para análise");
-      up.title = "O arquivo é enviado ao VirusTotal e fica disponível para ele e seus parceiros.";
+      const up = el("button", "ghost", t("vt.upload"));
+      up.title = t("vt.uploadTitle");
       up.addEventListener("click", () =>
         guarded(up, async () => {
           await invoke("virustotal_upload", { config: readForm(), file: v.file });
-          up.replaceWith(el("span", "status", " Enviado; verifique de novo em alguns minutos."));
+          up.replaceWith(el("span", "status", ` ${t("vt.uploaded")}`));
         }),
       );
       tdD.append(" ", up);
@@ -579,12 +597,40 @@ function showVerdicts(list) {
 }
 
 function showVtKey(saved) {
+  vtSaved = saved;
   $("#vt-key").value = "";
-  $("#vt-key").placeholder = saved ? "Chave salva (digite outra para trocar, ou salve vazio para apagar)" : "Chave da API do VirusTotal";
+  $("#vt-key").dataset.i18nAttr = `placeholder:${saved ? "vt.keySavedPh" : "vt.keyPh"}`;
+  $("#vt-key").placeholder = t(saved ? "vt.keySavedPh" : "vt.keyPh");
   $("#vt-check").disabled = !saved;
-  $("#vt-info").textContent = saved
-    ? "Só o SHA-256 dos .exe e .dll do backend é consultado; nenhum arquivo é enviado sem você pedir."
-    : "Sem chave, as builds não são conferidas no VirusTotal. Uma conta gratuita do VirusTotal tem uma.";
+  say("#vt-info", saved ? "vt.infoSaved" : "vt.infoNone");
+}
+
+// -- language ------------------------------------------------------------------------------
+
+// The footer's keyboard prompts, in the player's language.
+function showPrompts() {
+  const box = $(".prompts");
+  if (!box) return;
+  const kbd = (k) => el("kbd", null, k);
+  box.replaceChildren(
+    kbd("Ctrl"), kbd("Enter"), ` ${t("play")} `,
+    kbd("Ctrl"), kbd("D"), ` ${t("doctor.run")} `,
+    kbd("Ctrl"), kbd("1-5"), ` ${t("keys.tabs")}`,
+  );
+}
+
+// A new language: the page's marked text is already redrawn (i18n.js); this redraws what
+// app.js built from data.
+function relabel() {
+  I18N.fillPicker($("#lang"));
+  showPrompts();
+  refreshVisibility();
+  refreshTitle();
+  if (lastChecks) showChecks(lastChecks);
+  if (lastRuntimes) showRuntimes(lastRuntimes);
+  if (lastVerdicts) showVerdicts(lastVerdicts);
+  showVtKey(vtSaved);
+  if (lastReport) showEfforts(lastReport);
 }
 
 // -- actions -----------------------------------------------------------------------------
@@ -592,7 +638,7 @@ function showVtKey(saved) {
 async function save() {
   config = readForm();
   const path = await invoke("save_config", { config });
-  $("#save-status").textContent = `Salvo em ${path}`;
+  say("#save-status", "save.done", { path });
   return config;
 }
 
@@ -616,19 +662,24 @@ async function play(force) {
     setRunning(true);
     selectTab("log");
   } catch (e) {
-    showBanner(`Não dá para rodar ainda:\n${e}`, !force);
+    showBanner(`${t("play.cannot")}\n${e}`, !force);
   }
 }
 
 async function init() {
+  I18N.fillPicker($("#lang"));
+  $("#lang").addEventListener("change", (ev) => I18N.set(ev.target.value));
+  I18N.onChange(relabel);
+  showPrompts();
+
   const state = await invoke("get_state");
   config = state.config;
   fillForm();
   refreshTitle();
   setRunning(state.running);
   showVtKey(state.virustotal);
-  $("#config-path").textContent = `Configuração: ${state.config_path}`;
-  $("#log-path").textContent = `Também gravado em ${state.log_file}`;
+  say("#config-path", "config.path", { path: state.config_path });
+  say("#log-path", "log.path", { path: state.log_file });
   const list = $("#protons");
   list.replaceChildren();
   for (const p of state.protons) {
@@ -669,22 +720,23 @@ async function init() {
   $("#setup").addEventListener("click", () =>
     guarded($("#setup"), async () => {
       await save();
-      $("#save-status").textContent = "Preparando o prefixo…";
+      say("#save-status", "setup.busy");
       const lines = await invoke("setup_prefix", { config });
       for (const l of lines) appendLog(l, "stdout");
-      $("#save-status").textContent = lines.length ? lines[lines.length - 1] : "Prefixo pronto";
+      if (lines.length) plain("#save-status", lines[lines.length - 1]);
+      else say("#save-status", "setup.done");
     }),
   );
   $("#desktop").addEventListener("click", () =>
     guarded($("#desktop"), async () => {
       await save();
       const path = await invoke("create_desktop_entry", { config });
-      $("#save-status").textContent = `Atalho criado em ${path}`;
+      say("#save-status", "desktop.done", { path });
     }),
   );
   $("#doctor").addEventListener("click", () =>
     guarded($("#doctor"), async () => {
-      $("#doctor-status").textContent = "Verificando…";
+      say("#doctor-status", "doctor.busy");
       showChecks(await invoke("run_doctor", { config: readForm() }));
     }),
   );
@@ -701,11 +753,11 @@ async function init() {
   );
   $("#vt-check").addEventListener("click", () =>
     guarded($("#vt-check"), async () => {
-      $("#vt-info").textContent = "Consultando o VirusTotal…";
+      say("#vt-info", "vt.checking");
       const list = await invoke("virustotal_check", { config: readForm() });
       showVerdicts(list);
       const flagged = list.filter((v) => v.state === "flagged").length;
-      $("#vt-info").textContent = `${list.length} arquivo(s) conferido(s); ${flagged} com alerta.`;
+      say("#vt-info", "vt.summary", { n: list.length, flagged });
     }),
   );
   $("#runtimes-check").addEventListener("click", () =>
@@ -713,7 +765,7 @@ async function init() {
   );
   $("#status-refresh").addEventListener("click", () =>
     guarded($("#status-refresh"), async () => {
-      $("#status-info").textContent = "Buscando…";
+      say("#status-info", "status.loading");
       showEfforts(await invoke("portwatch_status"));
     }),
   );
@@ -734,12 +786,12 @@ async function init() {
   await listen("runtime-progress", (ev) => {
     const { backend, done, total } = ev.payload;
     const pct = total ? Math.floor((done * 100) / total) : 0;
-    $("#runtimes-info").textContent = `Baixando ${BACKEND_NAME[backend]}: ${pct}% de ${(total / 1048576).toFixed(1)} MB`;
+    say("#runtimes-info", "runtimes.progress", { name: BACKEND_NAME[backend], pct, mb: (total / 1048576).toFixed(1) });
   });
   await listen("game-log", (ev) => appendLog(ev.payload.line, ev.payload.stream));
   await listen("game-exit", (ev) => {
     setRunning(false);
-    appendLog(`— o jogo terminou (código ${ev.payload ?? "desconhecido"}) —`, "stdout");
+    appendLog(`— ${t("log.exit", { code: ev.payload ?? t("log.unknownCode") })} —`, "stdout");
   });
 }
 
