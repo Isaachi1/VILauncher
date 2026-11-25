@@ -620,6 +620,76 @@ async function play(force) {
   }
 }
 
+// -- VILauncher's own updates ----------------------------------------------------------------
+//
+// At start and every 6 hours: if a newer release exists, an AppImage downloads and installs it
+// by itself (no password) and offers a restart; the .deb / .rpm install it on a click (pkexec asks
+// for the password); a Flatpak or the tarball shows where to download it.
+
+const UPDATE_EVERY_MS = 6 * 60 * 60 * 1000;
+let updateBusy = false;
+let pendingUpdate = null; // the update the "Atualizar" button installs
+let shownVersion = null; // the version the notice is about
+let dismissedVersion = null; // "Depois": not shown again until a newer one
+let installedVersion = null; // installed, runs after a restart
+
+function showUpdate(version, { title, sub = "", url = "", go = false, restart = false }) {
+  shownVersion = version;
+  $("#update-title").textContent = title;
+  $("#update-sub").textContent = sub;
+  $("#update-url").textContent = url;
+  $("#update-url").hidden = !url;
+  $("#update-go").hidden = !go;
+  $("#update-restart").hidden = !restart;
+  $("#update").hidden = false;
+}
+
+function manualHint(u) {
+  if (u.install === "flatpak") return "Baixe vilauncher.flatpak da release e rode: flatpak install --user vilauncher.flatpak";
+  if (u.install === "deb" || u.install === "rpm") return `Baixe o .${u.install} da release e instale por cima do atual.`;
+  if (u.install === "appimage") return "Baixe o novo AppImage da release e troque o arquivo atual por ele.";
+  return "Baixe o novo pacote da release (.deb, .rpm, AppImage, Flatpak ou .tar.gz).";
+}
+
+async function installUpdate(u) {
+  if (updateBusy) return;
+  updateBusy = true;
+  $("#update-go").disabled = true;
+  showUpdate(u.latest, { title: `Baixando o VILauncher ${u.latest}…`, sub: u.install === "appimage" ? "" : "O sistema vai pedir sua senha para instalar o pacote." });
+  try {
+    const version = await invoke("app_update_install");
+    if (!version) {
+      $("#update").hidden = true;
+      return;
+    }
+    installedVersion = version;
+    showUpdate(version, { title: `VILauncher ${version} instalado`, sub: "A nova versão abre na próxima vez que o VILauncher iniciar.", restart: true });
+  } catch (e) {
+    showUpdate(u.latest, { title: `Não foi possível atualizar para o ${u.latest}`, sub: `${e}. ${manualHint(u)}`, url: u.url });
+  } finally {
+    updateBusy = false;
+    $("#update-go").disabled = false;
+  }
+}
+
+async function checkUpdate() {
+  if (updateBusy) return;
+  let u;
+  try {
+    u = await invoke("app_update_check");
+  } catch (e) {
+    console.warn("update check:", e);
+    return;
+  }
+  if (!u || !u.newer || u.latest === dismissedVersion || u.latest === installedVersion) return;
+  if (u.automatic && u.install === "appimage") return installUpdate(u);
+  if (u.automatic) {
+    pendingUpdate = u;
+    return showUpdate(u.latest, { title: `VILauncher ${u.latest} disponível`, sub: `Você usa a ${u.current}.`, go: true });
+  }
+  showUpdate(u.latest, { title: `VILauncher ${u.latest} disponível`, sub: `Você usa a ${u.current}. ${manualHint(u)}`, url: u.url });
+}
+
 async function init() {
   const state = await invoke("get_state");
   config = state.config;
@@ -736,6 +806,28 @@ async function init() {
     const pct = total ? Math.floor((done * 100) / total) : 0;
     $("#runtimes-info").textContent = `Baixando ${BACKEND_NAME[backend]}: ${pct}% de ${(total / 1048576).toFixed(1)} MB`;
   });
+  await listen("app-update-progress", (ev) => {
+    const { done, total } = ev.payload;
+    const mb = (n) => (n / 1048576).toFixed(1);
+    $("#update-sub").textContent = total ? `${Math.floor((done * 100) / total)}% de ${mb(total)} MB` : `${mb(done)} MB`;
+  });
+  $("#update-go").addEventListener("click", () => pendingUpdate && installUpdate(pendingUpdate));
+  $("#update-restart").addEventListener("click", async () => {
+    try {
+      await invoke("app_restart");
+    } catch (e) {
+      $("#update-sub").textContent = String(e);
+    }
+  });
+  $("#update-close").addEventListener("click", () => {
+    if (updateBusy) return;
+    dismissedVersion = shownVersion;
+    $("#update").hidden = true;
+  });
+  window.__TAURI__.app.getVersion().then((v) => ($("#app-version").textContent = `VILauncher ${v} ·`)).catch(() => {});
+  checkUpdate();
+  setInterval(checkUpdate, UPDATE_EVERY_MS);
+
   await listen("game-log", (ev) => appendLog(ev.payload.line, ev.payload.stream));
   await listen("game-exit", (ev) => {
     setRunning(false);

@@ -50,6 +50,19 @@
     </section>
   </div>
 
+  <div id="update" class="update wrap" hidden>
+    <div class="update-text">
+      <b id="update-title"></b>
+      <span id="update-sub"></span>
+      <code id="update-url" hidden></code>
+    </div>
+    <div class="update-actions">
+      <button id="update-go" class="primary" hidden>Atualizar</button>
+      <button id="update-restart" class="primary" hidden>Reiniciar agora</button>
+      <button id="update-close" class="ghost">Depois</button>
+    </div>
+  </div>
+
   <div id="banner" class="banner wrap" hidden>
     <pre id="banner-text"></pre>
     <div class="banner-actions">
@@ -251,7 +264,7 @@
     </section>
   </main>
 
-  <footer class="wrap"><span id="config-path"></span><span class="prompts"><kbd>Ctrl</kbd><kbd>Enter</kbd> Jogar <kbd>Ctrl</kbd><kbd>D</kbd> Verificar <kbd>Ctrl</kbd><kbd>1-5</kbd> Abas</span></footer>
+  <footer class="wrap"><span><span id="app-version"></span> <span id="config-path"></span></span><span class="prompts"><kbd>Ctrl</kbd><kbd>Enter</kbd> Jogar <kbd>Ctrl</kbd><kbd>D</kbd> Verificar <kbd>Ctrl</kbd><kbd>1-5</kbd> Abas</span></footer>
   <script src="app.js"></script>
 </body>
 </html>
