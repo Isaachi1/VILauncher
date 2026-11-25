@@ -9,20 +9,34 @@
 //! The window installs an update through Tauri's updater, which checks the signature;
 //! this module only answers "is there a newer one, and can this copy install it by
 //! itself?" so that the window and the command line can say so even where the updater
-//! cannot act (a Flatpak, the tarball, a build from source).
+//! cannot act (the tarball, a build from source).
+//!
+//! The Flatpak is the exception: Tauri's updater cannot replace a Flatpak, so
+//! [`install_flatpak`] does it. It downloads the release's `sixlauncher.flatpak`, checks its
+//! signature (`linux-x86_64-flatpak` in `latest.json`, same key and same check as the
+//! updater's) and installs it on the host with `flatpak install --bundle`.
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::fs;
+use std::io::Read;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 
-use crate::{net, Error, Result};
+use crate::{host, net, paths, Error, Result};
 
 pub const REPO: &str = "SixLauncher/launcher";
 pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/launcher/releases/latest/download/latest.json";
 pub const RELEASES_URL: &str = "https://github.com/SixLauncher/launcher/releases/latest";
+/// Where every package of a release is downloaded from.
+pub const DOWNLOAD_PREFIX: &str = "https://github.com/SixLauncher/launcher/releases/download/";
+/// The Flatpak's app id (packaging/flatpak).
+pub const FLATPAK_ID: &str = "io.github.lportvi.sixlauncher";
+/// No Flatpak bundle of the launcher is this large; a bigger download is refused.
+const MAX_BUNDLE: u64 = 512 << 20;
 
 /// How this copy of SixLauncher was installed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -50,7 +64,8 @@ impl Install {
             Install::Deb => Some("linux-x86_64-deb"),
             Install::Rpm => Some("linux-x86_64-rpm"),
             Install::Nsis => Some("windows-x86_64-nsis"),
-            Install::Flatpak | Install::Other => None,
+            Install::Flatpak => Some("linux-x86_64-flatpak"),
+            Install::Other => None,
         }
     }
 }
@@ -151,6 +166,135 @@ pub fn fetch_manifest() -> Result<Option<Manifest>> {
     serde_json::from_str(&text).map(Some).map_err(|e| Error::Config(format!("{MANIFEST_URL}: {e}")))
 }
 
+// -- the Flatpak's own update ------------------------------------------------------------------
+
+/// A package's entry in `latest.json`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Entry {
+    pub url: String,
+    pub signature: String,
+}
+
+impl Manifest {
+    pub fn entry(&self, key: &str) -> Option<Entry> {
+        self.platforms.get(key).and_then(|v| serde_json::from_value(v.clone()).ok())
+    }
+}
+
+fn base64_text(what: &str, b64: &str) -> Result<String> {
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(b64.trim())
+        .map_err(|e| Error::Config(format!("{what}: not base64 ({e})")))?;
+    String::from_utf8(bytes).map_err(|_| Error::Config(format!("{what}: not text")))
+}
+
+/// Checks `data` against a signature from `latest.json` (base64 of a minisign signature file)
+/// with the updater's public key (base64 of a minisign public key file), as Tauri's updater
+/// does: the signature first, then the version the signature's trusted comment records, if it
+/// records one, must be `version`.
+pub fn verify_signature(data: &[u8], signature: &str, pubkey: &str, version: &str) -> Result<()> {
+    let key = minisign_verify::PublicKey::decode(&base64_text("updater public key", pubkey)?)
+        .map_err(|e| Error::Config(format!("updater public key: {e}")))?;
+    let sig = minisign_verify::Signature::decode(&base64_text("signature", signature)?)
+        .map_err(|e| Error::Config(format!("signature: {e}")))?;
+    key.verify(data, &sig, true)
+        .map_err(|e| Error::Config(format!("the download does not match its signature ({e}); nothing was installed")))?;
+    let signed = sig.trusted_comment().split('\t').find_map(|f| f.strip_prefix("version:"));
+    match signed {
+        Some(v) if compare(v, version) != Some(Ordering::Equal) => Err(Error::Config(format!(
+            "the signature is for version {v}, the release says {version}; nothing was installed"
+        ))),
+        _ => Ok(()),
+    }
+}
+
+/// `--user` or `--system`: the installation this Flatpak runs from, from `/.flatpak-info`'s
+/// `app-path` (a system install lives under /var/lib/flatpak, or another system path).
+pub fn flatpak_installation(info: &str) -> &'static str {
+    let app_path = info.lines().find_map(|l| l.trim().strip_prefix("app-path=")).unwrap_or("");
+    let system = app_path.starts_with("/var/lib/flatpak/") || app_path.starts_with("/usr/") || app_path.starts_with("/run/");
+    if system { "--system" } else { "--user" }
+}
+
+/// The `flatpak install` that puts `bundle` in place of the running copy, run on the host.
+pub fn flatpak_install_argv(installation: &str, bundle: &Path) -> Vec<std::ffi::OsString> {
+    let mut argv: Vec<std::ffi::OsString> =
+        ["flatpak", "install", installation, "--noninteractive", "-y", "--reinstall", "--bundle"].iter().map(Into::into).collect();
+    argv.push(bundle.into());
+    argv
+}
+
+fn download(url: &str, dest: &Path, progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Vec<u8>> {
+    let resp = net::agent(Duration::from_secs(1800)).get(url).call().map_err(|e| net::error(url, e))?;
+    let total = resp.header("Content-Length").and_then(|v| v.parse::<u64>().ok());
+    if total.is_some_and(|t| t > MAX_BUNDLE) {
+        return Err(Error::Config(format!("{url}: larger than any SixLauncher bundle; refused")));
+    }
+    let mut reader = resp.into_reader().take(MAX_BUNDLE + 1);
+    let mut data = Vec::with_capacity(total.unwrap_or(0) as usize);
+    let mut buf = vec![0u8; 1 << 16];
+    loop {
+        let n = reader.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        data.extend_from_slice(&buf[..n]);
+        progress(data.len() as u64, total);
+    }
+    if data.len() as u64 > MAX_BUNDLE || total.is_some_and(|t| t != data.len() as u64) {
+        return Err(Error::Config(format!("{url}: the download is incomplete or too large")));
+    }
+    if let Some(dir) = dest.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    fs::write(dest, &data)?;
+    Ok(data)
+}
+
+/// Updates this Flatpak to the newest release: downloads its `sixlauncher.flatpak`, checks the
+/// signature against `pubkey` and installs it on the host (`flatpak install --reinstall
+/// --bundle`, in the installation this copy runs from). The new version runs from the next
+/// start. Returns the version installed, or None when nothing newer is published.
+pub fn install_flatpak(current: &str, pubkey: &str, progress: &mut dyn FnMut(u64, Option<u64>)) -> Result<Option<String>> {
+    if !host::in_flatpak() {
+        return Err(Error::Config("this copy of SixLauncher is not the Flatpak".into()));
+    }
+    let Some(manifest) = fetch_manifest()? else { return Ok(None) };
+    if compare(&manifest.version, current) != Some(Ordering::Greater) {
+        return Ok(None);
+    }
+    let version = manifest.version.trim_start_matches('v').to_string();
+    let entry = manifest
+        .entry("linux-x86_64-flatpak")
+        .ok_or_else(|| Error::Config(format!("release {version} has no signed Flatpak; download it by hand")))?;
+    if !entry.url.starts_with(DOWNLOAD_PREFIX) || entry.url.contains("..") {
+        return Err(Error::Config(format!("{} is not a SixLauncher release download", entry.url)));
+    }
+    let bundle: PathBuf = paths::cache_dir().join("downloads").join(format!("sixlauncher-{version}.flatpak"));
+    let result = download(&entry.url, &bundle, progress)
+        .and_then(|data| verify_signature(&data, &entry.signature, pubkey, &version))
+        .and_then(|()| {
+            let info = fs::read_to_string("/.flatpak-info").unwrap_or_default();
+            let out = host::simple(&flatpak_install_argv(flatpak_installation(&info), &bundle)).output()?;
+            if out.status.success() {
+                Ok(())
+            } else {
+                Err(Error::Config(format!(
+                    "flatpak install failed ({}): {}",
+                    out.status,
+                    String::from_utf8_lossy(&out.stderr).trim()
+                )))
+            }
+        });
+    let _ = fs::remove_file(&bundle);
+    result.map(|()| Some(version))
+}
+
+/// Starts the installed (new) Flatpak on the host, so the next window is the new version.
+pub fn flatpak_relaunch() -> std::io::Result<std::process::Child> {
+    host::simple(&["flatpak".into(), "run".into(), FLATPAK_ID.into()]).spawn()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,14 +345,55 @@ mod tests {
         assert_eq!(c.latest, "0.1.60");
         assert_eq!(c.url, "https://github.com/SixLauncher/launcher/releases/tag/v0.1.60");
         assert!(!evaluate(&m, "0.1.57", Install::Rpm, true).automatic);
-        assert!(!evaluate(&m, "0.1.57", Install::Flatpak, true).automatic);
+        assert!(!evaluate(&m, "0.1.57", Install::Flatpak, true).automatic, "no signed Flatpak in this release");
         assert!(!evaluate(&m, "0.1.57", Install::Deb, false).automatic);
         let same = evaluate(&m, "0.1.60", Install::Deb, true);
         assert!(!same.newer && !same.automatic);
+        let flat = manifest("0.1.60", &["linux-x86_64-flatpak"]);
+        assert!(evaluate(&flat, "0.1.57", Install::Flatpak, true).automatic);
         let win = manifest("0.1.60", &["windows-x86_64-nsis"]);
         assert!(evaluate(&win, "0.1.57", Install::Nsis, true).automatic);
         assert!(!evaluate(&win, "0.1.57", Install::AppImage, true).automatic);
         let unsigned = evaluate(&manifest("0.1.60", &[]), "0.1.57", Install::AppImage, true);
         assert!(unsigned.newer && !unsigned.automatic);
+    }
+
+    // A key and a signature of `DATA` made with `minisign -G -W` and `minisign -S`, written the
+    // way Tauri writes them (base64 of the files).
+    const PUBKEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXkgMUZBOTUxNTE0NzdGQjAxClJXUUIrM2NVRlpYNkFhNXY4eWMwTWpxd3YxdkZ0N2NESDZnZmJ3SDd5VEh4cHA0TWl1MTRUQjFSCg==";
+    const SIG: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIG1pbmlzaWduIHNlY3JldCBrZXkKUlVRQiszY1VGWlg2QVNjaGpIMFlFKy83TlE1MzV0RWxJWkVQRVFaczZlYVdIQnFYb0F6TitGZmh5NU90YkdJazc1QnFzbzFvWXhpRnJjaEtQaUZwSnV0cE1jOWRTaEVPWmdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk1NjQ4OTYzCWZpbGU6ZGF0YS5iaW4JaGFzaGVkCjhXZWlnRTZtbC9HYk9sUlI1RnFzNjRIMjZwc1dpYzExMG1tdFQ0Rmt1M0dnY1BQaHFXSUhFcWl6WmkwRS9GOGFkSmRtUnNUdmZIL1g5R2NiV2pOeUFnPT0K";
+    const DATA: &[u8] = b"sixlauncher test bundle\n";
+
+    #[test]
+    fn flatpak_bundle_must_match_its_signature() {
+        verify_signature(DATA, SIG, PUBKEY, "0.1.60").unwrap();
+        let err = verify_signature(b"sixlauncher test bundle, changed\n", SIG, PUBKEY, "0.1.60").unwrap_err();
+        assert!(err.to_string().contains("does not match its signature"), "{err}");
+        assert!(verify_signature(DATA, "not a signature", PUBKEY, "0.1.60").is_err());
+        assert!(verify_signature(DATA, SIG, "", "0.1.60").is_err());
+    }
+
+    #[test]
+    fn flatpak_installs_where_it_runs() {
+        let user = "[Application]\nname=io.github.lportvi.sixlauncher\n[Instance]\napp-path=/home/eu/.local/share/flatpak/app/io.github.lportvi.sixlauncher/x86_64/master/abc/files\n";
+        let system = "[Instance]\napp-path=/var/lib/flatpak/app/io.github.lportvi.sixlauncher/x86_64/master/abc/files\n";
+        assert_eq!(flatpak_installation(user), "--user");
+        assert_eq!(flatpak_installation(system), "--system");
+        let argv = flatpak_install_argv("--user", Path::new("/home/eu/.var/app/x/cache/sixlauncher/downloads/s.flatpak"));
+        let argv: Vec<String> = argv.iter().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert_eq!(
+            argv,
+            ["flatpak", "install", "--user", "--noninteractive", "-y", "--reinstall", "--bundle", "/home/eu/.var/app/x/cache/sixlauncher/downloads/s.flatpak"]
+        );
+    }
+
+    #[test]
+    fn manifest_entries() {
+        let m: Manifest = serde_json::from_str(
+            r#"{"version":"0.1.60","platforms":{"linux-x86_64-flatpak":{"url":"https://github.com/SixLauncher/launcher/releases/download/v0.1.60/sixlauncher.flatpak","signature":"c2ln"}}}"#,
+        )
+        .unwrap();
+        assert_eq!(m.entry("linux-x86_64-flatpak").unwrap().signature, "c2ln");
+        assert!(m.entry("linux-x86_64-deb").is_none());
     }
 }

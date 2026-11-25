@@ -267,4 +267,5 @@ I18N.add("zh-CN", {
   "runtimes.installedPill": "已安装",
   "runtimes.rolledBack": "{name} 已回退到 {build}。",
   "runtimes.offline": "无法获取已发布的构建；仅显示已安装的内容。",
+  "runtimes.unpublished": "{url} 上没有已发布的构建（GitHub 返回 404）。构建服务尚未发布任何内容，或其仓库是私有的：私有仓库的下载对启动器返回 404。",
 });

@@ -267,4 +267,5 @@ I18N.add("ko", {
   "runtimes.installedPill": "설치됨",
   "runtimes.rolledBack": "{name}이(가) {build}(으)로 돌아갔습니다.",
   "runtimes.offline": "게시된 빌드를 가져올 수 없습니다. 설치된 것만 표시합니다.",
+  "runtimes.unpublished": "{url}에 게시된 빌드가 없습니다(GitHub가 404 응답). 빌더가 아직 아무것도 게시하지 않았거나 저장소가 비공개입니다. 비공개 저장소의 다운로드는 런처에 404를 반환합니다.",
 });

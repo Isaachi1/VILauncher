@@ -370,6 +370,19 @@ jobs:
           sed -i -E "s/^(  \"version\": )\"[^\"]*\"/\1\"$VERSION\"/" app/tauri.conf.json
           grep -n '"version"' app/tauri.conf.json
 
+      # The Flatpak updates itself from a signed sixlauncher.flatpak (signed in the Release job)
+      # and checks it with this key, the same one as the other packages'.
+      - name: Updater public key
+        shell: bash
+        env:
+          PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+        run: |
+          # The key is base64 (no "|" or quotes), so sed can put it in place.
+          if [ -n "$PUBKEY" ]; then
+            sed -i -E "s|(\"pubkey\": )\"[^\"]*\"|\1\"$PUBKEY\"|" app/tauri.conf.json
+            grep -n '"pubkey"' app/tauri.conf.json
+          fi
+
       # The image ships the GNOME SDK in one of its read-only layers. When Flathub has a newer
       # build of it, flatpak-builder updates it in place, and renaming a directory that lives in
       # a lower overlayfs layer fails with EXDEV ("Failed to update org.gnome.Sdk: Invalid
@@ -438,7 +451,9 @@ jobs:
   # marked as the latest release, so two merges whose runs finish out of order keep it right.
   # It also carries latest.json, which the window reads from the latest release
   # (releases/latest/download/latest.json) to update itself: the version and, for each signed
-  # package, its URL and signature under linux-x86_64-{appimage,deb,rpm} and windows-x86_64-nsis.
+  # package, its URL and signature under linux-x86_64-{appimage,deb,rpm,flatpak} and
+  # windows-x86_64-nsis. The Flatpak bundle is signed here (the other packages are signed where
+  # they are built), with the same key, by the Tauri CLI's `signer sign`.
   # On a pull request it runs as a dry run: it lists what it would publish and creates nothing.
   release:
     name: Release
@@ -472,6 +487,22 @@ jobs:
           name: sixlauncher-windows-x64
           path: release
 
+      - name: Sign the Flatpak for self-update
+        env:
+          PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          key=$(printf '%s' "$PRIVATE_KEY" | tr -d '[:space:]')
+          if [ -z "$key" ] || ! printf '%s' "$key" | base64 -d >/dev/null 2>&1; then
+            echo "::notice::no valid TAURI_SIGNING_PRIVATE_KEY: the Flatpak is not signed and does not update itself"
+            exit 0
+          fi
+          echo "::add-mask::$key"
+          TAURI_SIGNING_PRIVATE_KEY="$key" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$PRIVATE_KEY_PASSWORD" \
+            npx --yes @tauri-apps/cli@^2 signer sign release/sixlauncher.flatpak
+          ls -l release/sixlauncher.flatpak.sig
+
       - name: latest.json (self-update manifest)
         env:
           VERSION: ${{ needs.version.outputs.version }}
@@ -481,7 +512,7 @@ jobs:
           platforms='{}'
           shopt -s nullglob
           for pair in 'linux-x86_64-appimage:*.AppImage' 'linux-x86_64-deb:*.deb' 'linux-x86_64-rpm:*.rpm' \
-                      'windows-x86_64-nsis:*-setup.exe'; do
+                      'linux-x86_64-flatpak:*.flatpak' 'windows-x86_64-nsis:*-setup.exe'; do
             key=${pair%%:*} pattern=${pair#*:}
             # shellcheck disable=SC2206 # the pattern is meant to expand
             files=(release/$pattern)

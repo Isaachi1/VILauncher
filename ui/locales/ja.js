@@ -267,4 +267,5 @@ I18N.add("ja", {
   "runtimes.installedPill": "インストール済み",
   "runtimes.rolledBack": "{name} を {build} に戻しました。",
   "runtimes.offline": "公開されたビルドを取得できませんでした。インストール済みのものだけを表示しています。",
+  "runtimes.unpublished": "{url} に公開済みのビルドがありません（GitHub は 404 を返しました）。ビルダーがまだ何も公開していないか、リポジトリが非公開です。非公開リポジトリのダウンロードはランチャーに 404 を返します。",
 });

@@ -267,4 +267,5 @@ I18N.add("tr", {
   "runtimes.installedPill": "kurulu",
   "runtimes.rolledBack": "{name}, {build} sürümüne geri döndü.",
   "runtimes.offline": "Yayınlanan derlemeler alınamadı; yalnızca kurulu olanlar gösteriliyor.",
+  "runtimes.unpublished": "{url} adresinde yayımlanmış derleme yok (GitHub 404 döndürdü). Builder henüz bir şey yayımlamadı ya da deposu özel: özel bir depodan indirmeler başlatıcıya 404 döndürür.",
 });

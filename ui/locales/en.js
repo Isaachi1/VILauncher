@@ -267,4 +267,5 @@ I18N.add("en", {
   "runtimes.installedPill": "installed",
   "runtimes.rolledBack": "{name} is back to {build}.",
   "runtimes.offline": "Could not fetch the published builds; showing only what is installed.",
+  "runtimes.unpublished": "No builds published at {url} (GitHub answered 404). The builder has not published anything yet, or its repository is private: downloads from a private repository answer 404 to the launcher.",
 });

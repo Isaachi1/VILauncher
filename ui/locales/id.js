@@ -267,4 +267,5 @@ I18N.add("id", {
   "runtimes.installedPill": "terpasang",
   "runtimes.rolledBack": "{name} kembali ke {build}.",
   "runtimes.offline": "Tidak bisa mengambil build yang diterbitkan; hanya menampilkan yang terpasang.",
+  "runtimes.unpublished": "Tidak ada build yang dipublikasikan di {url} (GitHub menjawab 404). Builder belum memublikasikan apa pun, atau repositorinya privat: unduhan dari repositori privat menjawab 404 ke launcher.",
 });
