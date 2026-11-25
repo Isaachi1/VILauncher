@@ -23,6 +23,7 @@ pub mod gamedir;
 pub mod host;
 pub mod launch;
 pub mod net;
+pub mod notify;
 pub mod paths;
 pub mod protons;
 pub mod report;

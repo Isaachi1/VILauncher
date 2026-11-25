@@ -489,6 +489,24 @@ pre#log .stderr { color: #ff8a9e; }
 .actions.vt input { flex: 1; min-width: 220px; }
 #vt td:last-child { word-break: break-all; }
 
+/* -- notifications ---------------------------------------------------------------------------- */
+
+.notify {
+  margin-top: 22px;
+  padding: 16px 18px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.notify-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.notify-head h2 { margin-bottom: 4px; }
+.notify > .status { display: block; margin-bottom: 10px; font-size: 13px; }
+.toggle { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.toggle input { width: 18px; height: 18px; margin: 2px 0 0; padding: 0; flex: none; accent-color: var(--violet); cursor: pointer; }
+.toggle b { display: block; font-weight: 600; }
+.toggle small { display: block; color: var(--muted); font-size: 12.5px; }
+
 /* -- status (PortWatch VI) ----------------------------------------------------------------- */
 
 #efforts { display: grid; gap: 12px; }

@@ -8,6 +8,7 @@
 #
 # Proton and Wine run on the host, not in the sandbox: the launcher starts them with
 # `flatpak-spawn --host` (crates/core/src/host.rs), which needs the Flatpak talk-name below.
+# Desktop notifications (the race, new builds, new versions) go to org.freedesktop.Notifications.
 # Home access is for the game folder, Steam's Proton installs and the Wine prefix.
 id: io.github.lportvi.vilauncher
 runtime: org.gnome.Platform
@@ -24,6 +25,7 @@ finish-args:
   - --device=dri
   - --filesystem=home
   - --talk-name=org.freedesktop.Flatpak
+  - --talk-name=org.freedesktop.Notifications
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
   build-args:
