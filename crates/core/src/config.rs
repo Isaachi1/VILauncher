@@ -31,14 +31,21 @@ impl BackendKind {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RunnerKind {
-    /// A Proton / GE-Proton folder: ships vkd3d-proton.
-    #[default]
+    /// A Proton / GE-Proton folder: ships vkd3d-proton. Linux only.
     Proton,
-    /// A wine binary, with vkd3d-proton copied into the prefix.
+    /// A wine binary: with vkd3d-proton copied into the prefix on Linux, or a Wine with
+    /// D3DMetal (CrossOver, the Game Porting Toolkit) on macOS.
     Wine,
+}
+
+/// Proton on Linux; Wine on macOS, where Proton does not exist.
+impl Default for RunnerKind {
+    fn default() -> Self {
+        if cfg!(target_os = "macos") { RunnerKind::Wine } else { RunnerKind::Proton }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
