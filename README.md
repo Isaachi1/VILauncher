@@ -47,6 +47,8 @@ O launcher usa dois serviços externos:
 | Escolhe a GPU que roda o jogo (em notebooks híbridos liga o PRIME offload da NVIDIA ou o DRI_PRIME) e aplica um perfil de variáveis para NVIDIA, AMD ou Intel | **Compatibilidade › GPU e overlay**, `vilauncher gpus`, `setup --gpu --gpu-profile` |
 | Liga o MangoHud (FPS, tempo de quadro, uso de GPU e CPU, limite de FPS) e o GameMode, e avisa se não estão instalados no sistema (uma extensão Flatpak sozinha não serve, porque o jogo roda fora do Flatpak) | **Compatibilidade › GPU e overlay**, `setup --mangohud --gamemode --fps-limit` |
 | Verifica a máquina e a configuração antes de rodar: CPU, GPU e Vulkan, mesh shaders, memória, ajustes do kernel, caminhos | aba **Verificação**, `vilauncher doctor` |
+| Corrige com um clique os ajustes do kernel que a verificação aponta (`vm.max_map_count`, `vm.unprivileged_userfaultfd`): grava em `/etc/sysctl.d/80-vilauncher-*.conf` e aplica na hora, pedindo a senha pelo pkexec (no Flatpak, no sistema via `flatpak-spawn --host`) | **Verificação › Corrigir**, `vilauncher fix` |
+| Junta num .zip a verificação, a configuração, o sistema e os logs do launcher, do Proton, do vkd3d-proton e do backend (mais os crash dumps do prefixo), para mandar aos devs | **Log › Exportar .zip**, `vilauncher report` |
 | Roda o jogo e mostra a saída ao vivo, que também fica gravada em arquivo | **Jogar**, aba **Log**, `vilauncher run` |
 | Consulta a build em uso no VirusTotal com a sua chave (opcional) | **Compatibilidade**, `vilauncher virustotal` |
 | Cria um atalho no menu de aplicativos | **Criar atalho no menu**, `vilauncher desktop` |
@@ -271,8 +273,8 @@ com **Rodar mesmo assim**.
 |---|---|---|
 | **Jogo** | `Ctrl+1` | a pasta do jogo, o executável e os argumentos |
 | **Compatibilidade** | `Ctrl+2` | o backend (VIctory ou XCL) e o executável dele; as builds do CI (**Procurar builds novas**, **Instalar e usar**, **Como o CI escolheu**) com o projeto, o commit e o selo do VirusTotal; o Proton ou o Wine; o vkd3d-proton, o DXC e o Opus; a chave do VirusTotal |
-| **Verificação** | `Ctrl+3` | as checagens da máquina e da configuração, e o comando exato que vai rodar |
-| **Log** | `Ctrl+4` | a saída do jogo ao vivo, também gravada em `~/.local/state/vilauncher/last-run.log` |
+| **Verificação** | `Ctrl+3` | as checagens da máquina e da configuração, o botão **Corrigir** nos avisos do kernel (mostra o que vai gravar, o risco do userfaultfd e os comandos para fazer à mão) e o comando exato que vai rodar |
+| **Log** | `Ctrl+4` | a saída do jogo ao vivo, também gravada em `~/.local/state/vilauncher/last-run.log`; os **logs detalhados** (`PROTON_LOG=1`, ou `VKD3D_DEBUG`/`WINEDEBUG` com Wine) e o **relatório .zip** para os desenvolvedores, com o caminho da pasta pessoal trocado por `~` |
 | **Status** | `Ctrl+5` | o progresso geral e a corrida dos ports, segundo o PortWatch VI; as notificações |
 
 ### Notificações
@@ -316,6 +318,8 @@ vilauncher setup --game ~/Jogos/titulo --backend-exe ~/builds/xcl/xcl.exe \
     --runner wine --vkd3d ~/Downloads/vkd3d-proton-2.14 --dxc-dir ~/dxc/bin/x64 --opus-dir ~/opus
 
 vilauncher doctor                         # verifica a máquina e a configuração
+vilauncher fix [--print]                  # corrige os ajustes do kernel que dão aviso (pede a senha)
+vilauncher report [arquivo.zip]           # o .zip com verificação, sistema e logs para os devs
 vilauncher run --dry-run                  # mostra o comando e o ambiente, sem rodar
 vilauncher run                            # roda
 vilauncher run -- -argumento              # argumentos para o jogo
