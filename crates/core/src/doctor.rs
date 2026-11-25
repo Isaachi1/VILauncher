@@ -311,7 +311,7 @@ pub fn check_game(cfg: &Config) -> Vec<Check> {
         return vec![check(
             Status::Fail,
             "game",
-            format!("{} is not a readable 64-bit executable; VILauncher needs the unpacked files of a game you own", exe.display()),
+            format!("{} is not a readable 64-bit executable; SixLauncher needs the unpacked files of a game you own", exe.display()),
         )];
     }
     let version = info.version.as_deref().map(|v| format!(" {v}")).unwrap_or_default();
@@ -456,7 +456,7 @@ mod tests {
         assert_eq!(fix(check_userfaultfd(None, false)), None);
         assert_eq!(fix(check_userfaultfd(Some("1\n"), false)), None);
         let json = serde_json::to_value(check_max_map_count(Some("65530"))).unwrap();
-        assert_eq!(json["fix"]["file"], "/etc/sysctl.d/80-vilauncher-max-map-count.conf");
+        assert_eq!(json["fix"]["file"], "/etc/sysctl.d/80-sixlauncher-max-map-count.conf");
         assert!(serde_json::to_value(check_platform()).unwrap().get("fix").is_none());
     }
 

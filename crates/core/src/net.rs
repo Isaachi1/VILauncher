@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use crate::{Error, Result};
 
-pub const USER_AGENT: &str = concat!("VILauncher/", env!("CARGO_PKG_VERSION"));
+pub const USER_AGENT: &str = concat!("SixLauncher/", env!("CARGO_PKG_VERSION"));
 
 pub fn agent(timeout: Duration) -> ureq::Agent {
     ureq::AgentBuilder::new().timeout(timeout).user_agent(USER_AGENT).build()

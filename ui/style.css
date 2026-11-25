@@ -1,4 +1,4 @@
-/* VILauncher: a clean tracker-style look (white surfaces, soft cards, one violet -> pink -> orange
+/* SixLauncher: a clean tracker-style look (white surfaces, soft cards, one violet -> pink -> orange
    gradient for what matters), in light and dark. Our own drawing and marks; no game art or logos. */
 
 @font-face {
@@ -295,7 +295,7 @@ button.danger.big { padding: 15px 40px; box-shadow: 0 10px 34px rgba(229, 72, 77
 .banner-actions { margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; }
 .banner-actions button { color: var(--no-fg); border-color: color-mix(in srgb, var(--red) 35%, transparent); }
 
-/* The "new VILauncher" notice: info, not an error. */
+/* The "new SixLauncher" notice: info, not an error. */
 .update {
   margin-bottom: 18px;
   padding: 14px 18px;

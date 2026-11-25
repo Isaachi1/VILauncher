@@ -1,5 +1,5 @@
 [package]
-name = "vilauncher-core"
+name = "sixlauncher-core"
 description = "Runs VIctory or XCL on Linux through Proton or Wine with vkd3d-proton"
 version.workspace = true
 edition.workspace = true

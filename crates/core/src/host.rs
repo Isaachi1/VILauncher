@@ -1,4 +1,4 @@
-//! Running programs on the host when VILauncher is a Flatpak.
+//! Running programs on the host when SixLauncher is a Flatpak.
 //!
 //! Inside the Flatpak sandbox the launcher sees the home folder (`--filesystem=home`)
 //! but not the host's `/usr`, and Proton, Wine and `wineserver` must run on the host,
@@ -65,8 +65,8 @@ pub fn command(argv: &[OsString], env: &BTreeMap<String, String>, cwd: Option<&P
     cmd
 }
 
-/// How a menu entry starts this launcher's `name` program (`vilauncher` or
-/// `vilauncher-app`): `flatpak run` inside a Flatpak, where the binary's own path
+/// How a menu entry starts this launcher's `name` program (`sixlauncher` or
+/// `sixlauncher-app`): `flatpak run` inside a Flatpak, where the binary's own path
 /// exists only in the sandbox; otherwise the running program's path.
 pub fn self_exec(name: &str) -> Vec<String> {
     match std::env::var("FLATPAK_ID") {

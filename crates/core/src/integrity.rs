@@ -5,7 +5,7 @@
 //! whether the file is the one these values describe, so a changed or damaged file shows.
 //!
 //! Hashing a large executable takes seconds, so the result is kept per file in
-//! `~/.cache/vilauncher/hashes.json`, with the file's size and modification time: the hash is
+//! `~/.cache/sixlauncher/hashes.json`, with the file's size and modification time: the hash is
 //! computed again only when either changes.
 
 use std::collections::BTreeMap;

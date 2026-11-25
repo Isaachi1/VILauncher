@@ -1,20 +1,20 @@
-//! `vilauncher`: the launcher without a window (scripts, the menu entry, SSH).
+//! `sixlauncher`: the launcher without a window (scripts, the menu entry, SSH).
 
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use vilauncher_core::config::{self, BackendKind, Config, Console, GpuProfile, RunnerKind};
-use vilauncher_core::doctor::{self, Status};
-use vilauncher_core::fixes::{self, Fix};
-use vilauncher_core::runners::{self, Runner};
-use vilauncher_core::{gamedir, gpu, integrity, launch, paths, perf, protons, report, status, update, virustotal};
+use sixlauncher_core::config::{self, BackendKind, Config, Console, GpuProfile, RunnerKind};
+use sixlauncher_core::doctor::{self, Status};
+use sixlauncher_core::fixes::{self, Fix};
+use sixlauncher_core::runners::{self, Runner};
+use sixlauncher_core::{gamedir, gpu, integrity, launch, paths, perf, protons, report, status, update, virustotal};
 
 const HELP: &str = "\
-vilauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
+sixlauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
 or XCL (LinuxCL), on Proton or Wine with vkd3d-proton.
 
 Usage:
-  vilauncher setup [options]      write the configuration and prepare the prefix
+  sixlauncher setup [options]      write the configuration and prepare the prefix
       --game DIR                  the unpacked game folder (with MicrosoftGame.config)
       --exe PATH                  the title's executable, relative to the game folder
       --backend-exe FILE          victory.exe or xcl.exe (the Windows build)
@@ -33,31 +33,31 @@ Usage:
       --fps-limit N               cap the frame rate through MangoHud (0: no cap)
       --gamemode on|off           Feral's GameMode while the game runs
       --no-prefix                 only write the configuration
-  vilauncher doctor [--config-only]   check the machine and the configuration
-  vilauncher verify [FILE]        the SHA-256 of the game's executable (or of FILE, such as the
+  sixlauncher doctor [--config-only]   check the machine and the configuration
+  sixlauncher verify [FILE]        the SHA-256 of the game's executable (or of FILE, such as the
                                   game's .zip) against the known ones; `[game] verify = false`
                                   turns off the automatic check
-  vilauncher fix [max_map_count|userfaultfd ...] [--print]
+  sixlauncher fix [max_map_count|userfaultfd ...] [--print]
                                   fix the kernel settings the checks warn about (pkexec asks
                                   for the password; kept in /etc/sysctl.d); without a name,
                                   every one that warns; --print only shows the commands
-  vilauncher report [FILE.zip]    one .zip for the backends' developers: the checks, the
+  sixlauncher report [FILE.zip]    one .zip for the backends' developers: the checks, the
                                   configuration, the system, and the logs of the last run,
                                   Proton (PROTON_LOG=1), vkd3d-proton and the backend
-  vilauncher run [--dry-run] [--force] [-- title args]
-  vilauncher info [DIR]           what MicrosoftGame.config says about a game folder
-  vilauncher protons              the Proton installs found (Steam's and the launcher's own)
-  vilauncher proton available     GE-Proton releases on GitHub
-  vilauncher proton install [NAME|latest] [--use]
+  sixlauncher run [--dry-run] [--force] [-- title args]
+  sixlauncher info [DIR]           what MicrosoftGame.config says about a game folder
+  sixlauncher protons              the Proton installs found (Steam's and the launcher's own)
+  sixlauncher proton available     GE-Proton releases on GitHub
+  sixlauncher proton install [NAME|latest] [--use]
                                   download a GE-Proton release (size and SHA-512 checked) into
-                                  ~/.local/share/vilauncher/protons; --use also selects it
-  vilauncher proton use NAME|PATH select an installed Proton (empty name: the best found)
-  vilauncher proton remove NAME   delete a Proton the launcher downloaded
-  vilauncher gpus                 the GPUs, the one `auto` picks, MangoHud and GameMode
-  vilauncher config               print the configuration
-  vilauncher desktop              add a menu entry that runs the game
-  vilauncher status               where VIctory, XCL and the others stand (PortWatch VI)
-  vilauncher update [victory|xcl|best] [--build NAME] [--force]
+                                  ~/.local/share/sixlauncher/protons; --use also selects it
+  sixlauncher proton use NAME|PATH select an installed Proton (empty name: the best found)
+  sixlauncher proton remove NAME   delete a Proton the launcher downloaded
+  sixlauncher gpus                 the GPUs, the one `auto` picks, MangoHud and GameMode
+  sixlauncher config               print the configuration
+  sixlauncher desktop              add a menu entry that runs the game
+  sixlauncher status               where VIctory, XCL and the others stand (PortWatch VI)
+  sixlauncher update [victory|xcl|best] [--build NAME] [--force]
                                   the installed and the published builds (each public VIctory /
                                   XCL tree scoring 59% or more on PortWatch VI, scanned on
                                   VirusTotal); with a backend, install its best build (--build:
@@ -65,13 +65,13 @@ Usage:
                                   `best` is the backend ranked higher. A build VirusTotal flags is never installed;
                                   with a local key the files are looked up again (--force skips
                                   only that)
-  vilauncher rollback victory|xcl [ID]
+  sixlauncher rollback victory|xcl [ID]
                                   list the builds earlier updates replaced (the last 3 are
                                   kept); with an ID (or `last`), put that build back in place
-  vilauncher virustotal [--upload FILE]
+  sixlauncher virustotal [--upload FILE]
                                   look up the backend folder's .exe/.dll on VirusTotal by hash;
                                   --upload sends one of them (by name) for analysis
-  vilauncher virustotal --key KEY save the API key (\"\" removes it); or VILAUNCHER_VT_KEY
+  sixlauncher virustotal --key KEY save the API key (\"\" removes it); or SIXLAUNCHER_VT_KEY
 ";
 
 fn fail(msg: impl std::fmt::Display) -> ExitCode {
@@ -124,7 +124,7 @@ fn virustotal_cmd(args: &[String]) -> ExitCode {
         };
     }
     let Some(key) = virustotal::key() else {
-        return fail("no VirusTotal API key: `vilauncher virustotal --key KEY` or VILAUNCHER_VT_KEY");
+        return fail("no VirusTotal API key: `sixlauncher virustotal --key KEY` or SIXLAUNCHER_VT_KEY");
     };
     let cfg = match load() {
         Ok(c) => c,
@@ -140,7 +140,7 @@ fn virustotal_cmd(args: &[String]) -> ExitCode {
         let Some(path) = found else { return fail(format!("{name} is not a binary in {}", dir.display())) };
         return match virustotal::upload(&key, &path) {
             Ok(id) => {
-                println!("sent {}; analysis {id}. Run `vilauncher virustotal` again in a few minutes.", path.display());
+                println!("sent {}; analysis {id}. Run `sixlauncher virustotal` again in a few minutes.", path.display());
                 ExitCode::SUCCESS
             }
             Err(e) => fail(e),
@@ -206,7 +206,7 @@ fn update_cmd(args: &[String]) -> ExitCode {
                     }
                 }
                 if let Some(best) = rt.recommended {
-                    println!("most advanced on PortWatch VI: {} (`vilauncher update best`)", best.name());
+                    println!("most advanced on PortWatch VI: {} (`sixlauncher update best`)", best.name());
                 }
                 ExitCode::SUCCESS
             }
@@ -225,7 +225,7 @@ fn update_cmd(args: &[String]) -> ExitCode {
         }
     };
     let key = virustotal::key();
-    let mut check = |dir: &std::path::Path| -> vilauncher_core::Result<()> {
+    let mut check = |dir: &std::path::Path| -> sixlauncher_core::Result<()> {
         // The workflow's VirusTotal result is checked by `update::install` itself; a
         // local key only adds a second, fresh lookup.
         let Some(key) = &key else { return Ok(()) };
@@ -233,7 +233,7 @@ fn update_cmd(args: &[String]) -> ExitCode {
         eprintln!();
         print_verdicts(&list);
         match virustotal::blocking(&list) {
-            Some(why) if !force => Err(vilauncher_core::Error::Config(format!("{why}\nnot installed; `--force` installs it anyway"))),
+            Some(why) if !force => Err(sixlauncher_core::Error::Config(format!("{why}\nnot installed; `--force` installs it anyway"))),
             _ => Ok(()),
         }
     };
@@ -253,7 +253,7 @@ fn update_cmd(args: &[String]) -> ExitCode {
             });
             match found {
                 Some(a) => Some(a.file),
-                None => return fail(format!("no {} build {want}; `vilauncher update` lists them", kind.name())),
+                None => return fail(format!("no {} build {want}; `sixlauncher update` lists them", kind.name())),
             }
         }
     };
@@ -278,7 +278,7 @@ fn update_cmd(args: &[String]) -> ExitCode {
 fn origin(o: runners::Origin) -> &'static str {
     match o {
         runners::Origin::Steam => "steam",
-        runners::Origin::Launcher => "vilauncher",
+        runners::Origin::Launcher => "sixlauncher",
         runners::Origin::System => "system",
     }
 }
@@ -319,7 +319,7 @@ fn proton_cmd(args: &[String]) -> ExitCode {
             if use_it {
                 return use_proton(Some(installed.path));
             }
-            println!("`vilauncher proton use {}` selects it", installed.name);
+            println!("`sixlauncher proton use {}` selects it", installed.name);
             ExitCode::SUCCESS
         }
         Some("use") => {
@@ -330,7 +330,7 @@ fn proton_cmd(args: &[String]) -> ExitCode {
                 None => abs(which),
             };
             if !path.join("proton").is_file() {
-                return fail(format!("{which} is not an installed Proton (see `vilauncher protons`)"));
+                return fail(format!("{which} is not an installed Proton (see `sixlauncher protons`)"));
             }
             use_proton(Some(path))
         }
@@ -396,7 +396,7 @@ fn rollback_cmd(args: &[String]) -> ExitCode {
         let hits: Vec<&update::PreviousBuild> = list.iter().filter(|p| p.id.starts_with(id.as_str())).collect();
         match hits.as_slice() {
             [one] => one.id.clone(),
-            [] => return fail(format!("no previous {} build {id}; `vilauncher rollback {}` lists them", kind.name(), kind.name())),
+            [] => return fail(format!("no previous {} build {id}; `sixlauncher rollback {}` lists them", kind.name(), kind.name())),
             _ => return fail(format!("{id} names more than one build")),
         }
     };
@@ -502,7 +502,7 @@ fn setup(args: &[String]) -> ExitCode {
             return fail(e);
         }
     }
-    println!("next: `vilauncher doctor`, then `vilauncher run`");
+    println!("next: `sixlauncher doctor`, then `sixlauncher run`");
     ExitCode::SUCCESS
 }
 
@@ -531,7 +531,7 @@ fn verify_cmd(args: &[String]) -> ExitCode {
                 Err(code) => return code,
             };
             let Some(dir) = cfg.game_dir() else {
-                return fail("no game folder configured; pass a file: `vilauncher verify FILE`");
+                return fail("no game folder configured; pass a file: `sixlauncher verify FILE`");
             };
             match gamedir::inspect(&dir).and_then(|info| gamedir::resolve_exe(&info, cfg.game.exe.as_deref())) {
                 Ok(exe) => exe,
@@ -589,7 +589,7 @@ fn run(args: &[String]) -> ExitCode {
             for c in &fails {
                 eprintln!("error: {}: {}", c.name, c.detail);
             }
-            eprintln!("(`vilauncher doctor` shows every check; --force runs anyway)");
+            eprintln!("(`sixlauncher doctor` shows every check; --force runs anyway)");
             return ExitCode::FAILURE;
         }
     }
@@ -661,7 +661,7 @@ fn info(args: &[String]) -> ExitCode {
         Some(d) => abs(d),
         None => match cfg.game_dir() {
             Some(d) => d,
-            None => return fail("no game folder: pass one or run `vilauncher setup --game <folder>`"),
+            None => return fail("no game folder: pass one or run `sixlauncher setup --game <folder>`"),
         },
     };
     let override_exe = if args.is_empty() { cfg.game.exe.as_deref() } else { None };
@@ -711,7 +711,7 @@ fn fix_cmd(args: &[String]) -> ExitCode {
     }
     match fixes::apply(&list) {
         Ok(()) => {
-            println!("done; `vilauncher doctor` checks again");
+            println!("done; `sixlauncher doctor` checks again");
             ExitCode::SUCCESS
         }
         Err(e) => fail(e),
@@ -737,6 +737,7 @@ fn report_cmd(args: &[String]) -> ExitCode {
 }
 
 fn main() -> ExitCode {
+    sixlauncher_core::paths::migrate_legacy_dirs();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let rest = args.get(1..).unwrap_or(&[]);
     match args.first().map(String::as_str) {
@@ -761,7 +762,7 @@ fn main() -> ExitCode {
                 println!("{:<24} {:<10} {}", p.version, origin(p.origin), p.path.display());
             }
             if found.is_empty() {
-                println!("no Proton found: `vilauncher proton install latest` downloads GE-Proton");
+                println!("no Proton found: `sixlauncher proton install latest` downloads GE-Proton");
             }
             ExitCode::SUCCESS
         }
@@ -778,7 +779,7 @@ fn main() -> ExitCode {
                 Ok(c) => c,
                 Err(code) => return code,
             };
-            let mut exec = vilauncher_core::host::self_exec("vilauncher");
+            let mut exec = sixlauncher_core::host::self_exec("sixlauncher");
             exec.push("run".into());
             match launch::write_desktop_entry(&cfg, &exec) {
                 Ok(p) => {
@@ -800,13 +801,13 @@ fn main() -> ExitCode {
             Err(e) => fail(e),
         },
         Some("--version") => {
-            println!("vilauncher {}", env!("CARGO_PKG_VERSION"));
+            println!("sixlauncher {}", env!("CARGO_PKG_VERSION"));
             ExitCode::SUCCESS
         }
         Some("-h" | "--help" | "help") | None => {
             print!("{HELP}");
             ExitCode::SUCCESS
         }
-        Some(other) => fail(format!("unknown command {other}; see `vilauncher --help`")),
+        Some(other) => fail(format!("unknown command {other}; see `sixlauncher --help`")),
     }
 }

@@ -1,13 +1,13 @@
 [package]
-name = "vilauncher-cli"
-description = "vilauncher: the launcher without a window"
+name = "sixlauncher-cli"
+description = "sixlauncher: the launcher without a window"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "vilauncher"
+name = "sixlauncher"
 path = "src/main.rs"
 
 [dependencies]
-vilauncher-core.workspace = true
+sixlauncher-core.workspace = true

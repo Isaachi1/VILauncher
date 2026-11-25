@@ -72,11 +72,11 @@ impl Fix {
     /// Where the setting is kept. `80-` sorts after the distributions' own files
     /// (SteamOS, Fedora and Arch ship max_map_count in 10-/50- files), so ours wins.
     pub fn file(self) -> String {
-        format!("/etc/sysctl.d/80-vilauncher-{}.conf", self.id().replace('_', "-"))
+        format!("/etc/sysctl.d/80-sixlauncher-{}.conf", self.id().replace('_', "-"))
     }
 
     pub fn file_text(self) -> String {
-        format!("# Written by VILauncher (Check tab). Delete this file and reboot to undo it.\n{} = {}\n", self.setting(), self.value())
+        format!("# Written by SixLauncher (Check tab). Delete this file and reboot to undo it.\n{} = {}\n", self.setting(), self.value())
     }
 
     /// The commands this fix runs as root.
@@ -172,8 +172,8 @@ mod tests {
         let argv = argv(&ALL);
         assert_eq!(&argv[..3], ["pkexec", "/bin/sh", "-c"].map(OsString::from));
         let script = argv[3].to_string_lossy();
-        assert!(script.contains("> /etc/sysctl.d/80-vilauncher-max-map-count.conf && sysctl -w vm.max_map_count=1048576"), "{script}");
-        assert!(script.contains("> /etc/sysctl.d/80-vilauncher-userfaultfd.conf && sysctl -w vm.unprivileged_userfaultfd=1"), "{script}");
+        assert!(script.contains("> /etc/sysctl.d/80-sixlauncher-max-map-count.conf && sysctl -w vm.max_map_count=1048576"), "{script}");
+        assert!(script.contains("> /etc/sysctl.d/80-sixlauncher-userfaultfd.conf && sysctl -w vm.unprivileged_userfaultfd=1"), "{script}");
         assert!(!Fix::Userfaultfd.file_text().contains('\''));
     }
 
@@ -184,7 +184,7 @@ mod tests {
         let etc = t.path().to_string_lossy().into_owned();
         let script = Fix::MaxMapCount.script().replace("/etc", &etc).replace("sysctl -w", "true");
         assert!(std::process::Command::new("/bin/sh").args(["-c", &script]).status().unwrap().success());
-        let text = std::fs::read_to_string(format!("{etc}/sysctl.d/80-vilauncher-max-map-count.conf")).unwrap();
+        let text = std::fs::read_to_string(format!("{etc}/sysctl.d/80-sixlauncher-max-map-count.conf")).unwrap();
         assert!(text.ends_with("\nvm.max_map_count = 1048576\n"), "{text}");
     }
 

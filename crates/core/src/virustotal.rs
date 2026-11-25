@@ -7,7 +7,7 @@
 //! VirusTotal and its partners; that is offered only for the backend's own
 //! files, never for anything in the game folder.
 //!
-//! The key comes from `VILAUNCHER_VT_KEY` or `~/.config/vilauncher/virustotal.key`
+//! The key comes from `SIXLAUNCHER_VT_KEY` or `~/.config/sixlauncher/virustotal.key`
 //! (written with mode 0600), never from `config.toml`.
 
 use std::fs;
@@ -23,9 +23,9 @@ use crate::{Error, Result, net, paths};
 
 const API: &str = "https://www.virustotal.com/api/v3";
 
-/// `VILAUNCHER_VT_API` points the client at another server (a local stand-in, for tests).
+/// `SIXLAUNCHER_VT_API` points the client at another server (a local stand-in, for tests).
 fn api() -> String {
-    std::env::var("VILAUNCHER_VT_API").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| API.into())
+    std::env::var("SIXLAUNCHER_VT_API").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| API.into())
 }
 /// Files up to this size go to `/files`; larger ones need an upload URL first.
 const DIRECT_UPLOAD: u64 = 32 << 20;
@@ -37,7 +37,7 @@ pub fn key_file() -> PathBuf {
 }
 
 pub fn key() -> Option<String> {
-    let from_env = std::env::var("VILAUNCHER_VT_KEY").ok();
+    let from_env = std::env::var("SIXLAUNCHER_VT_KEY").ok();
     let k = from_env.or_else(|| fs::read_to_string(key_file()).ok())?;
     let k = k.trim().to_owned();
     (!k.is_empty()).then_some(k)
@@ -112,7 +112,7 @@ pub fn verdict(file: &str, sha256: &str, report: Option<&str>) -> Result<Verdict
     Ok(v)
 }
 
-/// The executable kind of `path` from its first bytes, as vilauncher-builder's virustotal-scan.py
+/// The executable kind of `path` from its first bytes, as SixLauncher Builder's virustotal-scan.py
 /// recognises them: Windows PE, ELF (programs, `.so`, AppImage), Debian package,
 /// MSI, Mach-O, or a `#!` script.
 pub fn kind_of(path: &Path) -> Option<&'static str> {
@@ -186,7 +186,7 @@ pub fn check_dir(dir: &Path, key: &str) -> Result<Vec<Verdict>> {
 }
 
 fn multipart(name: &str, data: &[u8]) -> (String, Vec<u8>) {
-    let boundary = format!("vilauncher-{}", crate::update::sha256_hex(data).get(..24).unwrap_or("boundary"));
+    let boundary = format!("sixlauncher-{}", crate::update::sha256_hex(data).get(..24).unwrap_or("boundary"));
     let safe: String = name.chars().filter(|c| c.is_ascii_graphic() && *c != '"' && *c != '\\').collect();
     let mut body = format!(
         "--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{safe}\"\r\nContent-Type: application/octet-stream\r\n\r\n"

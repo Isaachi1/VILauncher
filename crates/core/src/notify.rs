@@ -5,9 +5,9 @@
 //!
 //! - **race**: an effort passes another in PortWatch VI's race (see [`crate::status`]);
 //! - **runtimes**: a new build of VIctory or XCL is published (see [`crate::update`]);
-//! - **app**: a new version of VILauncher is released (see [`crate::selfupdate`]).
+//! - **app**: a new version of SixLauncher is released (see [`crate::selfupdate`]).
 //!
-//! What was last seen is kept in `~/.local/state/vilauncher/notifications.json`. The first
+//! What was last seen is kept in `~/.local/state/sixlauncher/notifications.json`. The first
 //! look only records a baseline, so nobody gets a pile of notifications on the first start,
 //! and the baseline moves on even while a switch is off, so turning it back on does not
 //! announce old news. This module only decides *what* to say; the window words it in the
@@ -46,7 +46,7 @@ pub struct Seen {
     pub race: Option<Vec<Standing>>,
     /// The newest published commit of each backend, by name.
     pub runtimes: BTreeMap<String, String>,
-    /// The newest VILauncher version already announced.
+    /// The newest SixLauncher version already announced.
     pub app: Option<String>,
 }
 
@@ -58,7 +58,7 @@ pub enum Event {
     Overtake { id: String, name: String, score: f64, passed: Vec<String>, leader: bool },
     /// A new build of `backend` is published (`commit`, from `repo`, the tracker's `effort`).
     Runtime { backend: BackendKind, commit: String, repo: Option<String>, effort: Option<String> },
-    /// VILauncher `version` is released; this copy is `current`.
+    /// SixLauncher `version` is released; this copy is `current`.
     App { version: String, current: String },
 }
 
@@ -126,7 +126,7 @@ pub fn new_runtimes(seen: &BTreeMap<String, String>, manifest: &Manifest, instal
         .collect()
 }
 
-/// A newer VILauncher than `current`, unless `latest` was already announced.
+/// A newer SixLauncher than `current`, unless `latest` was already announced.
 pub fn new_app(seen: Option<&str>, latest: &str, current: &str) -> Option<Event> {
     let latest = latest.trim_start_matches('v');
     let newer = selfupdate::compare(latest, current) == Some(Ordering::Greater);
@@ -141,7 +141,7 @@ pub struct Sources<'a> {
     pub runtimes: Option<&'a Manifest>,
     /// The commit installed for each backend.
     pub installed: BTreeMap<String, String>,
-    /// The newest VILauncher release and this copy's version.
+    /// The newest SixLauncher release and this copy's version.
     pub app: Option<(&'a str, &'a str)>,
 }
 
@@ -196,7 +196,7 @@ pub fn save_seen(path: &Path, seen: &Seen) -> crate::Result<()> {
     Ok(())
 }
 
-/// Reads the race, the runtimes and the newest VILauncher (each that fails is skipped),
+/// Reads the race, the runtimes and the newest SixLauncher (each that fails is skipped),
 /// and returns what is new for a copy at version `current`. Slow: call it off the UI thread.
 pub fn poll(settings: &NotificationsSection, current: &str) -> Vec<Event> {
     let report = crate::status::report().ok();

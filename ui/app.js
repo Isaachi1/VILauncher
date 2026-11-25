@@ -1,4 +1,4 @@
-// VILauncher's window. Everything happens in Rust (vilauncher-core); this file
+// SixLauncher's window. Everything happens in Rust (sixlauncher-core); this file
 // only edits the configuration and shows what comes back.
 
 const { invoke } = window.__TAURI__.core;
@@ -597,7 +597,7 @@ function sourceLine(a) {
 
 let lastRuntimes = null;
 
-// The Backend list: every build vilauncher-builder published (runtimes.json), best first, as
+// The Backend list: every build SixLauncher Builder published (runtimes.json), best first, as
 // "project · family · score". Picking one installs it if needed and makes it the backend;
 // "your own executable" leaves the path below as it is. Under it, #build-detail shows the
 // picked build: VirusTotal, size, an update of the same project, the builds it replaced.
@@ -1014,7 +1014,7 @@ async function play(force) {
   }
 }
 
-// -- VILauncher's own updates ----------------------------------------------------------------
+// -- SixLauncher's own updates ----------------------------------------------------------------
 //
 // At start and every 6 hours: if a newer release exists, an AppImage downloads and installs it
 // by itself (no password) and offers a restart; the .deb / .rpm install it on a click (pkexec asks
@@ -1039,7 +1039,7 @@ function showUpdate(version, { title, sub = "", url = "", go = false, restart = 
 }
 
 function manualHint(u) {
-  if (u.install === "flatpak") return "Baixe vilauncher.flatpak da release e rode: flatpak install --user vilauncher.flatpak";
+  if (u.install === "flatpak") return "Baixe sixlauncher.flatpak da release e rode: flatpak install --user sixlauncher.flatpak";
   if (u.install === "deb" || u.install === "rpm") return `Baixe o .${u.install} da release e instale por cima do atual.`;
   if (u.install === "appimage") return "Baixe o novo AppImage da release e troque o arquivo atual por ele.";
   return "Baixe o novo pacote da release (.deb, .rpm, AppImage, Flatpak ou .tar.gz).";
@@ -1049,7 +1049,7 @@ async function installUpdate(u) {
   if (updateBusy) return;
   updateBusy = true;
   $("#update-go").disabled = true;
-  showUpdate(u.latest, { title: `Baixando o VILauncher ${u.latest}…`, sub: u.install === "appimage" ? "" : "O sistema vai pedir sua senha para instalar o pacote." });
+  showUpdate(u.latest, { title: `Baixando o SixLauncher ${u.latest}…`, sub: u.install === "appimage" ? "" : "O sistema vai pedir sua senha para instalar o pacote." });
   try {
     const version = await invoke("app_update_install");
     if (!version) {
@@ -1057,7 +1057,7 @@ async function installUpdate(u) {
       return;
     }
     installedVersion = version;
-    showUpdate(version, { title: `VILauncher ${version} instalado`, sub: "A nova versão abre na próxima vez que o VILauncher iniciar.", restart: true });
+    showUpdate(version, { title: `SixLauncher ${version} instalado`, sub: "A nova versão abre na próxima vez que o SixLauncher iniciar.", restart: true });
   } catch (e) {
     showUpdate(u.latest, { title: `Não foi possível atualizar para o ${u.latest}`, sub: `${e}. ${manualHint(u)}`, url: u.url });
   } finally {
@@ -1079,9 +1079,9 @@ async function checkUpdate() {
   if (u.automatic && u.install === "appimage") return installUpdate(u);
   if (u.automatic) {
     pendingUpdate = u;
-    return showUpdate(u.latest, { title: `VILauncher ${u.latest} disponível`, sub: `Você usa a ${u.current}.`, go: true });
+    return showUpdate(u.latest, { title: `SixLauncher ${u.latest} disponível`, sub: `Você usa a ${u.current}.`, go: true });
   }
-  showUpdate(u.latest, { title: `VILauncher ${u.latest} disponível`, sub: `Você usa a ${u.current}. ${manualHint(u)}`, url: u.url });
+  showUpdate(u.latest, { title: `SixLauncher ${u.latest} disponível`, sub: `Você usa a ${u.current}. ${manualHint(u)}`, url: u.url });
 }
 
 // -- desktop notifications --------------------------------------------------------------------
@@ -1340,7 +1340,7 @@ async function init() {
     dismissedVersion = shownVersion;
     $("#update").hidden = true;
   });
-  window.__TAURI__.app.getVersion().then((v) => ($("#app-version").textContent = `VILauncher ${v} ·`)).catch(() => {});
+  window.__TAURI__.app.getVersion().then((v) => ($("#app-version").textContent = `SixLauncher ${v} ·`)).catch(() => {});
   checkUpdate();
   setInterval(checkUpdate, UPDATE_EVERY_MS);
   setTimeout(pollNotifications, NOTIFY_FIRST_MS);

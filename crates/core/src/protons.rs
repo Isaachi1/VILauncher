@@ -6,7 +6,7 @@
 //! the one GitHub lists and its SHA-512 the one in the checksum file, and it is
 //! unpacked next to the other versions and moved in only once complete.
 //!
-//! Versions live in `~/.local/share/vilauncher/protons/<name>`, where
+//! Versions live in `~/.local/share/sixlauncher/protons/<name>`, where
 //! [`runners::find_protons`](crate::runners::find_protons) finds them along with the
 //! ones Steam installed (Proton Experimental, GE-Proton in compatibilitytools.d). Only
 //! the launcher's own versions can be removed here; Steam's stay Steam's.
@@ -29,7 +29,7 @@ const DOWNLOAD_PREFIX: &str = "https://github.com/GloriousEggroll/proton-ge-cust
 const MAX_ARCHIVE: u64 = 2 << 30;
 
 pub fn releases_url() -> String {
-    std::env::var("VILAUNCHER_GE_PROTON_API")
+    std::env::var("SIXLAUNCHER_GE_PROTON_API")
         .ok()
         .filter(|u| !u.is_empty())
         .unwrap_or_else(|| format!("https://api.github.com/repos/{GE_REPO}/releases?per_page=15"))
@@ -263,7 +263,7 @@ pub fn remove_from(root: &Path, name: &str, cfg: &Config) -> Result<()> {
     }
     let dir = root.join(name);
     if !dir.join("proton").is_file() {
-        return Err(Error::Config(format!("{name} is not a Proton version VILauncher installed (only those can be removed here)")));
+        return Err(Error::Config(format!("{name} is not a Proton version SixLauncher installed (only those can be removed here)")));
     }
     if cfg.runner_path().is_some_and(|p| same(&p, &dir)) {
         return Err(Error::Config(format!("{name} is the Proton in use: choose another one before removing it")));

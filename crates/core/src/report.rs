@@ -8,7 +8,7 @@
 //! * `logs/last-run.log`: the last run's output, which holds the backend's own output and
 //!   vkd3d-proton's (it writes to stderr unless `VKD3D_LOG_FILE` says otherwise);
 //! * `logs/proton/`: Proton's `steam-*.log`, written when `PROTON_LOG=1` (the window's
-//!   "detailed logs"); VILauncher points `PROTON_LOG_DIR` at [`proton_log_dir`];
+//!   "detailed logs"); SixLauncher points `PROTON_LOG_DIR` at [`proton_log_dir`];
 //! * `logs/vkd3d/`: the file `VKD3D_LOG_FILE` names, when it is set;
 //! * `logs/backend/`: `*.log` files the backend left in its data and cache folders;
 //! * `crash/`: the newest Windows crash dumps (`*.dmp`) in the prefix.
@@ -45,12 +45,12 @@ pub struct Written {
     pub bytes: u64,
 }
 
-/// Where Proton writes `steam-*.log` for runs VILauncher starts (`PROTON_LOG_DIR`).
+/// Where Proton writes `steam-*.log` for runs SixLauncher starts (`PROTON_LOG_DIR`).
 pub fn proton_log_dir() -> PathBuf {
     paths::state_dir().join("proton-logs")
 }
 
-/// `vilauncher-report-YYYYMMDD-HHMMSS.zip` (UTC).
+/// `sixlauncher-report-YYYYMMDD-HHMMSS.zip` (UTC).
 pub fn file_name(now: SystemTime) -> String {
     let secs = now.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let (days, rest) = (secs / 86_400, secs % 86_400);
@@ -64,7 +64,7 @@ pub fn file_name(now: SystemTime) -> String {
     let day = doy - (153 * mp + 2) / 5 + 1;
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = yoe + era * 400 + i64::from(month <= 2);
-    format!("vilauncher-report-{year:04}{month:02}{day:02}-{:02}{:02}{:02}.zip", rest / 3600, rest % 3600 / 60, rest % 60)
+    format!("sixlauncher-report-{year:04}{month:02}{day:02}-{:02}{:02}{:02}.zip", rest / 3600, rest % 3600 / 60, rest % 60)
 }
 
 /// The report's default place: the home folder.
@@ -94,7 +94,7 @@ fn read_capped(path: &Path, cap: u64) -> std::io::Result<Vec<u8>> {
     let head = HEAD.min(cap / 2);
     let mut out = vec![0; head as usize];
     f.read_exact(&mut out)?;
-    out.extend_from_slice(format!("\n\n[... VILauncher left out {} bytes of the middle ...]\n\n", len - cap).as_bytes());
+    out.extend_from_slice(format!("\n\n[... SixLauncher left out {} bytes of the middle ...]\n\n", len - cap).as_bytes());
     f.seek(SeekFrom::Start(len - (cap - head)))?;
     f.read_to_end(&mut out)?;
     Ok(out)
@@ -168,7 +168,7 @@ fn system_text(version: &str) -> String {
     // In a Flatpak, /etc/os-release is the runtime's; the host's is the one that matters.
     let os = if host::in_flatpak() { run_text(&["cat", "/etc/os-release"]) } else { read_or("/etc/os-release") };
     format!(
-        "VILauncher {version} ({})\n\n## kernel\n{}\n\n## distribution\n{}\n\n## CPU\n{cpu}\n\n## memory\n{mem}\n\
+        "SixLauncher {version} ({})\n\n## kernel\n{}\n\n## distribution\n{}\n\n## CPU\n{cpu}\n\n## memory\n{mem}\n\
          ## kernel settings\nvm.max_map_count = {}\nvm.unprivileged_userfaultfd = {}\n\n## vulkaninfo --summary\n{}",
         if host::in_flatpak() { "Flatpak" } else { "native" },
         read_or("/proc/version"),
@@ -209,12 +209,12 @@ fn collect(cfg: &Config, version: &str) -> Vec<Entry> {
     let checks = doctor::run_all(cfg);
     let runner = Runner::from_config(cfg).ok();
     let summary = format!(
-        "VILauncher {version} report, {}\n\nrunner: {}\nbackend: {} ({})\nchecks: {} failed, {} warnings\n\n\
+        "SixLauncher {version} report, {}\n\nrunner: {}\nbackend: {} ({})\nchecks: {} failed, {} warnings\n\n\
          The home folder's path is shown as ~. Files:\n  system.txt   the machine, the kernel settings, vulkaninfo\n  \
-         checks.txt   VILauncher's checks (checks.json: the same, as data)\n  config.toml  the configuration\n  \
+         checks.txt   SixLauncher's checks (checks.json: the same, as data)\n  config.toml  the configuration\n  \
          launch.txt   the exact command and environment of a run\n  logs/        the last run, Proton, vkd3d-proton, the backend\n  \
          crash/       Windows crash dumps from the prefix, if any\n",
-        file_name(SystemTime::now()).trim_start_matches("vilauncher-report-").trim_end_matches(".zip"),
+        file_name(SystemTime::now()).trim_start_matches("sixlauncher-report-").trim_end_matches(".zip"),
         runner.as_ref().map_or("(not configured)".into(), |r| format!("{} {}", r.name(), r.version())),
         cfg.backend.kind.name(),
         cfg.backend_exe().map_or("no executable".into(), |p| p.display().to_string()),
@@ -315,10 +315,10 @@ mod tests {
     #[test]
     fn names_carry_the_utc_time() {
         let t = UNIX_EPOCH + Duration::from_secs(1_795_572_070); // 2026-11-25 02:01:10 UTC
-        assert_eq!(file_name(t), "vilauncher-report-20261125-020110.zip");
-        assert_eq!(file_name(UNIX_EPOCH), "vilauncher-report-19700101-000000.zip");
+        assert_eq!(file_name(t), "sixlauncher-report-20261125-020110.zip");
+        assert_eq!(file_name(UNIX_EPOCH), "sixlauncher-report-19700101-000000.zip");
         let leap = UNIX_EPOCH + Duration::from_secs(951_782_400); // 2000-02-29
-        assert_eq!(file_name(leap), "vilauncher-report-20000229-000000.zip");
+        assert_eq!(file_name(leap), "sixlauncher-report-20000229-000000.zip");
     }
 
     #[test]

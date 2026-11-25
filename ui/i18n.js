@@ -1,4 +1,4 @@
-// VILauncher's languages. The window starts in the system's language (navigator.languages,
+// SixLauncher's languages. The window starts in the system's language (navigator.languages,
 // which WebKitGTK takes from LANG / LANGUAGE) and the player can pick another one in the top
 // bar; the choice is kept in localStorage, like the theme. Each language is one file in
 // locales/ that calls I18N.add(code, {key: text}); pt-BR is the source and has every key,
@@ -12,7 +12,7 @@
 //
 // Loaded in <head>, before the locales and app.js.
 (() => {
-  const KEY = "vilauncher-lang";
+  const KEY = "sixlauncher-lang";
 
   // The most spoken languages in the world (native + second-language speakers), each named
   // in itself. dir: "rtl" for the scripts written right to left.

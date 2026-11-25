@@ -1,4 +1,4 @@
-//! VILauncher's core: runs VIctory (VILinux) or XCL (LinuxCL) on Linux.
+//! SixLauncher's core: runs VIctory (VILinux) or XCL (LinuxCL) on Linux.
 //!
 //! VIctory and XCL are Windows programs. Both already detect Wine (ntdll's
 //! `wine_get_version`) and adapt to it, and XCL's D3D12 code is written against

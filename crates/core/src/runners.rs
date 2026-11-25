@@ -129,7 +129,7 @@ pub fn steam_roots(home: &Path) -> Vec<PathBuf> {
 pub enum Origin {
     /// Steam (Proton Experimental, or a tool in Steam's compatibilitytools.d).
     Steam,
-    /// VILauncher itself ([`crate::protons`]); only these can be removed from the launcher.
+    /// SixLauncher itself ([`crate::protons`]); only these can be removed from the launcher.
     Launcher,
     /// The distribution's package (/usr/share/steam/compatibilitytools.d).
     System,
@@ -163,7 +163,7 @@ fn rank(name: &str) -> (u8, Vec<std::cmp::Reverse<u64>>, String) {
 
 /// Proton folders (each has a `proton` script), best guess first:
 /// GE-Proton newest first, then Proton Experimental, then other Protons. The versions
-/// VILauncher downloaded ([`crate::protons::managed_dir`]) are found along with Steam's.
+/// SixLauncher downloaded ([`crate::protons::managed_dir`]) are found along with Steam's.
 pub fn find_protons(home: &Path) -> Vec<ProtonInstall> {
     let mut dirs = vec![(crate::protons::managed_dir(), Origin::Launcher)];
     for root in steam_roots(home) {
@@ -288,7 +288,7 @@ impl Runner {
                     .or_else(|| find_protons(&paths::home()).into_iter().next().map(|p| p.path))
                     .ok_or_else(|| {
                         Error::Runner(
-                            "no Proton found: download GE-Proton in the launcher (`vilauncher proton install latest`), \
+                            "no Proton found: download GE-Proton in the launcher (`sixlauncher proton install latest`), \
                              install Proton Experimental through Steam, or choose a Proton folder"
                                 .into(),
                         )

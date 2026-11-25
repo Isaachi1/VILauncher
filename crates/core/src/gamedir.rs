@@ -1,6 +1,6 @@
 //! The game folder: an unpacked Xbox Series (GDK) title the user owns.
 //!
-//! VILauncher reads `MicrosoftGame.config` to find the title's executable. It
+//! SixLauncher reads `MicrosoftGame.config` to find the title's executable. It
 //! never unpacks, decrypts or modifies anything in the folder: a packaged title
 //! (XVC / MSIXVC) is refused with an explanation, as VIctory and XCL do.
 
@@ -93,7 +93,7 @@ pub fn inspect(folder: &Path) -> Result<GameInfo> {
         if !packages.is_empty() {
             packages.sort();
             return Err(Error::Game(format!(
-                "{} holds a packaged title ({}). VILauncher, VIctory and XCL only run unpacked game files you own; \
+                "{} holds a packaged title ({}). SixLauncher, VIctory and XCL only run unpacked game files you own; \
                  they do not unpack or decrypt packages.",
                 folder.display(),
                 packages.join(", ")

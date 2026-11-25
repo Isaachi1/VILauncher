@@ -1,10 +1,10 @@
-# Builds VILauncher and packs it for Linux:
+# Builds SixLauncher and packs it for Linux:
 #
-# * launcher: VILauncher itself on Linux (the `vilauncher` CLI, the Tauri window, .deb, .rpm,
+# * launcher: SixLauncher itself on Linux (the `sixlauncher` CLI, the Tauri window, .deb, .rpm,
 #             AppImage)
-# * flatpak:  VILauncher as a Flatpak bundle (packaging/flatpak), for the Steam Deck and any distro
+# * flatpak:  SixLauncher as a Flatpak bundle (packaging/flatpak), for the Steam Deck and any distro
 # * bundle:   one tarball with the CLI and the window
-# * macos:    VILauncher for macOS on Apple Silicon (.dmg with the app, and the CLI)
+# * macos:    SixLauncher for macOS on Apple Silicon (.dmg with the app, and the CLI)
 #
 # VIctory and XCL are not built here: SixLauncher/builder (on Railway) builds, every
 # 3 hours, each public VIctory / XCL tree scoring 59% or more on PortWatch VI, scans it on
@@ -79,7 +79,7 @@ jobs:
           echo "release=$release" >> "$GITHUB_OUTPUT"
 
   launcher:
-    name: VILauncher (Linux)
+    name: SixLauncher (Linux)
     needs: version
     # The oldest supported runner, so the AppImage and the binaries run on older glibc too.
     runs-on: ubuntu-22.04
@@ -124,9 +124,9 @@ jobs:
             echo "TAURI_SIGNING_PRIVATE_KEY=$key" >> "$GITHUB_ENV"
             if [ -n "$PRIVATE_KEY_PASSWORD" ]; then
               {
-                echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD<<VILAUNCHER_EOF"
+                echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD<<SIXLAUNCHER_EOF"
                 printf '%s\n' "$PRIVATE_KEY_PASSWORD"
-                echo "VILAUNCHER_EOF"
+                echo "SIXLAUNCHER_EOF"
               } >> "$GITHUB_ENV"
             fi
             echo "the packages will be signed"
@@ -149,7 +149,7 @@ jobs:
           cargo tauri --version
 
       - name: Build the CLI
-        run: cargo build --release --locked -p vilauncher-cli
+        run: cargo build --release --locked -p sixlauncher-cli
 
       - name: Build the window, .deb and AppImage
         working-directory: app
@@ -162,27 +162,27 @@ jobs:
       - name: Collect
         run: |
           mkdir -p out
-          cp target/release/vilauncher target/release/vilauncher-app out/
+          cp target/release/sixlauncher target/release/sixlauncher-app out/
           cp target/release/bundle/deb/*.deb target/release/bundle/rpm/*.rpm target/release/bundle/appimage/*.AppImage out/
           # The updater signatures, when the build was signed.
           shopt -s nullglob
           sigs=(target/release/bundle/{deb,rpm,appimage}/*.sig)
           if [ ${#sigs[@]} -gt 0 ]; then cp "${sigs[@]}" out/; fi
-          echo "VILauncher $(git rev-parse HEAD)" > out/VILAUNCHER_COMMIT.txt
+          echo "SixLauncher $(git rev-parse HEAD)" > out/SIXLAUNCHER_COMMIT.txt
           ls -l out
 
       - uses: actions/upload-artifact@v4
         with:
-          name: vilauncher-linux-x64
+          name: sixlauncher-linux-x64
           path: out/
           if-no-files-found: error
 
-  # VILauncher for macOS on Apple Silicon: the window as VILauncher.app in a .dmg, and the CLI.
+  # SixLauncher for macOS on Apple Silicon: the window as SixLauncher.app in a .dmg, and the CLI.
   # There the title runs under a Wine with D3DMetal (CrossOver or Apple's Game Porting Toolkit),
   # with VIctory for macOS builds. Not signed or notarized with an Apple Developer ID: the first
-  # open needs right-click > Open (or `xattr -dr com.apple.quarantine VILauncher.app`).
+  # open needs right-click > Open (or `xattr -dr com.apple.quarantine SixLauncher.app`).
   macos:
-    name: VILauncher (macOS)
+    name: SixLauncher (macOS)
     needs: version
     runs-on: macos-15
     timeout-minutes: 45
@@ -213,11 +213,11 @@ jobs:
           cargo tauri --version
 
       - name: Build the CLI
-        run: cargo build --release --locked -p vilauncher-cli
+        run: cargo build --release --locked -p sixlauncher-cli
 
       # Only the .app from Tauri; the .dmg comes from hdiutil, which needs no Finder scripting
       # (Tauri's DMG layout script drives Finder, which a CI runner may refuse).
-      - name: Build VILauncher.app
+      - name: Build SixLauncher.app
         working-directory: app
         run: cargo tauri build --bundles app
 
@@ -230,20 +230,20 @@ jobs:
           app=$(ls -d target/release/bundle/macos/*.app | head -1)
           cp -R "$app" dmg/
           ln -s /Applications dmg/Applications
-          hdiutil create -volname VILauncher -srcfolder dmg -ov -format UDZO "out/VILauncher_${VERSION}_aarch64.dmg"
-          mkdir cli && cp target/release/vilauncher cli/
-          echo "VILauncher $(git rev-parse HEAD)" > cli/BUILD.txt
-          tar -czf "out/vilauncher-macos-arm64.tar.gz" -C cli .
+          hdiutil create -volname SixLauncher -srcfolder dmg -ov -format UDZO "out/SixLauncher_${VERSION}_aarch64.dmg"
+          mkdir cli && cp target/release/sixlauncher cli/
+          echo "SixLauncher $(git rev-parse HEAD)" > cli/BUILD.txt
+          tar -czf "out/sixlauncher-macos-arm64.tar.gz" -C cli .
           ls -l out
 
       - uses: actions/upload-artifact@v4
         with:
-          name: vilauncher-macos-arm64
+          name: sixlauncher-macos-arm64
           path: out/
           if-no-files-found: error
 
   flatpak:
-    name: VILauncher (Flatpak)
+    name: SixLauncher (Flatpak)
     needs: version
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -280,15 +280,15 @@ jobs:
       - name: Build the Flatpak bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: vilauncher.flatpak
-          manifest-path: packaging/flatpak/io.github.lportvi.vilauncher.yml
+          bundle: sixlauncher.flatpak
+          manifest-path: packaging/flatpak/io.github.lportvi.sixlauncher.yml
           cache-key: flatpak-builder-${{ hashFiles('Cargo.lock') }}
           upload-artifact: false
 
       - uses: actions/upload-artifact@v4
         with:
-          name: vilauncher-flatpak
-          path: vilauncher.flatpak
+          name: sixlauncher-flatpak
+          path: sixlauncher.flatpak
           if-no-files-found: error
 
   bundle:
@@ -299,16 +299,16 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: vilauncher-linux-x64
+          name: sixlauncher-linux-x64
           path: dl
 
       - name: Lay out the bundle
         run: |
-          b=vilauncher-linux-x64
+          b=sixlauncher-linux-x64
           mkdir -p "$b"
-          cp dl/vilauncher dl/vilauncher-app "$b/"
-          chmod +x "$b/vilauncher" "$b/vilauncher-app"
-          cp dl/VILAUNCHER_COMMIT.txt "$b/BUILD.txt"
+          cp dl/sixlauncher dl/sixlauncher-app "$b/"
+          chmod +x "$b/sixlauncher" "$b/sixlauncher-app"
+          cp dl/SIXLAUNCHER_COMMIT.txt "$b/BUILD.txt"
           echo "Built by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$b/BUILD.txt"
           echo "VIctory and XCL: Compatibilidade > Procurar builds novas (built by SixLauncher/builder)" >> "$b/BUILD.txt"
           cat "$b/BUILD.txt"
@@ -320,7 +320,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: vilauncher-bundle
+          name: sixlauncher-bundle
           path: release/
           if-no-files-found: error
 
@@ -345,17 +345,17 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: vilauncher-bundle
+          name: sixlauncher-bundle
           path: release
 
       - uses: actions/download-artifact@v4
         with:
-          name: vilauncher-flatpak
+          name: sixlauncher-flatpak
           path: release
 
       - uses: actions/download-artifact@v4
         with:
-          name: vilauncher-macos-arm64
+          name: sixlauncher-macos-arm64
           path: release
 
       - name: latest.json (self-update manifest)
@@ -407,5 +407,5 @@ jobs:
             gh release upload "$tag" release/* --clobber
             exit 0
           fi
-          gh release create "$tag" release/* --target "$GITHUB_SHA" --title "VILauncher $tag" \
+          gh release create "$tag" release/* --target "$GITHUB_SHA" --title "SixLauncher $tag" \
             --generate-notes --latest="$latest"

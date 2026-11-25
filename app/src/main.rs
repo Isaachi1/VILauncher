@@ -1,9 +1,9 @@
-//! VILauncher's window (Tauri): configure, check, prepare the prefix, play, read the log,
+//! SixLauncher's window (Tauri): configure, check, prepare the prefix, play, read the log,
 //! update the backends and see where each effort stands. It also keeps itself up to date
 //! from this repository's releases (see `app_update_check`).
 //!
-//! Everything it does goes through `vilauncher-core`, the same code as the
-//! `vilauncher` command line.
+//! Everything it does goes through `sixlauncher-core`, the same code as the
+//! `sixlauncher` command line.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -16,22 +16,22 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_updater::UpdaterExt;
-use vilauncher_core::avatars;
-use vilauncher_core::config::{self, Config};
-use vilauncher_core::doctor::{self, Check};
-use vilauncher_core::fixes::{self, Fix};
-use vilauncher_core::gamedir::{self, GameInfo};
-use vilauncher_core::integrity;
-use vilauncher_core::launch;
-use vilauncher_core::{gpu, notify, perf};
-use vilauncher_core::paths;
-use vilauncher_core::report;
-use vilauncher_core::protons::{self, Release};
-use vilauncher_core::runners::{self, ProtonInstall, Runner};
-use vilauncher_core::selfupdate;
-use vilauncher_core::status::{self, Report};
-use vilauncher_core::update::{self, Runtimes};
-use vilauncher_core::virustotal::{self, Verdict};
+use sixlauncher_core::avatars;
+use sixlauncher_core::config::{self, Config};
+use sixlauncher_core::doctor::{self, Check};
+use sixlauncher_core::fixes::{self, Fix};
+use sixlauncher_core::gamedir::{self, GameInfo};
+use sixlauncher_core::integrity;
+use sixlauncher_core::launch;
+use sixlauncher_core::{gpu, notify, perf};
+use sixlauncher_core::paths;
+use sixlauncher_core::report;
+use sixlauncher_core::protons::{self, Release};
+use sixlauncher_core::runners::{self, ProtonInstall, Runner};
+use sixlauncher_core::selfupdate;
+use sixlauncher_core::status::{self, Report};
+use sixlauncher_core::update::{self, Runtimes};
+use sixlauncher_core::virustotal::{self, Verdict};
 
 /// The game the window started, if it is still running.
 #[derive(Default)]
@@ -281,7 +281,7 @@ async fn install_runtime(
             match virustotal::blocking(&verdicts).filter(|_| !force) {
                 Some(why) => {
                     blocked = Some(why.clone());
-                    Err(vilauncher_core::Error::Config(why))
+                    Err(sixlauncher_core::Error::Config(why))
                 }
                 None => Ok(()),
             }
@@ -339,7 +339,7 @@ async fn virustotal_upload(config: Config, file: String) -> Result<String, Strin
 struct Notifier(tauri::async_runtime::Mutex<()>);
 
 /// What changed since the last look (an effort passed another in the race, a new runtime
-/// build, a new VILauncher), filtered by the switches in `[notifications]`. The window
+/// build, a new SixLauncher), filtered by the switches in `[notifications]`. The window
 /// words each event in the player's language and shows it as a desktop notification.
 #[tauri::command]
 async fn notifications_poll(app: AppHandle, notifier: State<'_, Notifier>) -> Result<Vec<notify::Event>, String> {
@@ -382,7 +382,7 @@ fn updater_pubkey(app: &AppHandle) -> bool {
         .is_some_and(|k| !k.trim().is_empty())
 }
 
-/// Whether a newer VILauncher is published (the newest release's latest.json), and whether
+/// Whether a newer SixLauncher is published (the newest release's latest.json), and whether
 /// this copy can install it by itself: an AppImage, or the .deb / .rpm installed under /usr,
 /// from a signed release. A Flatpak or the tarball is told where to download it.
 #[tauri::command]
@@ -405,7 +405,7 @@ struct AppUpdateProgress {
     total: Option<u64>,
 }
 
-/// Downloads the newest VILauncher, checks its signature and installs it over this one
+/// Downloads the newest SixLauncher, checks its signature and installs it over this one
 /// (the AppImage file is replaced; a .deb or .rpm is installed with pkexec, which asks for
 /// the password). Progress arrives as `app-update-progress` events. Returns the version
 /// installed, or None when there was nothing newer. The new version runs on the next start
@@ -413,7 +413,7 @@ struct AppUpdateProgress {
 #[tauri::command]
 async fn app_update_install(app: AppHandle) -> Result<Option<String>, String> {
     if !updater_pubkey(&app) {
-        return Err("this copy of VILauncher has no updater public key".into());
+        return Err("this copy of SixLauncher has no updater public key".into());
     }
     let Some(update) = app.updater().map_err(err)?.check().await.map_err(err)? else {
         return Ok(None);
@@ -439,12 +439,12 @@ async fn app_update_install(app: AppHandle) -> Result<Option<String>, String> {
     Ok(Some(update.version))
 }
 
-/// Starts the installed (new) VILauncher in place of this one. Refused while the game runs,
+/// Starts the installed (new) SixLauncher in place of this one. Refused while the game runs,
 /// since the window owns its process and its log.
 #[tauri::command]
 fn app_restart(app: AppHandle, running: State<Running>) -> Result<(), String> {
     if running.child.lock().unwrap().is_some() {
-        return Err("stop the game before restarting VILauncher".into());
+        return Err("stop the game before restarting SixLauncher".into());
     }
     app.request_restart();
     Ok(())
@@ -477,7 +477,7 @@ fn dry_run(config: Config) -> Result<String, String> {
 
 #[tauri::command]
 fn create_desktop_entry(config: Config) -> Result<String, String> {
-    let exec = vilauncher_core::host::self_exec("vilauncher-app");
+    let exec = sixlauncher_core::host::self_exec("sixlauncher-app");
     launch::write_desktop_entry(&config, &exec).map(|p| p.display().to_string()).map_err(err)
 }
 
@@ -562,6 +562,7 @@ fn stop_game(running: State<Running>) -> Result<(), String> {
 }
 
 fn main() {
+    sixlauncher_core::paths::migrate_legacy_dirs();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -604,5 +605,5 @@ fn main() {
             stop_game
         ])
         .run(tauri::generate_context!())
-        .expect("error while running VILauncher");
+        .expect("error while running SixLauncher");
 }

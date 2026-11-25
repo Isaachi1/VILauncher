@@ -1,19 +1,19 @@
 [package]
-name = "vilauncher-app"
-description = "VILauncher: the window"
+name = "sixlauncher-app"
+description = "SixLauncher: the window"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "vilauncher-app"
+name = "sixlauncher-app"
 path = "src/main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-vilauncher-core.workspace = true
+sixlauncher-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2", features = [] }
