@@ -273,6 +273,10 @@ com **Rodar mesmo assim**.
 
 O tema segue o do sistema até você escolher claro ou escuro no botão do topo. A escolha fica salva.
 
+A janela abre no idioma do sistema (o `LANG` / `LANGUAGE` do Linux) e pode ser trocada no seletor ao lado do tema; a escolha também fica salva. São 15 idiomas, os mais falados no mundo: inglês, chinês (simplificado), hindi, espanhol, árabe, francês, bengali, português (Brasil), russo, urdu, indonésio, alemão, japonês, turco e coreano. Árabe e urdu viram a janela da direita para a esquerda; as barras, os gráficos, os caminhos e o log continuam da esquerda para a direita. Os detalhes técnicos das verificações e as mensagens de erro vêm do núcleo em inglês, e os textos dos projetos vêm do PortWatch VI como estão.
+
+Para adicionar ou corrigir uma tradução, edite `ui/locales/<idioma>.js` (o português, `pt-BR.js`, é a referência com todas as chaves) e rode `node scripts/check-locales.js`, que confere chaves e `{marcadores}` de todos os idiomas; o CI roda o mesmo.
+
 | Compatibilidade | Verificação (tema claro) |
 |---|---|
 | ![Compatibilidade](docs/screenshots/depois-dark-compat.png) | ![Verificação](docs/screenshots/depois-light-verificacao.png) |
@@ -472,8 +476,9 @@ flatpak-builder --user --install --force-clean build-dir packaging/flatpak/io.gi
 | `crates/cli` | `vilauncher`: a linha de comando |
 | `app` | `vilauncher-app`: a janela Tauri 2 |
 | `ui` | a interface da janela (HTML, CSS e JS sem build; a lógica fica toda no Rust) |
+| `ui/locales` | as traduções da janela, uma por idioma (`i18n.js` detecta o idioma e troca) |
 | `ui/fonts` | Inter e Inter Tight (SIL Open Font License, `ui/fonts/OFL-*.txt`) |
-| `scripts` | `select-runtimes.sh` (escolha pelo PortWatch VI) e `virustotal-scan.py` (verificação no CI) |
+| `scripts` | `select-runtimes.sh` (escolha pelo PortWatch VI), `virustotal-scan.py` (verificação no CI) e `check-locales.js` (confere as traduções) |
 | `packaging` | entrada de menu e metainfo (`linux`), Flatpak (`flatpak`) e `PKGBUILD` (`arch`) |
 | `.github/workflows` | `build.yml` (builds, VirusTotal e releases) e `tests.yml` |
 | `docs/screenshots` | capturas da janela |

@@ -6,6 +6,22 @@
   <title>VILauncher</title>
   <link rel="stylesheet" href="style.css">
   <script src="theme.js"></script>
+  <script src="i18n.js"></script>
+  <script src="locales/pt-BR.js"></script>
+  <script src="locales/en.js"></script>
+  <script src="locales/zh-CN.js"></script>
+  <script src="locales/hi.js"></script>
+  <script src="locales/es.js"></script>
+  <script src="locales/ar.js"></script>
+  <script src="locales/fr.js"></script>
+  <script src="locales/bn.js"></script>
+  <script src="locales/ru.js"></script>
+  <script src="locales/ur.js"></script>
+  <script src="locales/id.js"></script>
+  <script src="locales/de.js"></script>
+  <script src="locales/ja.js"></script>
+  <script src="locales/tr.js"></script>
+  <script src="locales/ko.js"></script>
 </head>
 <body>
   <header class="nav">
@@ -18,17 +34,20 @@
         </svg>
         <span><b>VI</b>Launcher</span>
       </span>
-      <nav class="tabs nav-links" role="tablist" aria-label="Seções">
-        <button role="tab" data-tab="game" aria-selected="true">Jogo</button>
-        <button role="tab" data-tab="compat">Compatibilidade</button>
-        <button role="tab" data-tab="doctor">Verificação</button>
-        <button role="tab" data-tab="log">Log</button>
-        <button role="tab" data-tab="status">Status</button>
+      <nav class="tabs nav-links" role="tablist" data-i18n-attr="aria-label:nav.sections" aria-label="Seções">
+        <button role="tab" data-tab="game" aria-selected="true" data-i18n="tab.game">Jogo</button>
+        <button role="tab" data-tab="compat" data-i18n="tab.compat">Compatibilidade</button>
+        <button role="tab" data-tab="doctor" data-i18n="tab.doctor">Verificação</button>
+        <button role="tab" data-tab="log" data-i18n="tab.log">Log</button>
+        <button role="tab" data-tab="status" data-i18n="tab.status">Status</button>
       </nav>
-      <button id="theme" class="icon-btn" type="button" title="Tema claro / escuro" aria-label="Alternar tema">
+      <div class="nav-tools">
+      <select id="lang" class="lang-select" data-i18n-attr="aria-label:lang.label;title:lang.label" aria-label="Idioma" title="Idioma"></select>
+      <button id="theme" class="icon-btn" type="button" title="Tema claro / escuro" aria-label="Alternar tema" data-i18n-attr="title:theme.title;aria-label:theme.toggle">
         <svg class="i-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
         <svg class="i-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
       </button>
+      </div>
     </div>
   </header>
 
@@ -37,15 +56,15 @@
       <div class="hero-glow" aria-hidden="true"></div>
       <div class="hero-text">
         <p class="hero-chips">
-          <span class="live" id="live"><i></i><span id="live-text">Pronto</span></span>
+          <span class="live" id="live"><i></i><span id="live-text" data-i18n="live.ready">Pronto</span></span>
           <span class="chip-glass" id="backend-label">VIctory · Proton</span>
         </p>
-        <h1 id="game-title">Nenhum jogo escolhido</h1>
-        <p class="sub" id="game-sub">Escolha a pasta desempacotada de um jogo seu na aba Jogo.</p>
+        <h1 id="game-title" data-i18n="hero.noGame">Nenhum jogo escolhido</h1>
+        <p class="sub" id="game-sub" data-i18n="hero.noGameSub">Escolha a pasta desempacotada de um jogo seu na aba Jogo.</p>
       </div>
       <div class="hero-actions">
-        <button id="play" class="primary big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.6v12.8c0 .8.9 1.3 1.6.8l10-6.4c.6-.4.6-1.2 0-1.6l-10-6.4C8.9 4.3 8 4.8 8 5.6Z"/></svg>Jogar</button>
-        <button id="stop" class="danger big" hidden>Parar</button>
+        <button id="play" class="primary big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.6v12.8c0 .8.9 1.3 1.6.8l10-6.4c.6-.4.6-1.2 0-1.6l-10-6.4C8.9 4.3 8 4.8 8 5.6Z"/></svg><span data-i18n="play">Jogar</span></button>
+        <button id="stop" class="danger big" hidden data-i18n="stop">Parar</button>
       </div>
     </section>
   </div>
@@ -66,46 +85,46 @@
   <div id="banner" class="banner wrap" hidden>
     <pre id="banner-text"></pre>
     <div class="banner-actions">
-      <button id="banner-force" class="ghost" hidden>Rodar mesmo assim</button>
-      <button id="banner-close" class="ghost">Fechar</button>
+      <button id="banner-force" class="ghost" hidden data-i18n="banner.force">Rodar mesmo assim</button>
+      <button id="banner-close" class="ghost" data-i18n="banner.close">Fechar</button>
     </div>
   </div>
 
   <main class="wrap">
     <section id="tab-game" class="panel">
-      <p class="kicker">Biblioteca</p>
-      <h2>Jogo</h2>
+      <p class="kicker" data-i18n="game.kicker">Biblioteca</p>
+      <h2 data-i18n="game.title">Jogo</h2>
       <label class="field">
-        <span>Pasta do jogo <em>(desempacotada, com MicrosoftGame.config)</em></span>
-        <div class="row"><input data-path="game.dir" placeholder="/home/voce/Jogos/titulo"><button data-browse="dir" data-target="game.dir">Escolher…</button></div>
+        <span><span data-i18n="game.dir">Pasta do jogo</span> <em data-i18n="game.dirHint">(desempacotada, com MicrosoftGame.config)</em></span>
+        <div class="row"><input data-path="game.dir" placeholder="/home/voce/Jogos/titulo" data-i18n-attr="placeholder:game.dirPh"><button data-browse="dir" data-target="game.dir" data-i18n="browse">Escolher…</button></div>
       </label>
       <label class="field">
-        <span>Executável <em>(opcional; padrão: o do MicrosoftGame.config)</em></span>
-        <input data-path="game.exe" placeholder="ex.: bin\game.exe">
+        <span><span data-i18n="game.exe">Executável</span> <em data-i18n="game.exeHint">(opcional; padrão: o do MicrosoftGame.config)</em></span>
+        <input data-path="game.exe" placeholder="ex.: bin\game.exe" data-i18n-attr="placeholder:game.exePh">
       </label>
       <label class="field">
-        <span>Argumentos do jogo <em>(um por linha)</em></span>
+        <span><span data-i18n="game.args">Argumentos do jogo</span> <em data-i18n="game.argsHint">(um por linha)</em></span>
         <textarea data-path="game.args" data-kind="lines" rows="3"></textarea>
       </label>
-      <div class="note">
+      <div class="note" data-i18n="game.note">
         O VILauncher só roda arquivos de um jogo que você possui, já desempacotados. Ele não desempacota,
         não descriptografa e não contorna DRM ou licenças; uma pasta com um pacote XVC / MSIXVC é recusada.
       </div>
     </section>
 
     <section id="tab-compat" class="panel" hidden>
-      <p class="kicker">Backend</p>
-      <h2>Camada de compatibilidade</h2>
+      <p class="kicker" data-i18n="compat.kicker">Backend</p>
+      <h2 data-i18n="compat.title">Camada de compatibilidade</h2>
       <div class="grid">
         <label class="field">
-          <span>Backend</span>
+          <span><span data-i18n="compat.backend">Backend</span></span>
           <select data-path="backend.kind">
             <option value="victory">VIctory (VILinux)</option>
             <option value="xcl">XCL (LinuxCL)</option>
           </select>
         </label>
         <label class="field only-victory">
-          <span>Console simulado</span>
+          <span><span data-i18n="compat.console">Console simulado</span></span>
           <select data-path="backend.console">
             <option value="series-x">Xbox Series X</option>
             <option value="series-s">Xbox Series S</option>
@@ -114,88 +133,88 @@
       </div>
       <div class="runtimes">
         <div class="actions">
-          <button id="runtimes-check">Procurar builds novas</button>
-          <span class="status" id="runtimes-info">Toda noite o CI deste projeto compila o port mais avançado com código público de cada família (VIctory e XCL), segundo o PortWatch VI, e o verifica no VirusTotal.</span>
+          <button id="runtimes-check" data-i18n="runtimes.check">Procurar builds novas</button>
+          <span class="status" id="runtimes-info" data-i18n="runtimes.intro">Toda noite o CI deste projeto compila o port mais avançado com código público de cada família (VIctory e XCL), segundo o PortWatch VI, e o verifica no VirusTotal.</span>
         </div>
         <div class="actions" id="runtimes-best" hidden>
           <span id="runtimes-best-text"></span>
-          <button id="runtimes-best-go" class="primary">Instalar e usar</button>
+          <button id="runtimes-best-go" class="primary" data-i18n="runtimes.installUse">Instalar e usar</button>
         </div>
         <details id="runtimes-why" hidden>
-          <summary>Como o CI escolheu</summary>
+          <summary data-i18n="runtimes.why">Como o CI escolheu</summary>
           <ul id="runtimes-candidates"></ul>
         </details>
         <table id="runtimes"><tbody></tbody></table>
         <div class="actions vt">
-          <input id="vt-key" type="password" autocomplete="off" placeholder="Chave da API do VirusTotal">
-          <button id="vt-save" class="ghost">Salvar chave</button>
-          <button id="vt-check">Verificar build atual no VirusTotal</button>
+          <input id="vt-key" type="password" autocomplete="off" placeholder="Chave da API do VirusTotal" data-i18n-attr="placeholder:vt.keyPh">
+          <button id="vt-save" class="ghost" data-i18n="vt.save">Salvar chave</button>
+          <button id="vt-check" data-i18n="vt.check">Verificar build atual no VirusTotal</button>
         </div>
         <span class="status" id="vt-info"></span>
         <table id="vt"><tbody></tbody></table>
       </div>
       <label class="field">
-        <span>Executável do backend <em>(build Windows: victory.exe ou xcl.exe)</em></span>
-        <div class="row"><input data-path="backend.exe" placeholder="/home/voce/builds/victory.exe"><button data-browse="file" data-target="backend.exe">Escolher…</button></div>
+        <span><span data-i18n="compat.exe">Executável do backend</span> <em data-i18n="compat.exeHint">(build Windows: victory.exe ou xcl.exe)</em></span>
+        <div class="row"><input data-path="backend.exe" placeholder="/home/voce/builds/victory.exe" data-i18n-attr="placeholder:compat.exePh"><button data-browse="file" data-target="backend.exe" data-i18n="browse">Escolher…</button></div>
       </label>
       <label class="field only-victory">
-        <span>Funções não implementadas</span>
+        <span><span data-i18n="compat.unimpl">Funções não implementadas</span></span>
         <select data-path="backend.unimplemented">
-          <option value="trap">trap: para e mostra qual foi (recomendado)</option>
-          <option value="zero">zero: devolve 0 e segue</option>
+          <option value="trap" data-i18n="compat.unimplTrap">trap: para e mostra qual foi (recomendado)</option>
+          <option value="zero" data-i18n="compat.unimplZero">zero: devolve 0 e segue</option>
         </select>
       </label>
       <label class="field only-xcl">
-        <span>DXC <em>(bin/x64 de um release do DirectXShaderCompiler)</em></span>
-        <div class="row"><input data-path="backend.dxc_dir"><button data-browse="dir" data-target="backend.dxc_dir">Escolher…</button></div>
+        <span><span data-i18n="compat.dxc">DXC</span> <em data-i18n="compat.dxcHint">(bin/x64 de um release do DirectXShaderCompiler)</em></span>
+        <div class="row"><input data-path="backend.dxc_dir"><button data-browse="dir" data-target="backend.dxc_dir" data-i18n="browse">Escolher…</button></div>
       </label>
       <label class="field only-xcl">
-        <span>Pasta com opus.dll <em>(sem ele o áudio Opus fica mudo no Wine)</em></span>
-        <div class="row"><input data-path="backend.opus_dir"><button data-browse="dir" data-target="backend.opus_dir">Escolher…</button></div>
+        <span><span data-i18n="compat.opus">Pasta com opus.dll</span> <em data-i18n="compat.opusHint">(sem ele o áudio Opus fica mudo no Wine)</em></span>
+        <div class="row"><input data-path="backend.opus_dir"><button data-browse="dir" data-target="backend.opus_dir" data-i18n="browse">Escolher…</button></div>
       </label>
 
-      <p class="kicker">Execução</p>
+      <p class="kicker" data-i18n="run.kicker">Execução</p>
       <h2>Wine / Proton</h2>
       <div class="grid">
         <label class="field">
-          <span>Executar com</span>
+          <span><span data-i18n="run.with">Executar com</span></span>
           <select data-path="runner.kind">
-            <option value="proton">Proton (recomendado: já traz o vkd3d-proton)</option>
-            <option value="wine">Wine do sistema + vkd3d-proton</option>
+            <option value="proton" data-i18n="run.proton">Proton (recomendado: já traz o vkd3d-proton)</option>
+            <option value="wine" data-i18n="run.wine">Wine do sistema + vkd3d-proton</option>
           </select>
         </label>
       </div>
       <label class="field">
         <span id="runner-path-label">Pasta do Proton</span>
-        <div class="row"><input data-path="runner.path" list="protons" placeholder="detectado automaticamente"><button data-browse="any" data-target="runner.path">Escolher…</button></div>
+        <div class="row"><input data-path="runner.path" list="protons" placeholder="detectado automaticamente" data-i18n-attr="placeholder:run.pathPh"><button data-browse="any" data-target="runner.path" data-i18n="browse">Escolher…</button></div>
         <datalist id="protons"></datalist>
       </label>
       <label class="field only-wine">
-        <span>vkd3d-proton <em>(release descompactado, com x64/d3d12.dll)</em></span>
-        <div class="row"><input data-path="runner.vkd3d_dir"><button data-browse="dir" data-target="runner.vkd3d_dir">Escolher…</button></div>
+        <span><span data-i18n="run.vkd3d">vkd3d-proton</span> <em data-i18n="run.vkd3dHint">(release descompactado, com x64/d3d12.dll)</em></span>
+        <div class="row"><input data-path="runner.vkd3d_dir"><button data-browse="dir" data-target="runner.vkd3d_dir" data-i18n="browse">Escolher…</button></div>
       </label>
       <label class="field">
-        <span>Prefixo <em>(opcional)</em></span>
-        <div class="row"><input data-path="runner.prefix" placeholder="~/.local/share/vilauncher/…"><button data-browse="dir" data-target="runner.prefix">Escolher…</button></div>
+        <span><span data-i18n="run.prefix">Prefixo</span> <em data-i18n="run.prefixHint">(opcional)</em></span>
+        <div class="row"><input data-path="runner.prefix" placeholder="~/.local/share/vilauncher/…"><button data-browse="dir" data-target="runner.prefix" data-i18n="browse">Escolher…</button></div>
       </label>
       <label class="field">
-        <span>Variáveis extras <em>(NOME=valor, uma por linha)</em></span>
+        <span><span data-i18n="run.env">Variáveis extras</span> <em data-i18n="run.envHint">(NOME=valor, uma por linha)</em></span>
         <textarea data-path="env" data-kind="env" rows="3" placeholder="VICTORY_LOG=info"></textarea>
       </label>
       <div class="actions">
-        <button id="save">Salvar</button>
-        <button id="setup">Preparar prefixo</button>
-        <button id="desktop" class="ghost">Criar atalho no menu</button>
+        <button id="save" data-i18n="save">Salvar</button>
+        <button id="setup" data-i18n="setup">Preparar prefixo</button>
+        <button id="desktop" class="ghost" data-i18n="desktop">Criar atalho no menu</button>
         <span class="status" id="save-status"></span>
       </div>
     </section>
 
     <section id="tab-doctor" class="panel" hidden>
-      <p class="kicker">Antes de jogar</p>
-      <h2>Verificação</h2>
+      <p class="kicker" data-i18n="doctor.kicker">Antes de jogar</p>
+      <h2 data-i18n="doctor.title">Verificação</h2>
       <div class="actions">
-        <button id="doctor" class="primary">Verificar</button>
-        <button id="dry" class="ghost">Mostrar comando</button>
+        <button id="doctor" class="primary" data-i18n="doctor.run">Verificar</button>
+        <button id="dry" class="ghost" data-i18n="doctor.dry">Mostrar comando</button>
         <span class="status" id="doctor-status"></span>
       </div>
       <table id="checks"><tbody></tbody></table>
@@ -203,11 +222,11 @@
     </section>
 
     <section id="tab-log" class="panel" hidden>
-      <p class="kicker">Saída do jogo</p>
-      <h2>Log</h2>
+      <p class="kicker" data-i18n="log.kicker">Saída do jogo</p>
+      <h2 data-i18n="log.title">Log</h2>
       <div class="actions">
         <span class="status" id="log-path"></span>
-        <button id="log-clear" class="ghost">Limpar</button>
+        <button id="log-clear" class="ghost" data-i18n="log.clear">Limpar</button>
       </div>
       <pre id="log"></pre>
     </section>
@@ -216,15 +235,15 @@
       <div class="overall">
         <div class="ov-head">
           <div class="ov-main">
-            <p class="kicker">Progresso geral · projeto mais perto de ser jogável</p>
+            <p class="kicker" data-i18n="ov.kicker">Progresso geral · projeto mais perto de ser jogável</p>
             <div class="big-score"><span id="ov-score">0</span><span class="pct">%</span></div>
             <p class="ov-leader" id="ov-leader">&nbsp;</p>
           </div>
           <div class="ov-stats">
-            <div class="ov-stat"><b id="ov-stage">-</b><small>Marco mais avançado</small></div>
-            <div class="ov-stat"><b id="ov-top3">-</b><small>Média do top 3</small></div>
-            <div class="ov-stat"><b id="ov-boot">-</b><small>Iniciam o GTA VI</small></div>
-            <div class="ov-stat"><b id="ov-count">-</b><small>Projetos acompanhados</small></div>
+            <div class="ov-stat"><b id="ov-stage">-</b><small data-i18n="ov.stage">Marco mais avançado</small></div>
+            <div class="ov-stat"><b id="ov-top3">-</b><small data-i18n="ov.top3">Média do top 3</small></div>
+            <div class="ov-stat"><b id="ov-boot">-</b><small data-i18n="ov.boot">Iniciam o GTA VI</small></div>
+            <div class="ov-stat"><b id="ov-count">-</b><small data-i18n="ov.count">Projetos acompanhados</small></div>
           </div>
         </div>
         <div class="mega">
@@ -233,8 +252,8 @@
           <div class="mega-labels" id="mega-labels"></div>
         </div>
         <div class="ov-history" id="ov-history" hidden>
-          <p>Pontuação do líder, dia a dia</p>
-          <svg id="ov-chart" viewBox="0 0 1000 70" preserveAspectRatio="none" aria-label="Pontuação do líder por dia">
+          <p data-i18n="ov.history">Pontuação do líder, dia a dia</p>
+          <svg id="ov-chart" viewBox="0 0 1000 70" preserveAspectRatio="none" aria-label="Pontuação do líder por dia" data-i18n-attr="aria-label:ov.historyAria">
             <defs>
               <linearGradient id="hg" x1="0" x2="1"><stop offset="0" stop-color="#7a5cff"/><stop offset=".55" stop-color="#ff2e7e"/><stop offset="1" stop-color="#ff8a3d"/></linearGradient>
               <linearGradient id="hf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff2e7e" stop-opacity=".2"/><stop offset="1" stop-color="#ff2e7e" stop-opacity="0"/></linearGradient>
@@ -248,15 +267,15 @@
       <div class="race-head">
         <div>
           <p class="kicker">PortWatch VI</p>
-          <h2>A corrida</h2>
+          <h2 data-i18n="race.title">A corrida</h2>
         </div>
         <div class="actions">
           <span class="status" id="status-info"></span>
-          <button id="status-refresh">Atualizar</button>
+          <button id="status-refresh" data-i18n="status.refresh">Atualizar</button>
         </div>
       </div>
       <div id="efforts"></div>
-      <div class="note">
+      <div class="note" data-i18n="status.note">
         Dados do PortWatch VI (portwatch-vi.xyz), um site independente que acompanha os projetos. As etapas
         são estimativas do site e muitas são relatadas pelos próprios projetos. O launcher só lê esses
         dados: não baixa nem roda nada dos projetos listados.

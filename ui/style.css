@@ -147,7 +147,6 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; margin: 0; }
 .nav-links button[aria-selected="true"] { background: var(--soft-2); color: var(--ink); font-weight: 600; }
 
 .icon-btn {
-  margin-left: auto;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -427,7 +426,7 @@ pre#log .stderr { color: #ff8a9e; }
 .runtimes > .actions:first-child { margin-top: 0; }
 #runtimes-best { padding: 10px 12px; border-radius: 12px; background: var(--vi-bg); border: 1px solid var(--vi-line); justify-content: space-between; }
 #runtimes-best-text { font-weight: 500; }
-#runtimes td:last-child { text-align: right; white-space: nowrap; }
+#runtimes td:last-child { text-align: end; white-space: nowrap; }
 #runtimes .status { font-size: 12px; }
 #runtimes td div + div { margin-top: 2px; }
 #runtimes-why { margin: 0 0 8px; color: var(--muted); font-size: 12.5px; }
@@ -473,18 +472,18 @@ pre#log .stderr { color: #ff8a9e; }
 .effort.ours .e-avatar { box-shadow: 0 0 0 2px var(--vi-line); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
-.e-score { text-align: right; flex: none; }
+.e-score { text-align: end; flex: none; }
 .e-score b { display: block; font-family: var(--display); font-size: 30px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
-.e-score small { font-size: 0.5em; margin-left: 1px; color: var(--muted); letter-spacing: 0; }
+.e-score small { font-size: 0.5em; margin-inline-start: 1px; color: var(--muted); letter-spacing: 0; }
 .e-score span { font-size: 12px; font-weight: 600; color: var(--muted); }
-.effort h3 .lock { width: 13px; height: 13px; margin-left: 6px; vertical-align: 1px; fill: var(--violet); }
+.effort h3 .lock { width: 13px; height: 13px; margin-inline-start: 6px; vertical-align: 1px; fill: var(--violet); }
 .effort .chips { margin-top: 10px; }
 
 .e-bar { margin: 16px 0 4px; }
 .bar-track { position: relative; height: 12px; border-radius: 999px; background: var(--soft-2); overflow: hidden; }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; font-size: 12px; color: var(--muted); }
 .legend .hit { color: var(--ink-2); font-weight: 600; }
-.legend .hit::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--pink); vertical-align: 1px; }
+.legend .hit::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-inline-end: 6px; border-radius: 50%; background: var(--pink); vertical-align: 1px; }
 
 /* -- overall progress, the headline card ----------------------------------------------------- */
 
@@ -517,7 +516,7 @@ pre#log .stderr { color: #ff8a9e; }
 .ov-leader b { color: var(--ink); font-weight: 600; border-bottom: 1.5px solid rgba(255, 46, 126, 0.35); }
 .ov-private { white-space: nowrap; }
 .lock { fill: currentColor; }
-.ov-private .lock { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; fill: var(--violet); }
+.ov-private .lock { width: 12px; height: 12px; margin-inline-end: 4px; vertical-align: -1px; fill: var(--violet); }
 .ov-stats { display: grid; grid-template-columns: repeat(4, auto); gap: 10px; }
 .ov-stat { padding: 12px 16px; border-radius: 16px; background: var(--soft); min-width: 112px; }
 .ov-stat b { display: block; font-family: var(--display); font-size: 21px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
@@ -614,8 +613,8 @@ pre#log .stderr { color: #ff8a9e; }
 
 .lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px 24px; margin-top: 10px; }
 .effort ul { margin: 0; padding: 0; list-style: none; }
-.effort li { position: relative; padding: 3px 0 3px 20px; color: var(--ink-2); }
-.effort li::before { position: absolute; left: 0; font-weight: 700; }
+.effort li { position: relative; padding-block: 3px; padding-inline: 20px 0; color: var(--ink-2); }
+.effort li::before { position: absolute; inset-inline-start: 0; font-weight: 700; }
 .effort ul.good li::before { content: "✓"; color: var(--green); }
 .effort ul.bad li::before { content: "–"; color: var(--red); }
 
@@ -635,7 +634,8 @@ footer {
 kbd {
   display: inline-block;
   min-width: 20px;
-  margin: 0 2px 0 10px;
+  margin-block: 0;
+  margin-inline: 10px 2px;
   padding: 1px 6px;
   font: 600 11px/1.5 var(--body);
   text-align: center;
@@ -645,7 +645,7 @@ kbd {
   border-bottom-width: 2px;
   border-radius: 6px;
 }
-kbd + kbd { margin-left: 2px; }
+kbd + kbd { margin-inline-start: 2px; }
 
 @media (max-width: 860px) {
   .brand > span { display: none; }
@@ -657,3 +657,17 @@ kbd + kbd { margin-left: 2px; }
 }
 
 [hidden] { display: none !important; }
+
+/* -- languages ---------------------------------------------------------------------------- */
+
+/* The language picker and the theme button share the right end of the top bar. */
+.nav-inner { height: auto; min-height: 60px; }
+.nav-tools { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+.lang-select { width: auto; padding-block: 7px; font-size: 13px; }
+
+/* Right-to-left (Arabic, Urdu): the page mirrors, but the scales, charts, paths, commands
+   and the log keep reading left to right, as numbers and file names do. */
+[dir="rtl"] select { padding-right: 12px; padding-left: 34px; background-position: 12px 52%, 17px 52%; }
+[dir="rtl"] .mega, [dir="rtl"] .e-bar, [dir="rtl"] .ov-history,
+[dir="rtl"] input, [dir="rtl"] textarea, [dir="rtl"] pre, [dir="rtl"] code { direction: ltr; }
+[dir="rtl"] input, [dir="rtl"] textarea { text-align: left; }
