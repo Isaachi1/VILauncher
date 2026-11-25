@@ -83,8 +83,27 @@ function refreshVisibility() {
   for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
   for (const el of $$(".only-mangohud")) el.hidden = !$('[data-path="performance.mangohud"]').checked;
   for (const el of $$(".only-proton")) el.hidden = runner !== "proton";
+  for (const el of $$(".only-native")) el.hidden = runner !== "native";
+  for (const el of $$(".not-native")) el.hidden = runner === "native";
+  // GPU offload, MangoHud, GameMode and Proton's detailed logs are Linux's.
+  for (const el of $$(".not-windows")) el.hidden = PLATFORM === "windows";
   say("#runner-path-label", runner === "wine" ? "run.winePath" : "run.protonPath");
-  $("#backend-label").textContent = `${backend === "xcl" ? "XCL" : "VIctory"} · ${runner === "wine" ? "Wine + vkd3d-proton" : "Proton"}`;
+  const layer = runner === "native" ? t("run.nativeLabel") : runner === "wine" ? "Wine + vkd3d-proton" : "Proton";
+  $("#backend-label").textContent = `${backend === "xcl" ? "XCL" : "VIctory"} · ${layer}`;
+}
+
+// The host the window runs on (`linux`, `macos`, `windows`), from get_state.
+let PLATFORM = "linux";
+
+// Windows runs the backends natively: only the native runner is offered there, and it is
+// offered nowhere else.
+function offerRunners(platform) {
+  PLATFORM = platform;
+  const windows = platform === "windows";
+  for (const opt of $$('[data-path="runner.kind"] option')) {
+    if ((opt.value === "native") !== windows) opt.remove();
+  }
+  if (windows) $("#runner-title").textContent = "Windows";
 }
 
 async function refreshTitle() {
@@ -1018,7 +1037,8 @@ async function play(force) {
 //
 // At start and every 6 hours: if a newer release exists, an AppImage downloads and installs it
 // by itself (no password) and offers a restart; the .deb / .rpm install it on a click (pkexec asks
-// for the password); a Flatpak or the tarball shows where to download it.
+// for the password); on Windows the installer's copy runs the new installer on a click (the window
+// closes while it installs); a Flatpak, the tarball or the .zip shows where to download it.
 
 const UPDATE_EVERY_MS = 6 * 60 * 60 * 1000;
 let updateBusy = false;
@@ -1042,14 +1062,15 @@ function manualHint(u) {
   if (u.install === "flatpak") return "Baixe sixlauncher.flatpak da release e rode: flatpak install --user sixlauncher.flatpak";
   if (u.install === "deb" || u.install === "rpm") return `Baixe o .${u.install} da release e instale por cima do atual.`;
   if (u.install === "appimage") return "Baixe o novo AppImage da release e troque o arquivo atual por ele.";
-  return "Baixe o novo pacote da release (.deb, .rpm, AppImage, Flatpak ou .tar.gz).";
+  if (u.install === "nsis") return "Baixe o instalador (SixLauncher_…_x64-setup.exe) da release e rode-o: ele atualiza a cópia instalada.";
+  return "Baixe o novo pacote da release (.deb, .rpm, AppImage, Flatpak, .tar.gz, ou no Windows o instalador .exe).";
 }
 
 async function installUpdate(u) {
   if (updateBusy) return;
   updateBusy = true;
   $("#update-go").disabled = true;
-  showUpdate(u.latest, { title: `Baixando o SixLauncher ${u.latest}…`, sub: u.install === "appimage" ? "" : "O sistema vai pedir sua senha para instalar o pacote." });
+  showUpdate(u.latest, { title: `Baixando o SixLauncher ${u.latest}…`, sub: u.install === "appimage" ? "" : u.install === "nsis" ? "O instalador abre em seguida e o SixLauncher fecha enquanto ele atualiza." : "O sistema vai pedir sua senha para instalar o pacote." });
   try {
     const version = await invoke("app_update_install");
     if (!version) {
@@ -1161,6 +1182,7 @@ async function init() {
   showPrompts();
 
   const state = await invoke("get_state");
+  offerRunners(state.platform || "linux");
   config = state.config;
   fillForm();
   refreshTitle();

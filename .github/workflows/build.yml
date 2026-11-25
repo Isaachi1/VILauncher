@@ -5,6 +5,8 @@
 # * flatpak:  SixLauncher as a Flatpak bundle (packaging/flatpak), for the Steam Deck and any distro
 # * bundle:   one tarball with the CLI and the window
 # * macos:    SixLauncher for macOS on Apple Silicon (.dmg with the app, and the CLI)
+# * windows:  SixLauncher for Windows x64 (an installer, and a .zip with the window and the CLI);
+#             there VIctory and XCL run natively, without Proton or Wine
 #
 # VIctory and XCL are not built here: SixLauncher/builder (on Railway) builds, every
 # 3 hours, each public VIctory / XCL tree scoring 59% or more on PortWatch VI, scans it on
@@ -17,14 +19,15 @@
 # pushed by hand publishes one under that tag.
 #
 # Self-update: each release carries latest.json (Tauri updater format). The window reads it from
-# the latest release; an AppImage, .deb or .rpm installs the new version by itself when the
-# release is signed. The public key is in app/tauri.conf.json (plugins.updater.pubkey); signing
+# the latest release; an AppImage, .deb, .rpm or the Windows installer's copy installs the new
+# version by itself when the release is signed. The public key is in app/tauri.conf.json (plugins.updater.pubkey); signing
 # needs, in Settings > Secrets and variables > Actions:
 #   secret   TAURI_SIGNING_PRIVATE_KEY           the matching private key
 #   secret   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
 #   variable TAURI_UPDATER_PUBKEY                optional: replaces the public key in the build
 # Without the secrets the packages are built unsigned and the window only says a new version
-# exists. Losing the private key means installed copies refuse every later update.
+# exists. (The Windows installer is signed for the updater only, not with an Authenticode
+# certificate: SmartScreen warns on the first run, "More info > Run anyway".) Losing the private key means installed copies refuse every later update.
 name: build
 
 on:
@@ -242,6 +245,112 @@ jobs:
           path: out/
           if-no-files-found: error
 
+  # SixLauncher for Windows x64: the window as an NSIS installer (per user, no administrator
+  # rights; it fetches WebView2 if missing) and a .zip with the window and the CLI. On Windows the
+  # backends' Windows builds (the same ones Proton and Wine run on Linux) run natively, with the
+  # system's D3D12: the `native` runner, the only one there.
+  windows:
+    name: SixLauncher (Windows)
+    needs: version
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version ${{ needs.version.outputs.version }}
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          sed -i -E "s/^(  \"version\": )\"[^\"]*\"/\1\"$VERSION\"/" app/tauri.conf.json
+          grep -n '"version"' app/tauri.conf.json
+
+      # As in the Linux job: with the private key at hand the installer gets a .sig, and the
+      # installed copy updates itself from latest.json (windows-x86_64-nsis).
+      - name: Updater keys
+        env:
+          PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+          PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          conf=app/tauri.conf.json
+          if [ -n "$PUBKEY" ]; then
+            jq --arg k "$PUBKEY" '.plugins.updater.pubkey = $k' "$conf" > conf.tmp && mv conf.tmp "$conf"
+            echo "updater public key replaced by the TAURI_UPDATER_PUBKEY variable"
+          fi
+          key=$(printf '%s' "$PRIVATE_KEY" | tr -d '[:space:]')
+          if [ -z "$key" ]; then
+            echo "::notice::no TAURI_SIGNING_PRIVATE_KEY secret: the installer is not signed for the updater"
+          elif ! decoded=$(printf '%s' "$key" | base64 -d 2>/dev/null) || [ -z "$decoded" ]; then
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY is not valid base64; the installer is built unsigned."
+          else
+            jq '.bundle.createUpdaterArtifacts = true' "$conf" > conf.tmp && mv conf.tmp "$conf"
+            echo "::add-mask::$key"
+            echo "TAURI_SIGNING_PRIVATE_KEY=$key" >> "$GITHUB_ENV"
+            if [ -n "$PRIVATE_KEY_PASSWORD" ]; then
+              {
+                echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD<<SIXLAUNCHER_EOF"
+                printf '%s\n' "$PRIVATE_KEY_PASSWORD"
+                echo "SIXLAUNCHER_EOF"
+              } >> "$GITHUB_ENV"
+            fi
+            echo "the installer will be signed"
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Tauri CLI
+        run: |
+          cargo install tauri-cli --version '^2' --locked
+          cargo tauri --version
+
+      - name: Build the CLI
+        run: cargo build --release --locked -p sixlauncher-cli
+
+      # The CLI starts on Windows and its checks see the native runner and the Windows folders.
+      - name: Smoke test
+        run: |
+          set -uo pipefail
+          # doctor exits non-zero here (no game is set up on the runner); only its output matters.
+          out=$(./target/release/sixlauncher.exe doctor 2>&1) || true
+          echo "$out"
+          echo "$out" | grep -q "Windows x86_64" || { echo "::error::doctor does not see Windows"; exit 1; }
+          echo "$out" | grep -q "native" || { echo "::error::doctor does not use the native runner"; exit 1; }
+
+      - name: Build the window and the installer
+        working-directory: app
+        run: cargo tauri build --bundles nsis
+
+      - name: Collect
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p out zip
+          cp target/release/bundle/nsis/*-setup.exe out/
+          shopt -s nullglob
+          sigs=(target/release/bundle/nsis/*.sig)
+          if [ ${#sigs[@]} -gt 0 ]; then cp "${sigs[@]}" out/; fi
+          cp target/release/sixlauncher.exe target/release/sixlauncher-app.exe zip/
+          {
+            echo "SixLauncher $VERSION $(git rev-parse HEAD)"
+            echo "Built by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "sixlauncher-app.exe is the window (it needs Microsoft Edge WebView2, part of Windows 10 and 11);"
+            echo "sixlauncher.exe is the command line. The installer (SixLauncher_*_x64-setup.exe) updates itself."
+          } > zip/BUILD.txt
+          (cd zip && 7z a -tzip "../out/sixlauncher-windows-x64.zip" . >/dev/null)
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sixlauncher-windows-x64
+          path: out/
+          if-no-files-found: error
+
   flatpak:
     name: SixLauncher (Flatpak)
     needs: version
@@ -325,16 +434,16 @@ jobs:
           if-no-files-found: error
 
   # One release per merge into main (and per `v*` tag), with every package: .deb, .rpm, AppImage,
-  # Flatpak and the bundle. Only the newest version is
+  # Flatpak, the bundle, macOS's .dmg and Windows' installer and .zip. Only the newest version is
   # marked as the latest release, so two merges whose runs finish out of order keep it right.
   # It also carries latest.json, which the window reads from the latest release
   # (releases/latest/download/latest.json) to update itself: the version and, for each signed
-  # package, its URL and signature under linux-x86_64-{appimage,deb,rpm}.
+  # package, its URL and signature under linux-x86_64-{appimage,deb,rpm} and windows-x86_64-nsis.
   # On a pull request it runs as a dry run: it lists what it would publish and creates nothing.
   release:
     name: Release
     if: needs.version.outputs.release == 'true' || github.event_name == 'pull_request'
-    needs: [version, bundle, flatpak, macos]
+    needs: [version, bundle, flatpak, macos, windows]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -358,6 +467,11 @@ jobs:
           name: sixlauncher-macos-arm64
           path: release
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: sixlauncher-windows-x64
+          path: release
+
       - name: latest.json (self-update manifest)
         env:
           VERSION: ${{ needs.version.outputs.version }}
@@ -366,13 +480,15 @@ jobs:
           base="${{ github.server_url }}/${{ github.repository }}/releases/download/v$VERSION"
           platforms='{}'
           shopt -s nullglob
-          for pair in appimage:AppImage deb:deb rpm:rpm; do
-            key=${pair%%:*} ext=${pair#*:}
-            files=(release/*."$ext")
-            [ ${#files[@]} -eq 1 ] || { echo "::warning::expected one .$ext, found ${#files[@]}"; continue; }
+          for pair in 'linux-x86_64-appimage:*.AppImage' 'linux-x86_64-deb:*.deb' 'linux-x86_64-rpm:*.rpm' \
+                      'windows-x86_64-nsis:*-setup.exe'; do
+            key=${pair%%:*} pattern=${pair#*:}
+            # shellcheck disable=SC2206 # the pattern is meant to expand
+            files=(release/$pattern)
+            [ ${#files[@]} -eq 1 ] || { echo "::warning::expected one $pattern, found ${#files[@]}"; continue; }
             f=${files[0]}
             if [ ! -f "$f.sig" ]; then echo "$(basename "$f"): not signed, no updater entry"; continue; fi
-            platforms=$(jq --arg k "linux-x86_64-$key" --arg url "$base/$(basename "$f")" --rawfile sig "$f.sig" \
+            platforms=$(jq --arg k "$key" --arg url "$base/$(basename "$f")" --rawfile sig "$f.sig" \
               '. + {($k): {url: $url, signature: $sig}}' <<<"$platforms")
           done
           jq -n --arg v "$VERSION" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson p "$platforms" \

@@ -1,4 +1,5 @@
 //! Wine and Proton: what runs the Windows build of VIctory or XCL on Linux.
+//! On Windows nothing stands in between: the [`Runner::Native`] runner starts the build itself.
 //!
 //! Wine's own `d3d12.dll` (upstream vkd3d) offers neither shader model 6.6 nor
 //! mesh shaders, which both backends need, so vkd3d-proton is required:
@@ -33,6 +34,10 @@ pub const MACOS_WINES: [&str; 3] = [
     "/Applications/Game Porting Toolkit.app/Contents/Resources/wine/bin/wine64",
     "/usr/local/bin/wine64",
 ];
+
+/// This build runs on Windows: the backend's Windows build runs natively, with the system's
+/// own D3D12; Proton and Wine do not apply.
+pub const WINDOWS: bool = cfg!(windows);
 
 /// The DLL overrides that send D3D12 where it must go on this host.
 pub fn d3d12_override(macos: bool) -> &'static str {
@@ -215,6 +220,8 @@ pub struct ProtonRunner {
 pub enum Runner {
     Wine(WineRunner),
     Proton(ProtonRunner),
+    /// Windows: the program runs as it is, no compatibility layer.
+    Native,
 }
 
 impl WineRunner {
@@ -264,6 +271,13 @@ impl WineRunner {
 impl Runner {
     pub fn from_config(cfg: &Config) -> Result<Runner> {
         match cfg.runner.kind {
+            RunnerKind::Native if WINDOWS => Ok(Runner::Native),
+            RunnerKind::Native => Err(Error::Runner(
+                "the native runner exists only on Windows: choose Proton or Wine (on macOS, a Wine with D3DMetal)".into(),
+            )),
+            RunnerKind::Wine | RunnerKind::Proton if WINDOWS => Err(Error::Runner(
+                "on Windows VIctory and XCL run natively: choose the native runner (Proton and Wine are for Linux and macOS)".into(),
+            )),
             RunnerKind::Wine => {
                 let found = if MACOS {
                     MACOS_WINES.iter().map(PathBuf::from).find(|p| p.is_file()).or_else(|| which("wine64")).or_else(|| which("wine"))
@@ -305,14 +319,29 @@ impl Runner {
         match self {
             Runner::Wine(_) => "wine",
             Runner::Proton(_) => "proton",
+            Runner::Native => "native",
         }
     }
 
-    /// The Wine prefix the program runs in.
-    pub fn wineprefix(&self) -> PathBuf {
+    /// The Wine prefix the program runs in; none when it runs natively.
+    pub fn wineprefix(&self) -> Option<PathBuf> {
         match self {
-            Runner::Wine(w) => w.prefix.clone(),
-            Runner::Proton(p) => p.compat_dir.join("pfx"),
+            Runner::Wine(w) => Some(w.prefix.clone()),
+            Runner::Proton(p) => Some(p.compat_dir.join("pfx")),
+            Runner::Native => None,
+        }
+    }
+
+    /// The folders where Windows writes the crash dumps of the programs this runner starts.
+    pub fn crash_dump_dirs(&self) -> Vec<PathBuf> {
+        match self.wineprefix() {
+            Some(pfx) => fs::read_dir(pfx.join("drive_c/users"))
+                .into_iter()
+                .flatten()
+                .flatten()
+                .map(|u| u.path().join("AppData/Local/CrashDumps"))
+                .collect(),
+            None => std::env::var_os("LOCALAPPDATA").map(|d| PathBuf::from(d).join("CrashDumps")).into_iter().collect(),
         }
     }
 
@@ -342,6 +371,7 @@ impl Runner {
                     env.insert("PROTON_LOG_DIR".into(), crate::report::proton_log_dir().to_string_lossy().into_owned());
                 }
             }
+            Runner::Native => {}
         }
         env
     }
@@ -350,6 +380,7 @@ impl Runner {
         let mut argv = match self {
             Runner::Wine(w) => vec![w.wine.to_string_lossy().into_owned()],
             Runner::Proton(p) => vec![p.proton_dir.join("proton").to_string_lossy().into_owned(), "waitforexitandrun".into()],
+            Runner::Native => vec![],
         };
         argv.push(exe.to_string_lossy().into_owned());
         argv.extend(args.iter().cloned());
@@ -365,20 +396,30 @@ impl Runner {
                 log(format!("Proton prefix folder: {} (Proton fills it on the first run)", p.compat_dir.display()));
                 Ok(())
             }
+            Runner::Native => {
+                log("Windows: the backend runs natively, there is no prefix to prepare".to_string());
+                Ok(())
+            }
         }
     }
 
     /// Stops every Windows process in the prefix (`wineserver -k`): stopping the
-    /// launcher's child alone can leave the game running under Wine.
-    pub fn kill_command(&self) -> Command {
+    /// launcher's child alone can leave the game running under Wine. On Windows, the process
+    /// `pid` (the backend) and every process it started (`taskkill /T`), which must run before
+    /// the backend itself is stopped, while the tree still hangs from it.
+    pub fn kill_command(&self, pid: Option<u32>) -> Option<Command> {
         let server = match self {
             Runner::Wine(w) => w.wine.with_file_name("wineserver"),
             Runner::Proton(p) => p.proton_dir.join("files/bin/wineserver"),
+            Runner::Native => {
+                let pid = pid?.to_string();
+                return Some(host::simple(&["taskkill".into(), "/T".into(), "/F".into(), "/PID".into(), pid.into()]));
+            }
         };
         let server = if server.is_file() { server } else { PathBuf::from("wineserver") };
         let mut env: std::collections::BTreeMap<String, String> = std::env::vars().collect();
-        env.insert("WINEPREFIX".into(), self.wineprefix().to_string_lossy().into_owned());
-        host::command(&[server.into(), "-k".into()], &env, None)
+        env.insert("WINEPREFIX".into(), self.wineprefix().unwrap_or_default().to_string_lossy().into_owned());
+        Some(host::command(&[server.into(), "-k".into()], &env, None))
     }
 
     pub fn vkd3d_installed(&self) -> bool {
@@ -388,6 +429,7 @@ impl Runner {
                 p.is_file() && !is_wine_placeholder(&p)
             }),
             Runner::Proton(p) => vkd3d_x64_dir(&p.proton_dir).is_some(),
+            Runner::Native => false,
         }
     }
 
@@ -401,7 +443,17 @@ impl Runner {
                 Err(e) => format!("unknown ({e})"),
             },
             Runner::Proton(p) => proton_version(&p.proton_dir),
+            Runner::Native => windows_version(),
         }
+    }
+}
+
+/// `Microsoft Windows [Version 10.0.26100.2314]`, as `ver` prints it.
+fn windows_version() -> String {
+    let out = host::simple(&["cmd".into(), "/C".into(), "ver".into()]).output();
+    match out.map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned()) {
+        Ok(s) if !s.is_empty() => s,
+        _ => format!("Windows ({})", std::env::consts::ARCH),
     }
 }
 

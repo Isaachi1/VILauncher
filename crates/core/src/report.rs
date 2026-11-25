@@ -268,13 +268,8 @@ fn collect(cfg: &Config, version: &str) -> Vec<Entry> {
     }
 
     if let Some(r) = &runner {
-        let users = r.wineprefix().join("drive_c/users");
-        let dumps: Vec<PathBuf> = fs::read_dir(&users)
-            .into_iter()
-            .flatten()
-            .flatten()
-            .flat_map(|u| newest(&u.path().join("AppData/Local/CrashDumps"), 0, &|p| has_ext(p, "dmp"), MAX_DUMPS))
-            .collect();
+        let dumps: Vec<PathBuf> =
+            r.crash_dump_dirs().iter().flat_map(|d| newest(d, 0, &|p| has_ext(p, "dmp"), MAX_DUMPS)).collect();
         for p in dumps.into_iter().take(MAX_DUMPS) {
             file(format!("crash/{}", file_name(&p)), &p, DUMP_CAP, false);
         }
@@ -369,7 +364,7 @@ mod tests {
         let backend_log = cfg.data_dir().join("logs/victory.log");
         fs::create_dir_all(backend_log.parent().unwrap()).unwrap();
         fs::write(&backend_log, "backend\n").unwrap();
-        let dumps = Runner::from_config(&cfg).unwrap().wineprefix().join("drive_c/users/steamuser/AppData/Local/CrashDumps");
+        let dumps = Runner::from_config(&cfg).unwrap().wineprefix().unwrap().join("drive_c/users/steamuser/AppData/Local/CrashDumps");
         fs::create_dir_all(&dumps).unwrap();
         fs::write(dumps.join("title.exe.1234.dmp"), b"MDMP\0\x01").unwrap();
 
