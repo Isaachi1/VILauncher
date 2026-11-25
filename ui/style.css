@@ -373,7 +373,9 @@ input:focus, select:focus, textarea:focus {
 /* -- on/off options (MangoHud, GameMode) ---------------------------------------------------- */
 
 .toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 16px; }
-.toggle {
+/* Three kinds of check box share .toggle: cards (Performance), an inline one (the report's
+   detailed logs) and list rows (notifications). Each is scoped, so none spills into another. */
+.toggles .toggle {
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -383,12 +385,17 @@ input:focus, select:focus, textarea:focus {
   background: var(--soft);
   cursor: pointer;
 }
-.toggle:has(input:checked) { border-color: var(--violet); }
-.toggle input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--violet); }
+.toggles .toggle:has(input:checked) { border-color: var(--violet); }
+.toggles .toggle input { width: 18px; height: 18px; margin: 2px 0 0; padding: 0; flex: none; accent-color: var(--violet); }
 .toggle-text { font-size: 13.5px; color: var(--ink-2); }
-.toggle-text b { color: var(--ink); }
+.toggle-text b { display: block; color: var(--ink); }
 .toggle-text small { display: block; margin-top: 4px; font-size: 12px; }
 .toggle-text small.missing { color: var(--warn-fg); }
+
+/* The build picked in Compatibilidade > Backend. */
+.build-detail { display: grid; gap: 8px; margin: 12px 0; padding: 12px 14px; border-radius: 12px; background: var(--soft); }
+.build-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.build-name { font-weight: 600; color: var(--ink); }
 
 /* -- tables (checks, runtimes, VirusTotal) -------------------------------------------------- */
 
@@ -448,8 +455,8 @@ pre#dry-out { min-height: 0; margin-top: 12px; }
 }
 .report-text { display: flex; flex-direction: column; gap: 4px; flex: 1 1 320px; color: var(--ink-2); }
 .report-text b { color: var(--ink); }
-.toggle { display: inline-flex; align-items: center; gap: 8px; margin-top: 4px; cursor: pointer; }
-.toggle input { width: auto; margin: 0; accent-color: var(--violet); }
+.report .toggle { display: inline-flex; align-items: center; gap: 8px; margin-top: 4px; cursor: pointer; }
+.report .toggle input { width: auto; margin: 0; accent-color: var(--violet); }
 
 /* A check's fix, and the dialog that says what it does before it runs. */
 #checks .fix { margin-left: 10px; padding: 3px 10px; font-size: 12.5px; vertical-align: baseline; }
@@ -523,10 +530,10 @@ pre#log .stderr { color: #ff8a9e; }
 .notify-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .notify-head h2 { margin-bottom: 4px; }
 .notify > .status { display: block; margin-bottom: 10px; font-size: 13px; }
-.toggle { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
-.toggle input { width: 18px; height: 18px; margin: 2px 0 0; padding: 0; flex: none; accent-color: var(--violet); cursor: pointer; }
-.toggle b { display: block; font-weight: 600; }
-.toggle small { display: block; color: var(--muted); font-size: 12.5px; }
+.notify .toggle { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.notify .toggle input { width: 18px; height: 18px; margin: 2px 0 0; padding: 0; flex: none; accent-color: var(--violet); cursor: pointer; }
+.notify .toggle b { display: block; font-weight: 600; }
+.notify .toggle small { display: block; color: var(--muted); font-size: 12.5px; }
 
 /* -- status (PortWatch VI) ----------------------------------------------------------------- */
 

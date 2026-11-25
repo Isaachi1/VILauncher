@@ -289,7 +289,7 @@ pub struct Report {
     pub source: String,
     pub updated: Option<String>,
     pub overall: Overall,
-    /// Ours first (VIctory, XCL), then the others ordered by how far they got.
+    /// Every effort by its score on the site, highest first.
     pub efforts: Vec<Effort>,
     /// Set when the network failed and this is the cached copy.
     pub stale: Option<String>,
@@ -380,12 +380,8 @@ pub fn parse(json: &str) -> Result<Report> {
         milestones: MILESTONES.iter().map(|(k, l, at)| (k.to_string(), l.to_string(), *at)).collect(),
     };
 
-    efforts.sort_by(|(ra, _, _, a), (rb, _, _, b)| {
-        (b.backend.is_some(), b.tier == "tracked")
-            .cmp(&(a.backend.is_some(), a.tier == "tracked"))
-            .then(rb.total_cmp(ra))
-            .then(a.name.cmp(&b.name))
-    });
+    // The race in the order the site gives it: by score (the percentage shown), then name.
+    efforts.sort_by(|(_, _, _, a), (_, _, _, b)| b.score.total_cmp(&a.score).then(a.name.cmp(&b.name)));
     Ok(Report {
         source: SITE_URL.into(),
         updated: t.updated,
@@ -452,13 +448,14 @@ mod tests {
     }"#;
 
     #[test]
-    fn ours_first_then_by_progress() {
+    fn by_percentage() {
         let r = parse(SAMPLE).unwrap();
-        let ids: Vec<_> = r.efforts.iter().map(|e| e.id.as_str()).collect();
-        assert_eq!(ids, ["marvis", "xcl", "closed", "gone", "mid", "early"]);
-        assert_eq!(r.efforts[0].backend, Some(BackendKind::Victory));
-        assert_eq!(r.efforts[1].backend, Some(BackendKind::Xcl));
-        assert_eq!(r.efforts[2].repo, None);
+        let scores: Vec<f64> = r.efforts.iter().map(|e| e.score).collect();
+        assert!(scores.windows(2).all(|w| w[0] >= w[1]), "highest first: {scores:?}");
+        let by = |id: &str| r.efforts.iter().find(|e| e.id == id).unwrap().clone();
+        assert_eq!(by("marvis").backend, Some(BackendKind::Victory));
+        assert_eq!(by("xcl").backend, Some(BackendKind::Xcl));
+        assert_eq!(by("closed").repo, None);
         assert_eq!(r.updated.as_deref(), Some("2026-11-24T21:00:00Z"));
         assert!(r.efforts.iter().find(|e| e.id == "gone").unwrap().nuked);
         assert!(!r.efforts[0].nuked);

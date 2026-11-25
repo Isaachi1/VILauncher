@@ -118,9 +118,13 @@
       <div class="grid">
         <label class="field">
           <span><span data-i18n="compat.backend">Backend</span></span>
-          <select data-path="backend.kind">
-            <option value="victory">VIctory (VILinux)</option>
-            <option value="xcl">XCL (LinuxCL)</option>
+          <!-- The builds vilauncher-builder published (runtimes.json), filled by showBuilds(). -->
+          <select id="backend-build">
+            <option value="" data-i18n="compat.loadingBuilds">Carregando as builds…</option>
+          </select>
+          <select data-path="backend.kind" hidden>
+            <option value="victory">VIctory</option>
+            <option value="xcl">XCL</option>
           </select>
         </label>
         <label class="field only-victory">
@@ -136,15 +140,11 @@
           <button id="runtimes-check" data-i18n="runtimes.check">Procurar builds novas</button>
           <span class="status" id="runtimes-info" data-i18n="runtimes.intro">A cada 3 horas o vilauncher-builder compila cada port com código público e nota 59% ou mais no PortWatch VI (famílias VIctory e XCL) e o verifica no VirusTotal.</span>
         </div>
-        <div class="actions" id="runtimes-best" hidden>
-          <span id="runtimes-best-text"></span>
-          <button id="runtimes-best-go" class="primary" data-i18n="runtimes.installUse">Instalar e usar</button>
-        </div>
         <details id="runtimes-why" hidden>
           <summary data-i18n="runtimes.why">Como as builds foram escolhidas</summary>
           <ul id="runtimes-candidates"></ul>
         </details>
-        <table id="runtimes"><tbody></tbody></table>
+        <div id="build-detail" class="build-detail" hidden></div>
         <div class="actions vt">
           <input id="vt-key" type="password" autocomplete="off" placeholder="Chave da API do VirusTotal" data-i18n-attr="placeholder:vt.keyPh">
           <button id="vt-save" class="ghost" data-i18n="vt.save">Salvar chave</button>
