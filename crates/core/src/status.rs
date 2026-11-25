@@ -416,7 +416,7 @@ pub fn report_with(fetch: impl FnOnce() -> Result<String>, cache: &Path) -> Resu
 }
 
 pub fn fetch_tracker() -> Result<String> {
-    let url = std::env::var("VILAUNCHER_TRACKER_URL").unwrap_or_else(|_| TRACKER_URL.into());
+    let url = std::env::var("SIXLAUNCHER_TRACKER_URL").unwrap_or_else(|_| TRACKER_URL.into());
     crate::net::get_text(&url, Duration::from_secs(20))
 }
 

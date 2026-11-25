@@ -1,4 +1,4 @@
-//! The compatibility layers VILauncher starts: VIctory (VILinux) and XCL (LinuxCL).
+//! The compatibility layers SixLauncher starts: VIctory (VILinux) and XCL (LinuxCL).
 //!
 //! Each one is a Windows executable built from its repository. This module
 //! turns the configuration into the command line and environment each one
@@ -127,7 +127,7 @@ mod tests {
         );
         assert_eq!(plan.env["VICTORY_GAME_DIR"], paths::to_windows(&game));
         assert!(plan.env["VICTORY_DATA_DIR"].starts_with("Z:\\"));
-        assert!(plan.env["VICTORY_CACHE_DIR"].ends_with("\\vilauncher\\victory"));
+        assert!(plan.env["VICTORY_CACHE_DIR"].ends_with("\\sixlauncher\\victory"));
     }
 
     #[test]
@@ -140,7 +140,7 @@ mod tests {
         assert_eq!(plan.args, ["run".to_string(), paths::to_windows(&game)]);
         assert_eq!(plan.env["XCL_DXC_DIR"], r"Z:\opt\dxc\bin\x64");
         assert!(!plan.env.contains_key("XCL_OPUS_DIR"));
-        assert!(plan.env["XCL_DATA_ROOT"].ends_with("\\vilauncher\\xcl\\data"));
+        assert!(plan.env["XCL_DATA_ROOT"].ends_with("\\sixlauncher\\xcl\\data"));
     }
 
     #[test]

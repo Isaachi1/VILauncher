@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VILauncher</title>
+  <title>SixLauncher</title>
   <link rel="stylesheet" href="style.css">
   <script src="theme.js"></script>
   <script src="i18n.js"></script>
@@ -117,7 +117,7 @@
         <span class="status" id="zip-verify"></span>
       </div>
       <div class="note" data-i18n="game.note">
-        O VILauncher só roda arquivos de um jogo que você possui, já desempacotados. Ele não desempacota,
+        O SixLauncher só roda arquivos de um jogo que você possui, já desempacotados. Ele não desempacota,
         não descriptografa e não contorna DRM ou licenças; uma pasta com um pacote XVC / MSIXVC é recusada.
       </div>
     </section>
@@ -128,7 +128,7 @@
       <div class="grid">
         <label class="field">
           <span><span data-i18n="compat.backend">Backend</span></span>
-          <!-- The builds vilauncher-builder published (runtimes.json), filled by showBuilds(). -->
+          <!-- The builds SixLauncher Builder published (runtimes.json), filled by showBuilds(). -->
           <select id="backend-build">
             <option value="" data-i18n="compat.loadingBuilds">Carregando as builds…</option>
           </select>
@@ -217,7 +217,7 @@
       </label>
       <label class="field">
         <span><span data-i18n="run.prefix">Prefixo</span> <em data-i18n="run.prefixHint">(opcional)</em></span>
-        <div class="row"><input data-path="runner.prefix" placeholder="~/.local/share/vilauncher/…"><button data-browse="dir" data-target="runner.prefix" data-i18n="browse">Escolher…</button></div>
+        <div class="row"><input data-path="runner.prefix" placeholder="~/.local/share/sixlauncher/…"><button data-browse="dir" data-target="runner.prefix" data-i18n="browse">Escolher…</button></div>
       </label>
       <p class="kicker" data-i18n="perf.kicker">Desempenho</p>
       <h2 data-i18n="perf.title">GPU e overlay</h2>
@@ -377,10 +377,10 @@
           </div>
           <button id="notify-test" class="ghost" data-i18n="notify.test">Enviar um teste</button>
         </div>
-        <p class="status" data-i18n="notify.intro">Enquanto estiver aberto, o VILauncher confere a cada hora e avisa pelas notificações do sistema.</p>
+        <p class="status" data-i18n="notify.intro">Enquanto estiver aberto, o SixLauncher confere a cada hora e avisa pelas notificações do sistema.</p>
         <label class="toggle"><input type="checkbox" id="notify-race" data-notify="race"><span><b data-i18n="notify.race">Ultrapassagens na corrida</b><small data-i18n="notify.raceHint">Quando um projeto passa outro entre os 5 primeiros do PortWatch VI.</small></span></label>
         <label class="toggle"><input type="checkbox" id="notify-runtimes" data-notify="runtimes"><span><b data-i18n="notify.runtimes">Builds novas do VIctory e do XCL</b><small data-i18n="notify.runtimesHint">Quando sai uma build nova que você ainda não instalou.</small></span></label>
-        <label class="toggle"><input type="checkbox" id="notify-app" data-notify="app"><span><b data-i18n="notify.app">Versões novas do VILauncher</b><small data-i18n="notify.appHint">Quando sai uma release nova do launcher.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="notify-app" data-notify="app"><span><b data-i18n="notify.app">Versões novas do SixLauncher</b><small data-i18n="notify.appHint">Quando sai uma release nova do launcher.</small></span></label>
         <span class="status" id="notify-info"></span>
       </div>
     </section>

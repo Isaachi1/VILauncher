@@ -107,21 +107,21 @@ pub fn desktop_entry(cfg: &Config, exec: &[String]) -> String {
         .game_dir()
         .and_then(|d| gamedir::inspect(&d).ok())
         .map(|i| i.title())
-        .unwrap_or_else(|| "VILauncher".into());
+        .unwrap_or_else(|| "SixLauncher".into());
     let backend = match cfg.backend.kind {
         BackendKind::Victory => "VIctory",
         BackendKind::Xcl => "XCL",
     };
     let exec: Vec<String> = exec.iter().map(|a| desktop_quote(a)).collect();
     format!(
-        "[Desktop Entry]\nType=Application\nName={title} (VILauncher)\nComment=Runs your copy through {backend} on Wine/Proton\n\
+        "[Desktop Entry]\nType=Application\nName={title} (SixLauncher)\nComment=Runs your copy through {backend} on Wine/Proton\n\
          Exec={}\nTerminal=false\nCategories=Game;\n",
         exec.join(" ")
     )
 }
 
 pub fn write_desktop_entry(cfg: &Config, exec: &[String]) -> Result<PathBuf> {
-    let path = paths::applications_dir().join("vilauncher.desktop");
+    let path = paths::applications_dir().join("sixlauncher.desktop");
     fs::create_dir_all(path.parent().unwrap_or(Path::new("/")))?;
     fs::write(&path, desktop_entry(cfg, exec))?;
     Ok(path)
@@ -152,7 +152,7 @@ mod tests {
         assert!(blocking_failures(&cfg).is_empty(), "{:?}", blocking_failures(&cfg));
         let launch = build(&cfg).unwrap();
         let rec = h.path().join("rec");
-        let status = launch.command().unwrap().env("VILAUNCHER_TEST_OUT", &rec).output().unwrap().status;
+        let status = launch.command().unwrap().env("SIXLAUNCHER_TEST_OUT", &rec).output().unwrap().status;
         assert_eq!(status.code(), Some(7)); // the fake proton's exit code comes back
         let argv: Vec<String> = fs::read_to_string(rec.with_extension("argv")).unwrap().lines().map(str::to_owned).collect();
         assert_eq!(
@@ -244,7 +244,7 @@ mod tests {
     fn quoting() {
         assert_eq!(shell_quote("plain/path-1.exe"), "plain/path-1.exe");
         assert_eq!(shell_quote("it's"), r"'it'\''s'");
-        assert_eq!(desktop_quote("/usr/bin/vilauncher"), "/usr/bin/vilauncher");
+        assert_eq!(desktop_quote("/usr/bin/sixlauncher"), "/usr/bin/sixlauncher");
         assert_eq!(desktop_quote("/a b/$x\"y"), r#""/a b/\\$x\\"y""#);
     }
 
@@ -252,9 +252,9 @@ mod tests {
     fn desktop_entry_names_the_game() {
         let h = TempHome::new();
         let (cfg, ..) = victory_config(&h);
-        let path = write_desktop_entry(&cfg, &["/usr/bin/vilauncher".into(), "run".into()]).unwrap();
+        let path = write_desktop_entry(&cfg, &["/usr/bin/sixlauncher".into(), "run".into()]).unwrap();
         let entry = fs::read_to_string(path).unwrap();
-        assert!(entry.contains("Name=Test Title (VILauncher)\n"), "{entry}");
-        assert!(entry.contains("Exec=/usr/bin/vilauncher run\n"), "{entry}");
+        assert!(entry.contains("Name=Test Title (SixLauncher)\n"), "{entry}");
+        assert!(entry.contains("Exec=/usr/bin/sixlauncher run\n"), "{entry}");
     }
 }

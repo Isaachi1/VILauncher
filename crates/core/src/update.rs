@@ -1,4 +1,4 @@
-//! Keeps VIctory and XCL up to date from the builds vilauncher-builder publishes.
+//! Keeps VIctory and XCL up to date from the builds SixLauncher Builder publishes.
 //!
 //! Every 3 hours that service (SixLauncher/builder, on Railway) scores
 //! PortWatch VI's efforts like the site, builds every public VIctory or XCL tree
@@ -15,7 +15,7 @@
 //! Compiling happens in that service because both backends are Windows (MSVC)
 //! programs; nothing is built or fetched from the projects' repositories here.
 //!
-//! An installed build lives in `~/.local/share/vilauncher/runtimes/<backend>`,
+//! An installed build lives in `~/.local/share/sixlauncher/runtimes/<backend>`,
 //! with the `VICTORY_COMMIT.txt` / `XCL_COMMIT.txt` the builder writes.
 //!
 //! The build an update replaces is not deleted: it moves to
@@ -186,9 +186,9 @@ pub fn exe_name(kind: BackendKind) -> &'static str {
 }
 
 /// Written next to an installed build: the manifest entry it came from.
-const SOURCE_FILE: &str = "VILAUNCHER_SOURCE.json";
+const SOURCE_FILE: &str = "SIXLAUNCHER_SOURCE.json";
 /// Written into a build when it is replaced: when that happened (Unix seconds).
-const RETIRED_FILE: &str = "VILAUNCHER_REPLACED_AT";
+const RETIRED_FILE: &str = "SIXLAUNCHER_REPLACED_AT";
 /// How many replaced builds of each backend are kept for [`rollback`].
 pub const KEEP_PREVIOUS: usize = 3;
 
@@ -200,7 +200,7 @@ fn commit_file(kind: BackendKind) -> &'static str {
 }
 
 pub fn manifest_url() -> String {
-    std::env::var("VILAUNCHER_RUNTIMES_URL").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| MANIFEST_URL.into())
+    std::env::var("SIXLAUNCHER_RUNTIMES_URL").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| MANIFEST_URL.into())
 }
 
 pub fn runtimes_dir() -> PathBuf {
@@ -219,7 +219,7 @@ pub fn previous_dir(root: &Path, kind: BackendKind) -> PathBuf {
 pub fn parse_manifest(text: &str) -> Result<Manifest> {
     let m: Manifest = serde_json::from_str(text).map_err(|e| Error::Config(format!("runtimes.json: {e}")))?;
     if m.schema != 1 {
-        return Err(Error::Config(format!("runtimes.json: schema {} is newer than this launcher; update VILauncher", m.schema)));
+        return Err(Error::Config(format!("runtimes.json: schema {} is newer than this launcher; update SixLauncher", m.schema)));
     }
     for a in [m.victory.as_ref(), m.xcl.as_ref()].into_iter().flatten().chain(m.builds.iter().map(|b| &b.asset)) {
         let plain = !a.file.is_empty() && a.file.chars().all(|c| c.is_ascii_alphanumeric() || "._-".contains(c)) && !a.file.starts_with('.');
@@ -681,7 +681,7 @@ mod tests {
         assert_eq!((s.recommended, s.candidates.len()), (Some(BackendKind::Victory), 2));
     }
 
-    // The shape vilauncher-builder writes: the best of each family, and every build.
+    // The shape SixLauncher Builder writes: the best of each family, and every build.
     const BUILDS: &str = r#"{"schema": 1, "recommended": "victory", "min_score": 59,
       "victory": {"family": "victory", "file": "victory-zettrox-ztrx-aaa.tar.gz", "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
                   "size": 5, "commit": "aaa", "repo": "Zettrox/ztrx", "effort": "ZETTROX", "score": 64.2},

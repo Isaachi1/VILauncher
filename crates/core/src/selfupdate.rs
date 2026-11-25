@@ -1,4 +1,4 @@
-//! Whether a newer VILauncher exists, and how this copy can get it.
+//! Whether a newer SixLauncher exists, and how this copy can get it.
 //!
 //! Every merge into main publishes a GitHub release (`v<major>.<minor>.<run>`) with a
 //! `latest.json` in the format of Tauri's updater: the version, the notes and, when the
@@ -24,7 +24,7 @@ pub const REPO: &str = "SixLauncher/launcher";
 pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/launcher/releases/latest/download/latest.json";
 pub const RELEASES_URL: &str = "https://github.com/SixLauncher/launcher/releases/latest";
 
-/// How this copy of VILauncher was installed.
+/// How this copy of SixLauncher was installed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Install {
@@ -170,13 +170,13 @@ mod tests {
 
     #[test]
     fn trusts_the_stamp_only_where_the_package_lives() {
-        let usr = Path::new("/usr/bin/vilauncher-app");
-        let home = Path::new("/home/a/vilauncher-linux-x64/vilauncher-app");
+        let usr = Path::new("/usr/bin/sixlauncher-app");
+        let home = Path::new("/home/a/sixlauncher-linux-x64/sixlauncher-app");
         assert_eq!(detect(Some("deb"), usr, None, false), Install::Deb);
         assert_eq!(detect(Some("rpm"), usr, None, false), Install::Rpm);
         // The tarball carries the same stamped binary.
         assert_eq!(detect(Some("rpm"), home, None, false), Install::Other);
-        assert_eq!(detect(Some("appimage"), home, Some("/home/a/VILauncher.AppImage"), false), Install::AppImage);
+        assert_eq!(detect(Some("appimage"), home, Some("/home/a/SixLauncher.AppImage"), false), Install::AppImage);
         assert_eq!(detect(Some("appimage"), home, None, false), Install::Other);
         assert_eq!(detect(None, usr, None, false), Install::Other);
         assert_eq!(detect(Some("deb"), usr, None, true), Install::Flatpak);

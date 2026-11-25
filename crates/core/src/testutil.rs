@@ -47,7 +47,7 @@ pub fn fake_proton(root: &Path, name: &str) -> PathBuf {
     let proton = root.join(name);
     executable(
         &proton.join("proton"),
-        "#!/bin/sh\nout=\"$VILAUNCHER_TEST_OUT\"\nprintf '%s\\n' \"$@\" > \"$out.argv\"\nenv > \"$out.env\"\npwd > \"$out.cwd\"\necho started\nexit 7\n",
+        "#!/bin/sh\nout=\"$SIXLAUNCHER_TEST_OUT\"\nprintf '%s\\n' \"$@\" > \"$out.argv\"\nenv > \"$out.env\"\npwd > \"$out.cwd\"\necho started\nexit 7\n",
     );
     fs::write(proton.join("version"), format!("1700000000 {name}\n")).unwrap();
     for dll in ["d3d12.dll", "d3d12core.dll"] {
@@ -85,9 +85,9 @@ impl TempHome {
             std::env::set_var("XDG_DATA_HOME", home.join(".local/share"));
             std::env::set_var("XDG_CACHE_HOME", home.join(".cache"));
             std::env::set_var("XDG_STATE_HOME", home.join(".local/state"));
-            std::env::remove_var("VILAUNCHER_CONFIG");
+            std::env::remove_var("SIXLAUNCHER_CONFIG");
             std::env::remove_var("PROTON_USE_WINED3D");
-            std::env::remove_var("VILAUNCHER_VT_KEY");
+            std::env::remove_var("SIXLAUNCHER_VT_KEY");
         }
         TempHome { root, _guard: guard }
     }

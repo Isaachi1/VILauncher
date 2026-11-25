@@ -1,4 +1,4 @@
-//! The launcher's configuration (`~/.config/vilauncher/config.toml`).
+//! The launcher's configuration (`~/.config/sixlauncher/config.toml`).
 //!
 //! The same structure travels as JSON between the window and the core, so the
 //! window edits exactly what the file holds.
@@ -212,7 +212,7 @@ pub struct NotificationsSection {
     pub race: bool,
     /// A new build of VIctory or XCL is published.
     pub runtimes: bool,
-    /// A new version of VILauncher is released.
+    /// A new version of SixLauncher is released.
     pub app: bool,
 }
 
@@ -288,7 +288,7 @@ impl Config {
 
     pub fn to_toml(&self) -> Result<String> {
         let body = toml::to_string_pretty(self).map_err(|e| Error::Config(e.to_string()))?;
-        Ok(format!("# VILauncher configuration. The launcher writes it; edit freely.\n\n{body}"))
+        Ok(format!("# SixLauncher configuration. The launcher writes it; edit freely.\n\n{body}"))
     }
 }
 
@@ -370,8 +370,8 @@ mod tests {
         let h = TempHome::new();
         let cfg = load().unwrap();
         assert_eq!((cfg.backend.kind, cfg.runner.kind), (BackendKind::Victory, RunnerKind::Proton));
-        assert_eq!(cfg.data_dir(), h.home().join(".local/share/vilauncher/victory/data"));
-        assert_eq!(cfg.prefix(), h.home().join(".local/share/vilauncher/compatdata"));
+        assert_eq!(cfg.data_dir(), h.home().join(".local/share/sixlauncher/victory/data"));
+        assert_eq!(cfg.prefix(), h.home().join(".local/share/sixlauncher/compatdata"));
         assert_eq!(cfg.notifications, NotificationsSection { race: true, runtimes: true, app: true });
     }
 

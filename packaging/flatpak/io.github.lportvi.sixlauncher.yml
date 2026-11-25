@@ -1,7 +1,7 @@
-# Flatpak of VILauncher: for the Steam Deck (SteamOS) and any distribution with Flatpak.
+# Flatpak of SixLauncher: for the Steam Deck (SteamOS) and any distribution with Flatpak.
 #
 #   flatpak install flathub org.gnome.Platform//50 org.gnome.Sdk//50 org.freedesktop.Sdk.Extension.rust-stable//25.08
-#   flatpak-builder --user --install --force-clean build-dir packaging/flatpak/io.github.lportvi.vilauncher.yml
+#   flatpak-builder --user --install --force-clean build-dir packaging/flatpak/io.github.lportvi.sixlauncher.yml
 #
 # The build fetches crates from crates.io (--share=network at build time), which is fine for
 # a bundle built by our CI but not accepted on Flathub as is.
@@ -10,13 +10,13 @@
 # `flatpak-spawn --host` (crates/core/src/host.rs), which needs the Flatpak talk-name below.
 # Desktop notifications (the race, new builds, new versions) go to org.freedesktop.Notifications.
 # Home access is for the game folder, Steam's Proton installs and the Wine prefix.
-id: io.github.lportvi.vilauncher
+id: io.github.lportvi.sixlauncher
 runtime: org.gnome.Platform
 runtime-version: '50'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
-command: vilauncher-app
+command: sixlauncher-app
 finish-args:
   - --share=ipc
   - --share=network
@@ -31,18 +31,18 @@ build-options:
   build-args:
     - --share=network
   env:
-    CARGO_HOME: /run/build/vilauncher/cargo
+    CARGO_HOME: /run/build/sixlauncher/cargo
 modules:
-  - name: vilauncher
+  - name: sixlauncher
     buildsystem: simple
     build-commands:
-      - cargo build --release --locked -p vilauncher-cli
-      - cargo build --release --locked -p vilauncher-app --features tauri/custom-protocol
-      - install -Dm755 target/release/vilauncher-app /app/bin/vilauncher-app
-      - install -Dm755 target/release/vilauncher /app/bin/vilauncher
-      - install -Dm644 app/icons/128x128.png /app/share/icons/hicolor/128x128/apps/io.github.lportvi.vilauncher.png
-      - install -Dm644 packaging/linux/io.github.lportvi.vilauncher.desktop /app/share/applications/io.github.lportvi.vilauncher.desktop
-      - install -Dm644 packaging/linux/io.github.lportvi.vilauncher.metainfo.xml /app/share/metainfo/io.github.lportvi.vilauncher.metainfo.xml
+      - cargo build --release --locked -p sixlauncher-cli
+      - cargo build --release --locked -p sixlauncher-app --features tauri/custom-protocol
+      - install -Dm755 target/release/sixlauncher-app /app/bin/sixlauncher-app
+      - install -Dm755 target/release/sixlauncher /app/bin/sixlauncher
+      - install -Dm644 app/icons/128x128.png /app/share/icons/hicolor/128x128/apps/io.github.lportvi.sixlauncher.png
+      - install -Dm644 packaging/linux/io.github.lportvi.sixlauncher.desktop /app/share/applications/io.github.lportvi.sixlauncher.desktop
+      - install -Dm644 packaging/linux/io.github.lportvi.sixlauncher.metainfo.xml /app/share/metainfo/io.github.lportvi.sixlauncher.metainfo.xml
     sources:
       - type: dir
         path: ../..

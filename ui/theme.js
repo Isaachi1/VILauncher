@@ -1,7 +1,7 @@
 // Light or dark: follows the system until the player picks one with the button in the
 // top bar; the choice is kept in localStorage. Loaded in <head> so the page never flashes.
 (() => {
-  const KEY = "vilauncher-theme";
+  const KEY = "sixlauncher-theme";
   const root = document.documentElement;
   const saved = (() => {
     try { return localStorage.getItem(KEY); } catch { return null; }
