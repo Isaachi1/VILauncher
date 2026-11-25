@@ -1,25 +1,16 @@
-# Builds the three programs VILauncher puts together and packs them for Linux:
+# Builds VILauncher and packs it for Linux:
 #
 # * launcher: VILauncher itself on Linux (the `vilauncher` CLI, the Tauri window, .deb, .rpm,
 #             AppImage)
 # * flatpak:  VILauncher as a Flatpak bundle (packaging/flatpak), for the Steam Deck and any distro
-# * select:   which repositories to build: from PortWatch VI's tracker, the most advanced
-#             effort with public code of each family VILauncher can build (a VIctory tree or
-#             an XCL tree), at its newest commit (scripts/select-runtimes.sh)
-# * xcl:      that XCL tree on Windows (xcl.exe), with DXC (dxcompiler.dll + dxil.dll) and
-#             libopus (opus.dll) next to it, where xcl.exe looks for them by itself
-# * victory:  that VIctory tree on Windows (victory.exe), with the toolchain its repo pins
-# * bundle:   one tarball with the launcher and both backends, laid out as described in README.md
-# * runtimes: on main, both builds are scanned on VirusTotal (scripts/virustotal-scan.py, with
-#             the VT_API_KEY secret) and published on the `runtimes` release with the result, the
-#             repository and the commit; a build VirusTotal flags is not published
+# * bundle:   one tarball with the CLI and the window
 #
-# xcl and VIctory are Windows programs (MSVC target, windows / windows-sys crates); under Linux
-# they run through Proton or Wine, so they are built on Windows runners, not cross-compiled.
+# VIctory and XCL are not built here: SixLauncher/vilauncher-builder (on Railway) builds, every
+# 3 hours, each public VIctory / XCL tree scoring 59% or more on PortWatch VI, scans it on
+# VirusTotal and publishes it on its own `runtimes` release, where the launcher installs it from
+# (crates/core/src/update.rs).
 #
-# Runs on pushes to main, on pull requests, every night (to pick up new commits and a new leader
-# on the tracker) and by hand (Actions > build > Run workflow; a branch, tag or commit given there
-# builds LPortVI/xcl or LPortVI/VIctory at that ref instead of the tracker's pick).
+# Runs on pushes to main, on pull requests and by hand (Actions > build > Run workflow).
 # Every push to main (a merged PR) publishes the files as a GitHub release, versioned
 # <major>.<minor>.<run number> from Cargo.toml's workspace version (job `version`); a `v*` tag
 # pushed by hand publishes one under that tag.
@@ -40,19 +31,7 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
-  schedule:
-    - cron: '0 6 * * *'
   workflow_dispatch:
-    inputs:
-      xcl_ref:
-        description: 'LPortVI/xcl branch, tag or commit (empty: the tracker''s pick)'
-        default: ''
-      victory_ref:
-        description: 'LPortVI/VIctory branch, tag or commit (empty: the tracker''s pick)'
-        default: ''
-      dxc_tag:
-        description: 'DXC release tag (empty: the latest release)'
-        default: ''
 
 permissions:
   contents: read
@@ -66,7 +45,6 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
-  TRACKER_URL: https://raw.githubusercontent.com/4lwayz/portwatch-vi/main/data/tracker.json
 
 jobs:
   # The version the packages carry and the release is published under. On a push to main:
@@ -247,181 +225,31 @@ jobs:
           path: vilauncher.flatpak
           if-no-files-found: error
 
-  select:
-    name: Pick the runtimes (PortWatch VI)
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    outputs:
-      victory_repo: ${{ inputs.victory_ref && 'LPortVI/VIctory' || steps.pick.outputs.victory_repo }}
-      victory_ref: ${{ inputs.victory_ref || steps.pick.outputs.victory_ref }}
-      victory_effort: ${{ !inputs.victory_ref && steps.pick.outputs.victory_effort || '' }}
-      xcl_repo: ${{ inputs.xcl_ref && 'LPortVI/xcl' || steps.pick.outputs.xcl_repo }}
-      xcl_ref: ${{ inputs.xcl_ref || steps.pick.outputs.xcl_ref }}
-      xcl_effort: ${{ !inputs.xcl_ref && steps.pick.outputs.xcl_effort || '' }}
-      recommended: ${{ steps.pick.outputs.recommended }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Rank the tracker's efforts and pick one per family
-        id: pick
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          curl -fsSL --retry 3 "$TRACKER_URL" -o tracker.json
-          bash scripts/select-runtimes.sh tracker.json selection.json
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: selection
-          path: selection.json
-
-  xcl:
-    name: xcl (Windows)
-    needs: select
-    runs-on: windows-2025
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: pwsh
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ needs.select.outputs.xcl_repo }}
-          ref: ${{ needs.select.outputs.xcl_ref }}
-          path: xcl
-
-      - name: Rust (stable, MSVC)
-        run: |
-          rustup toolchain install stable --profile minimal
-          rustup default stable
-          rustc --version
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: xcl
-
-      - name: Build xcl.exe
-        working-directory: xcl
-        run: cargo build --release -p xcl
-
-      - name: DXC (dxcompiler.dll, dxil.dll)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          DXC_TAG: ${{ inputs.dxc_tag }}
-        run: |
-          $repo = 'microsoft/DirectXShaderCompiler'
-          $tag = if ($env:DXC_TAG) { $env:DXC_TAG } else { gh release view -R $repo --json tagName -q .tagName }
-          if (-not $tag) { throw 'no DXC release found' }
-          gh release download $tag -R $repo --pattern 'dxc_*.zip' --dir dxc-dl
-          if ($LASTEXITCODE -ne 0) { throw "could not download DXC $tag" }
-          $zip = Get-ChildItem dxc-dl -Filter 'dxc_*.zip' | Select-Object -First 1
-          Expand-Archive $zip.FullName -DestinationPath dxc
-          "DXC $tag ($($zip.Name))" | Set-Content dxc-version.txt
-          Get-Content dxc-version.txt
-
-      - name: libopus (opus.dll)
-        run: |
-          & "$env:VCPKG_INSTALLATION_ROOT\vcpkg.exe" install opus:x64-windows
-          if ($LASTEXITCODE -ne 0) { throw 'vcpkg install opus failed' }
-
-      - name: Collect
-        run: |
-          $out = New-Item -ItemType Directory -Force out
-          $lic = New-Item -ItemType Directory -Force out\licenses
-          Copy-Item xcl\target\release\xcl.exe $out
-          Copy-Item xcl\target\release\xcl.pdb $out -ErrorAction SilentlyContinue
-          Copy-Item dxc\bin\x64\dxcompiler.dll, dxc\bin\x64\dxil.dll $out
-          Get-ChildItem dxc -Filter 'LICENSE*' | ForEach-Object { Copy-Item $_.FullName "$lic\DXC-$($_.Name).txt" }
-          $vcpkg = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows"
-          Copy-Item "$vcpkg\bin\opus.dll" $out
-          Copy-Item "$vcpkg\share\opus\copyright" "$lic\opus-COPYING.txt"
-          Copy-Item xcl\LICENSE "$lic\xcl-LICENSE.txt"
-          $commit = git -C xcl rev-parse HEAD
-          @("xcl $commit", (Get-Content dxc-version.txt)) | Set-Content out\XCL_COMMIT.txt
-          Get-ChildItem -Recurse out | Format-Table Name, Length
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xcl-windows-x64
-          path: out/
-          if-no-files-found: error
-
-  victory:
-    name: VIctory (Windows)
-    needs: select
-    runs-on: windows-2025
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: pwsh
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ needs.select.outputs.victory_repo }}
-          ref: ${{ needs.select.outputs.victory_ref }}
-          path: victory
-
-      # The version and target pinned in VIctory's rust-toolchain.toml.
-      - name: Rust (pinned)
-        working-directory: victory
-        run: |
-          rustup toolchain install
-          rustc --version
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: victory
-
-      - name: Build victory.exe
-        working-directory: victory
-        run: cargo build --release --locked -p victory
-
-      - name: Collect
-        run: |
-          $out = New-Item -ItemType Directory -Force out
-          $lic = New-Item -ItemType Directory -Force out\licenses
-          Copy-Item victory\target\release\victory.exe $out
-          Copy-Item victory\target\release\victory.pdb $out -ErrorAction SilentlyContinue
-          Copy-Item victory\LICENSE "$lic\VIctory-LICENSE.txt"
-          "VIctory $(git -C victory rev-parse HEAD)" | Set-Content out\VICTORY_COMMIT.txt
-          Get-ChildItem -Recurse out | Format-Table Name, Length
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: victory-windows-x64
-          path: out/
-          if-no-files-found: error
-
   bundle:
     name: Bundle
-    needs: [launcher, xcl, victory]
+    needs: [launcher]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v4
         with:
+          name: vilauncher-linux-x64
           path: dl
 
       - name: Lay out the bundle
         run: |
           b=vilauncher-linux-x64
-          mkdir -p "$b/backends"
-          cp dl/vilauncher-linux-x64/vilauncher dl/vilauncher-linux-x64/vilauncher-app "$b/"
+          mkdir -p "$b"
+          cp dl/vilauncher dl/vilauncher-app "$b/"
           chmod +x "$b/vilauncher" "$b/vilauncher-app"
-          cp -r dl/xcl-windows-x64 "$b/backends/xcl"
-          cp -r dl/victory-windows-x64 "$b/backends/victory"
-          cat dl/vilauncher-linux-x64/VILAUNCHER_COMMIT.txt "$b/backends/xcl/XCL_COMMIT.txt" \
-            "$b/backends/victory/VICTORY_COMMIT.txt" > "$b/BUILD.txt"
+          cp dl/VILAUNCHER_COMMIT.txt "$b/BUILD.txt"
           echo "Built by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$b/BUILD.txt"
+          echo "VIctory and XCL: Compatibilidade > Procurar builds novas (built by SixLauncher/vilauncher-builder)" >> "$b/BUILD.txt"
           cat "$b/BUILD.txt"
-          tar -czf "$b.tar.gz" "$b"
           mkdir release
-          mv "$b.tar.gz" release/
-          # Each backend on its own too, for whoever only wants xcl.exe or victory.exe.
-          tar -C dl/xcl-windows-x64 --owner=0 --group=0 --numeric-owner -czf release/xcl-windows-x64.tar.gz .
-          tar -C dl/victory-windows-x64 --owner=0 --group=0 --numeric-owner -czf release/victory-windows-x64.tar.gz .
-          cp dl/vilauncher-linux-x64/*.deb dl/vilauncher-linux-x64/*.rpm dl/vilauncher-linux-x64/*.AppImage release/
-          cp dl/vilauncher-linux-x64/*.sig release/ 2>/dev/null || echo "no updater signatures (unsigned build)"
+          tar -czf "release/$b.tar.gz" "$b"
+          cp dl/*.deb dl/*.rpm dl/*.AppImage release/
+          cp dl/*.sig release/ 2>/dev/null || echo "no updater signatures (unsigned build)"
           ls -l release
 
       - uses: actions/upload-artifact@v4
@@ -430,139 +258,8 @@ jobs:
           path: release/
           if-no-files-found: error
 
-  # The launcher's "Atualizar runtime" reads this release: one .tar.gz per backend, named after
-  # the commit it was built from, and runtimes.json with each archive's repository, commit, size,
-  # SHA-256 and VirusTotal result, plus the tracker's ranking. Only scheduled, main and default
-  # manual builds publish. A build VirusTotal flags is not published: the previous one of that
-  # backend stays. Archives go up before the manifest, so it never names a missing archive.
-  # Third-party code only runs in the Windows build jobs, which have no write access; this job
-  # only packs, scans and uploads.
-  runtimes:
-    name: Scan and publish runtimes
-    if: >-
-      github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
-      !inputs.xcl_ref && !inputs.victory_ref
-    needs: [select, launcher, xcl, victory]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    permissions:
-      contents: write
-    concurrency:
-      group: runtimes-release
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/download-artifact@v4
-        with:
-          path: dl
-
-      # Free VirusTotal key: 4 lookups a minute, 500 a day, 15.5K a month, non-commercial. A backend
-      # whose repository and commit are the ones already published is not rebuilt into the release
-      # nor scanned again, so only a changed backend spends lookups (about 15). The scan script
-      # spaces requests 16 s apart across its runs (VT_STATE_FILE) and stops at 60 per job.
-      # It covers every executable kind by content: PE, ELF (.so, AppImage), .deb, MSI, scripts.
-      - name: VirusTotal
-        env:
-          VT_API_KEY: ${{ secrets.VT_API_KEY }}
-          VT_STATE_FILE: ${{ runner.temp }}/vt-state.json
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          gh release download runtimes --pattern runtimes.json --output previous.json 2>/dev/null || echo '{}' > previous.json
-          scan() {  # backend, artifact folder, commit file, repo
-            local commit
-            commit=$(head -n1 "$2/$3" | awk '{print $2}')
-            if [ "$(jq -r --arg k "$1" '.[$k].commit // ""' previous.json)" = "$commit" ] &&
-               [ "$(jq -r --arg k "$1" '.[$k].repo // ""' previous.json)" = "$4" ]; then
-              echo "$1: $4 @ $commit is already published; not scanned again"
-              jq -n --arg repo "$4" --arg commit "$commit" '{repo: $repo, commit: $commit, verdict: "unchanged", files: []}' > "vt-$1.json"
-              return
-            fi
-            python3 -I scripts/virustotal-scan.py "$2" "vt-$1.json" --repo "$4" --commit "$commit"
-          }
-          scan xcl dl/xcl-windows-x64 XCL_COMMIT.txt "${{ needs.select.outputs.xcl_repo }}"
-          scan victory dl/victory-windows-x64 VICTORY_COMMIT.txt "${{ needs.select.outputs.victory_repo }}"
-          # VILauncher's own Linux files (CLI, window, .deb, AppImage): every night and by hand,
-          # not on each push, to save the daily quota; for the record only, they gate nothing.
-          if [ "$GITHUB_EVENT_NAME" != push ]; then
-            scan launcher dl/vilauncher-linux-x64 VILAUNCHER_COMMIT.txt "$GITHUB_REPOSITORY"
-          else
-            echo '{"verdict": "unchanged", "files": []}' > vt-launcher.json
-          fi
-
-      - name: Pack and write runtimes.json
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          mkdir out
-          # previous.json (from the VirusTotal step) is the manifest now on the release: a backend that
-          # did not change, or whose new build is flagged, keeps its published entry.
-          entry() {  # backend, artifact folder, commit file, repo, effort
-            local kind=$1 dir=$2 commit file verdict
-            verdict=$(jq -r .verdict "vt-$kind.json")
-            if [ "$verdict" = unchanged ]; then
-              jq -c --arg k "$kind" '.[$k] // null' previous.json
-              return
-            fi
-            if [ "$verdict" = flagged ]; then
-              echo "::warning::VirusTotal flags the new $kind build ($4); keeping the published one" >&2
-              jq -c --arg k "$kind" '.[$k] // null' previous.json
-              return
-            fi
-            commit=$(head -n1 "$dir/$3" | awk '{print $2}')
-            file="$kind-${commit:0:12}.tar.gz"
-            cp "vt-$kind.json" "out/$kind-${commit:0:12}.virustotal.json"
-            tar -C "$dir" --owner=0 --group=0 --numeric-owner -czf "out/$file" .
-            jq -n --arg file "$file" --arg sha "$(sha256sum "out/$file" | cut -d' ' -f1)" \
-              --argjson size "$(stat -c %s "out/$file")" --arg commit "$commit" --arg repo "$4" --arg effort "$5" \
-              --slurpfile vt "vt-$kind.json" \
-              '{file: $file, sha256: $sha, size: $size, commit: $commit, repo: $repo,
-                effort: (if $effort == "" then null else $effort end), virustotal: $vt[0]}'
-          }
-          xcl=$(entry xcl dl/xcl-windows-x64 XCL_COMMIT.txt "${{ needs.select.outputs.xcl_repo }}" "${{ needs.select.outputs.xcl_effort }}")
-          victory=$(entry victory dl/victory-windows-x64 VICTORY_COMMIT.txt "${{ needs.select.outputs.victory_repo }}" "${{ needs.select.outputs.victory_effort }}")
-          if [ "$(jq -r .verdict vt-launcher.json)" = unchanged ]; then
-            launcher=$(jq -c '.launcher // null' previous.json)
-          else
-            launcher=$(jq -c '{commit: .commit, repo: .repo, virustotal: .}' vt-launcher.json)
-          fi
-          jq -n --argjson xcl "$xcl" --argjson victory "$victory" --argjson launcher "$launcher" \
-            --slurpfile sel dl/selection/selection.json \
-            --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-            --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            '{schema: 1, published_at: $at, run_url: $run, xcl: $xcl, victory: $victory, launcher: $launcher,
-              recommended: $sel[0].recommended, candidates: $sel[0].candidates}' > out/runtimes.json
-          cat out/runtimes.json
-          ls -l out
-
-      - name: Upload to the runtimes release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          if ! gh release view runtimes >/dev/null 2>&1; then
-            gh release create runtimes --prerelease --target "$GITHUB_SHA" --title "Runtimes (nightly)" \
-              --notes "victory.exe and xcl.exe built every night from the most advanced public VIctory and XCL trees on PortWatch VI, with their VirusTotal results. VILauncher installs them from Compatibilidade > Atualizar runtime."
-          fi
-          shopt -s nullglob
-          files=(out/*.tar.gz out/*.virustotal.json)
-          if [ ${#files[@]} -gt 0 ]; then gh release upload runtimes "${files[@]}" --clobber; fi
-          gh release upload runtimes out/runtimes.json --clobber
-          # Drop files the new manifest no longer names.
-          keep=$(jq -r '.xcl.file // empty, .victory.file // empty' out/runtimes.json | sed 's/\.tar\.gz$//')
-          for a in $(gh release view runtimes --json assets -q '.assets[].name'); do
-            [ "$a" = runtimes.json ] && continue
-            base=${a%.tar.gz}; base=${base%.virustotal.json}
-            grep -qxF "$base" <<<"$keep" || gh release delete-asset runtimes "$a" --yes
-          done
-
   # One release per merge into main (and per `v*` tag), with every package: .deb, .rpm, AppImage,
-  # Flatpak, the bundle with both backends and each backend alone. Only the newest version is
+  # Flatpak and the bundle. Only the newest version is
   # marked as the latest release, so two merges whose runs finish out of order keep it right.
   # It also carries latest.json, which the window reads from the latest release
   # (releases/latest/download/latest.json) to update itself: the version and, for each signed
@@ -622,7 +319,7 @@ jobs:
           set -euo pipefail
           tag="v$VERSION"
           ls -l release
-          # The newest x.y.z release so far (the nightly `runtimes` prerelease is not one).
+          # The newest x.y.z release so far (a `runtimes` prerelease is not one).
           newest=$(gh release list --limit 100 --json tagName,isPrerelease \
             -q '.[] | select(.isPrerelease | not) | .tagName' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)
           latest=true

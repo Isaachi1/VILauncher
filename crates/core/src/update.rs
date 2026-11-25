@@ -1,22 +1,22 @@
-//! Keeps VIctory and XCL up to date from this repository's own builds.
+//! Keeps VIctory and XCL up to date from the builds vilauncher-builder publishes.
 //!
-//! Every night the `build` workflow picks, from PortWatch VI's tracker, the most
-//! advanced effort with public code of each family it can build (a VIctory tree
-//! or an XCL tree, `scripts/select-runtimes.sh`), compiles it on Windows, scans
-//! the binaries on VirusTotal (`scripts/virustotal-scan.py`) and publishes them on
-//! the `runtimes` release of LPortVI/VILauncher. `runtimes.json` names each
-//! archive, the repository and commit it was built from, its size, its SHA-256,
-//! the VirusTotal result for that build, and the tracker's ranking.
+//! Every 3 hours that service (SixLauncher/vilauncher-builder, on Railway) scores
+//! PortWatch VI's efforts like the site, builds every public VIctory or XCL tree
+//! scoring 59% or more for Windows, scans the binaries on VirusTotal and publishes
+//! them on its `runtimes` release. `runtimes.json` names each archive, the
+//! repository and commit it was built from, its size, its SHA-256, the VirusTotal
+//! result for that build and the effort's score: `victory` and `xcl` are the best
+//! build of each family, and `builds` lists them all, so one can be picked.
 //!
 //! The launcher downloads only from that release: an archive comes only from the
 //! folder the manifest came from, its SHA-256 must match, the binaries inside
 //! must be the ones VirusTotal scanned, a flagged build is refused, and it is
 //! unpacked next to the running build and swapped in only once it is complete.
-//! Compiling happens in the workflow because both backends are Windows (MSVC)
+//! Compiling happens in that service because both backends are Windows (MSVC)
 //! programs; nothing is built or fetched from the projects' repositories here.
 //!
 //! An installed build lives in `~/.local/share/vilauncher/runtimes/<backend>`,
-//! with the `VICTORY_COMMIT.txt` / `XCL_COMMIT.txt` the workflow writes.
+//! with the `VICTORY_COMMIT.txt` / `XCL_COMMIT.txt` the builder writes.
 //!
 //! The build an update replaces is not deleted: it moves to
 //! `runtimes/previous/<backend>/<commit>`, and the last [`KEEP_PREVIOUS`] stay there.
@@ -36,7 +36,7 @@ use crate::backends::{MACHINE_X86_64, pe_machine};
 use crate::config::BackendKind;
 use crate::{Error, Result, net, paths};
 
-pub const MANIFEST_URL: &str = "https://github.com/LPortVI/VILauncher/releases/download/runtimes/runtimes.json";
+pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/vilauncher-builder/releases/download/runtimes/runtimes.json";
 
 /// No runtime archive is this large; a bigger download is refused.
 const MAX_ARCHIVE: u64 = 2 << 30;
@@ -55,9 +55,26 @@ pub struct Manifest {
     /// The backend whose effort ranks higher on the tracker.
     #[serde(default)]
     pub recommended: Option<BackendKind>,
-    /// How the workflow chose: every effort it looked at, and why it took or skipped it.
+    /// Every published build, best first (`victory` and `xcl` are the first of each family).
+    #[serde(default)]
+    pub builds: Vec<Build>,
+    /// The lowest PortWatch VI score the builder builds (59).
+    #[serde(default)]
+    pub min_score: Option<f64>,
+    /// How the builder chose: every effort it looked at, and why it took or skipped it.
     #[serde(default)]
     pub candidates: Vec<Candidate>,
+}
+
+/// One published build of either backend.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct Build {
+    pub family: BackendKind,
+    /// The effort's score on PortWatch VI when it was built (0-100).
+    #[serde(default)]
+    pub score: Option<f64>,
+    #[serde(flatten)]
+    pub asset: Asset,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -124,6 +141,24 @@ impl Manifest {
             BackendKind::Xcl => self.xcl.as_ref(),
         }
     }
+
+    /// The builds of `kind`, best first. A manifest without `builds` (the old workflow's)
+    /// offers just its `victory` / `xcl` entry.
+    pub fn builds_of(&self, kind: BackendKind) -> Vec<Build> {
+        let list: Vec<Build> = self.builds.iter().filter(|b| b.family == kind).cloned().collect();
+        if !list.is_empty() {
+            return list;
+        }
+        self.asset(kind).map(|a| Build { family: kind, score: None, asset: a.clone() }).into_iter().collect()
+    }
+
+    /// The build of `kind` in the archive `file`, or the best one when `file` is `None`.
+    pub fn pick(&self, kind: BackendKind, file: Option<&str>) -> Option<Asset> {
+        match file {
+            None => self.asset(kind).cloned().or_else(|| self.builds_of(kind).into_iter().next().map(|b| b.asset)),
+            Some(f) => self.builds_of(kind).into_iter().map(|b| b.asset).find(|a| a.file == f),
+        }
+    }
 }
 
 pub fn exe_name(kind: BackendKind) -> &'static str {
@@ -169,7 +204,7 @@ pub fn parse_manifest(text: &str) -> Result<Manifest> {
     if m.schema != 1 {
         return Err(Error::Config(format!("runtimes.json: schema {} is newer than this launcher; update VILauncher", m.schema)));
     }
-    for a in [&m.victory, &m.xcl].into_iter().flatten() {
+    for a in [m.victory.as_ref(), m.xcl.as_ref()].into_iter().flatten().chain(m.builds.iter().map(|b| &b.asset)) {
         let plain = !a.file.is_empty() && a.file.chars().all(|c| c.is_ascii_alphanumeric() || "._-".contains(c)) && !a.file.starts_with('.');
         if !plain {
             return Err(Error::Config(format!("runtimes.json: unexpected file name {:?}", a.file)));
@@ -203,8 +238,11 @@ pub struct RuntimeStatus {
     /// The manifest entry the installed build came from.
     pub source: Option<Asset>,
     pub exe: Option<PathBuf>,
+    /// The newest build from the repository of the installed one, or the best build.
     pub latest: Option<Asset>,
     pub update: bool,
+    /// Every published build of this backend, best first.
+    pub choices: Vec<Build>,
     /// Builds an update replaced, newest first: [`rollback`] brings one back.
     pub previous: Vec<PreviousBuild>,
 }
@@ -242,10 +280,15 @@ pub fn status_from(manifest: Option<&Manifest>, root: &Path) -> Runtimes {
             let dir = root.join(kind.name());
             let installed = installed_commit(kind, &dir);
             let exe = Some(dir.join(exe_name(kind))).filter(|e| e.is_file());
-            let latest = manifest.and_then(|m| m.asset(kind)).cloned();
+            let source = installed_source(&dir);
+            let choices = manifest.map(|m| m.builds_of(kind)).unwrap_or_default();
+            // Following the project already installed: a newer commit of it is the update,
+            // not a switch to whichever project now ranks first.
+            let same_repo = source.as_ref().and_then(|s| s.repo.as_ref()).and_then(|r| choices.iter().find(|b| b.asset.repo.as_ref() == Some(r)));
+            let latest = same_repo.map(|b| b.asset.clone()).or_else(|| manifest.and_then(|m| m.pick(kind, None)));
             let update = latest.as_ref().is_some_and(|l| installed.as_deref() != Some(l.commit.as_str()) || exe.is_none());
             let previous = previous_from(root, kind);
-            RuntimeStatus { backend: kind, installed, source: installed_source(&dir), exe, latest, update, previous }
+            RuntimeStatus { backend: kind, installed, source, exe, latest, update, choices, previous }
         })
         .collect();
     Runtimes {
@@ -382,7 +425,7 @@ fn fetch_manifest_from(url: &str) -> Result<Manifest> {
     match net::get_text_opt(url, Duration::from_secs(20))? {
         Some(text) => parse_manifest(&text),
         None => Err(Error::Config(format!(
-            "no runtimes published yet at {url}: the build workflow publishes them from main"
+            "no runtimes published yet at {url}: vilauncher-builder publishes them every 3 hours"
         ))),
     }
 }
@@ -500,17 +543,22 @@ pub fn swap_in(staging: &Path, dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Downloads the newest build of `kind`, checks it, and installs it.
+/// Downloads a build of `kind` (the archive `file` from runtimes.json's list, or the best
+/// one), checks it, and installs it.
 /// `check` runs on the unpacked files before they replace the installed build
 /// (the VirusTotal check); an error from it stops the install.
 pub fn install(
     kind: BackendKind,
+    file: Option<&str>,
     progress: &mut dyn FnMut(u64, u64),
     check: &mut dyn FnMut(&Path) -> Result<()>,
 ) -> Result<PathBuf> {
     let url = manifest_url();
     let m = fetch_manifest_from(&url)?;
-    let asset = m.asset(kind).ok_or_else(|| Error::Config(format!("runtimes.json has no {} build", kind.name())))?.clone();
+    let asset = m.pick(kind, file).ok_or_else(|| match file {
+        Some(f) => Error::Config(format!("runtimes.json has no {} build {f}", kind.name())),
+        None => Error::Config(format!("runtimes.json has no {} build", kind.name())),
+    })?;
     let archive_url = asset_url(&url, &asset);
     let resp = net::agent(Duration::from_secs(600)).get(&archive_url).call().map_err(|e| net::error(&archive_url, e))?;
     let archive = paths::cache_dir().join("downloads").join(&asset.file);
@@ -571,7 +619,7 @@ mod tests {
         let m = parse_manifest(MANIFEST).unwrap();
         assert_eq!(
             asset_url(MANIFEST_URL, m.xcl.as_ref().unwrap()),
-            "https://github.com/LPortVI/VILauncher/releases/download/runtimes/xcl-abc.tar.gz"
+            "https://github.com/SixLauncher/vilauncher-builder/releases/download/runtimes/xcl-abc.tar.gz"
         );
     }
 
@@ -614,6 +662,51 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         let s = status_from(Some(&m), t.path());
         assert_eq!((s.recommended, s.candidates.len()), (Some(BackendKind::Victory), 2));
+    }
+
+    // The shape vilauncher-builder writes: the best of each family, and every build.
+    const BUILDS: &str = r#"{"schema": 1, "recommended": "victory", "min_score": 59,
+      "victory": {"family": "victory", "file": "victory-zettrox-ztrx-aaa.tar.gz", "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+                  "size": 5, "commit": "aaa", "repo": "Zettrox/ztrx", "effort": "ZETTROX", "score": 64.2},
+      "xcl": null,
+      "builds": [
+        {"family": "victory", "file": "victory-zettrox-ztrx-aaa.tar.gz", "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+         "size": 5, "commit": "aaa", "repo": "Zettrox/ztrx", "effort": "ZETTROX", "score": 64.2},
+        {"family": "victory", "file": "victory-uiliannn-vitoriabr-bbb.tar.gz", "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+         "size": 6, "commit": "bbb", "repo": "uiliannn/VItoriaBr", "effort": "Uilian", "score": 59.6}],
+      "candidates": []}"#;
+
+    #[test]
+    fn every_build_can_be_picked() {
+        let m = parse_manifest(BUILDS).unwrap();
+        let v = m.builds_of(BackendKind::Victory);
+        assert_eq!(v.iter().map(|b| (b.asset.effort.as_deref(), b.score)).collect::<Vec<_>>(), [(Some("ZETTROX"), Some(64.2)), (Some("Uilian"), Some(59.6))]);
+        assert!(m.builds_of(BackendKind::Xcl).is_empty());
+        assert_eq!(m.pick(BackendKind::Victory, None).unwrap().commit, "aaa");
+        assert_eq!(m.pick(BackendKind::Victory, Some("victory-uiliannn-vitoriabr-bbb.tar.gz")).unwrap().commit, "bbb");
+        assert_eq!(m.pick(BackendKind::Xcl, Some("victory-uiliannn-vitoriabr-bbb.tar.gz")), None, "a build of the other family");
+        assert!(parse_manifest(&BUILDS.replace("victory-uiliannn-vitoriabr-bbb.tar.gz", "../evil.tar.gz")).is_err());
+        // The old workflow's manifest: its one entry is the only choice.
+        assert_eq!(parse_manifest(MANIFEST).unwrap().builds_of(BackendKind::Xcl)[0].asset.commit, "abc");
+    }
+
+    #[test]
+    fn an_update_follows_the_installed_project() {
+        let t = tempfile::tempdir().unwrap();
+        let m = parse_manifest(BUILDS).unwrap();
+        let dir = t.path().join("victory");
+        testutil::fake_pe(&dir.join("victory.exe"), 0x8664);
+        fs::write(dir.join("VICTORY_COMMIT.txt"), "VIctory bbb\n").unwrap();
+        let mut src = m.builds[1].asset.clone();
+        fs::write(dir.join(SOURCE_FILE), serde_json::to_string(&src).unwrap()).unwrap();
+        let s = &status_from(Some(&m), t.path()).backends[0];
+        assert_eq!((s.latest.as_ref().unwrap().commit.as_str(), s.update, s.choices.len()), ("bbb", false, 2));
+        // A newer commit of the same project is an update; a better-ranked project is not.
+        src.commit = "old".into();
+        fs::write(dir.join("VICTORY_COMMIT.txt"), "VIctory old\n").unwrap();
+        fs::write(dir.join(SOURCE_FILE), serde_json::to_string(&src).unwrap()).unwrap();
+        let s = &status_from(Some(&m), t.path()).backends[0];
+        assert_eq!((s.latest.as_ref().unwrap().commit.as_str(), s.update), ("bbb", true));
     }
 
     #[test]

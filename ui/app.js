@@ -530,6 +530,7 @@ function showRuntimes(rt) {
       line.append(pill, " ", flagged.length ? flagged.join(", ") : scan.files.map((f) => `${f.name} ${f.malicious}/${f.engines}`).join(" · "));
       info.append(line);
     }
+    if (r.choices && r.choices.length > 1) info.append(otherBuilds(r));
     if (r.previous && r.previous.length) info.append(previousBuilds(r));
     tr.append(info);
     const td = el("td");
@@ -547,6 +548,27 @@ function showRuntimes(rt) {
     tr.append(td);
     body.append(tr);
   }
+}
+
+// Every build vilauncher-builder published for this backend (each project scoring 59% or
+// more on PortWatch VI), best first: any of them installs with one click.
+function otherBuilds(r) {
+  const box = el("details", "previous");
+  box.append(el("summary", null, t("runtimes.others", { n: r.choices.length })));
+  for (const c of r.choices) {
+    const row = el("div", "previous-row");
+    const score = c.score != null ? `${c.score.toFixed(1)}% · ` : "";
+    row.append(el("span", null, `${score}${sourceLine(c)}`));
+    if (r.installed === c.commit && r.exe) {
+      row.append(el("span", "pill ok", t("runtimes.installedPill")));
+    } else {
+      const b = el("button", "ghost", t("runtimes.installThis"));
+      b.addEventListener("click", () => guarded(b, () => installRuntime(r.backend, b, false, c.file)));
+      row.append(b);
+    }
+    box.append(row);
+  }
+  return box;
 }
 
 const when = (secs) => new Date(secs * 1000).toLocaleString(I18N.locale(), { dateStyle: "short", timeStyle: "short" });
@@ -580,15 +602,15 @@ function useRuntime(backend, exe) {
   return save().then(() => $("#runtimes-check").click());
 }
 
-async function installRuntime(backend, button, force = false) {
+async function installRuntime(backend, button, force = false, file = null) {
   say("#runtimes-info", "runtimes.downloading", { name: BACKEND_NAME[backend] });
-  const r = await invoke("install_runtime", { backend, force });
+  const r = await invoke("install_runtime", { backend, force, file });
   showVerdicts(r.verdicts);
   if (r.blocked) {
     say("#runtimes-info", "runtimes.notInstalled", { name: BACKEND_NAME[backend] });
     showBanner(`${r.blocked}\n\n${t("runtimes.keptOld")}`, false);
     const again = el("button", "danger", t("runtimes.installAnyway"));
-    again.addEventListener("click", () => guarded(again, () => installRuntime(backend, again, true)));
+    again.addEventListener("click", () => guarded(again, () => installRuntime(backend, again, true, file)));
     button.replaceWith(again);
     return;
   }
