@@ -54,7 +54,7 @@ I18N.add("tr", {
   "compat.opusHint": "(o olmadan Wine'da Opus sesi çıkmaz)",
 
   "runtimes.check": "Yeni derlemeleri ara",
-  "runtimes.intro": "vilauncher-builder her 3 saatte bir, PortWatch VI'da %59 veya üzeri puanı olan açık kaynaklı her portu (VIctory ve XCL aileleri) derler ve VirusTotal'da kontrol eder.",
+  "runtimes.intro": "PortWatch VI'da %59 veya üzeri puanı olan her projenin VIctory ve XCL derlemeleri, VirusTotal'da kontrol edilmiş olarak.",
   "runtimes.why": "Derlemeler nasıl seçildi",
   "runtimes.installed": "Kurulu: {build}",
   "runtimes.update": "Güncelle",
@@ -254,5 +254,5 @@ I18N.add("tr", {
   "runtimes.rollback": "Buna geri dön",
   "runtimes.installedPill": "kurulu",
   "runtimes.rolledBack": "{name}, {build} sürümüne geri döndü.",
-  "runtimes.offline": "Yayınlanan derlemelere erişilemiyor; yalnızca kurulu olanlar gösteriliyor. ({error})",
+  "runtimes.offline": "Yayınlanan derlemeler alınamadı; yalnızca kurulu olanlar gösteriliyor.",
 });

@@ -54,7 +54,7 @@ I18N.add("ja", {
   "compat.opusHint": "（ないと Wine で Opus 音声が鳴りません）",
 
   "runtimes.check": "新しいビルドを探す",
-  "runtimes.intro": "vilauncher-builder は 3 時間ごとに、PortWatch VI で 59% 以上の評価を受けた公開コードの移植 (VIctory・XCL 系) をビルドし、VirusTotal で確認します。",
+  "runtimes.intro": "PortWatch VI で 59% 以上の各プロジェクトの VIctory・XCL ビルド（VirusTotal で確認済み）。",
   "runtimes.why": "ビルドの選び方",
   "runtimes.installed": "インストール済み: {build}",
   "runtimes.update": "更新",
@@ -254,5 +254,5 @@ I18N.add("ja", {
   "runtimes.rollback": "このビルドに戻す",
   "runtimes.installedPill": "インストール済み",
   "runtimes.rolledBack": "{name} を {build} に戻しました。",
-  "runtimes.offline": "公開ビルドにアクセスできません。インストール済みのものだけを表示しています。（{error}）",
+  "runtimes.offline": "公開されたビルドを取得できませんでした。インストール済みのものだけを表示しています。",
 });

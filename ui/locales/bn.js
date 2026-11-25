@@ -54,7 +54,7 @@ I18N.add("bn", {
   "compat.opusHint": "(এটি ছাড়া Wine-এ Opus অডিও বাজে না)",
 
   "runtimes.check": "নতুন বিল্ড খুঁজুন",
-  "runtimes.intro": "প্রতি ৩ ঘণ্টায় vilauncher-builder PortWatch VI-তে ৫৯% বা তার বেশি স্কোরের প্রতিটি উন্মুক্ত কোডের পোর্ট (VIctory ও XCL পরিবার) বিল্ড করে এবং VirusTotal-এ যাচাই করে।",
+  "runtimes.intro": "PortWatch VI-তে ৫৯% বা তার বেশি স্কোরের প্রতিটি প্রকল্পের VIctory ও XCL বিল্ড, VirusTotal-এ আগেই যাচাই করা।",
   "runtimes.why": "বিল্ডগুলো কীভাবে বাছাই হলো",
   "runtimes.installed": "ইনস্টল করা: {build}",
   "runtimes.update": "আপডেট করুন",
@@ -254,5 +254,5 @@ I18N.add("bn", {
   "runtimes.rollback": "এটিতে ফিরে যান",
   "runtimes.installedPill": "ইনস্টল করা",
   "runtimes.rolledBack": "{name} আবার {build}-এ ফিরেছে।",
-  "runtimes.offline": "প্রকাশিত বিল্ডে পৌঁছানো যাচ্ছে না; শুধু ইনস্টল করা অংশ দেখানো হচ্ছে। ({error})",
+  "runtimes.offline": "প্রকাশিত বিল্ড আনা যায়নি; শুধু ইনস্টল করা জিনিস দেখানো হচ্ছে।",
 });

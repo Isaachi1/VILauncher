@@ -54,7 +54,7 @@ I18N.add("ko", {
   "compat.opusHint": "(없으면 Wine에서 Opus 오디오가 나오지 않습니다)",
 
   "runtimes.check": "새 빌드 찾기",
-  "runtimes.intro": "vilauncher-builder는 3시간마다 PortWatch VI에서 59% 이상인 공개 코드 포트(VIctory·XCL 계열)를 빌드하고 VirusTotal로 검사합니다.",
+  "runtimes.intro": "PortWatch VI에서 59% 이상인 각 프로젝트의 VIctory·XCL 빌드(VirusTotal 검사 완료).",
   "runtimes.why": "빌드를 고른 방법",
   "runtimes.installed": "설치됨: {build}",
   "runtimes.update": "업데이트",
@@ -254,5 +254,5 @@ I18N.add("ko", {
   "runtimes.rollback": "이 빌드로 되돌리기",
   "runtimes.installedPill": "설치됨",
   "runtimes.rolledBack": "{name}이(가) {build}(으)로 돌아갔습니다.",
-  "runtimes.offline": "게시된 빌드에 접근할 수 없어 설치된 것만 표시합니다. ({error})",
+  "runtimes.offline": "게시된 빌드를 가져올 수 없습니다. 설치된 것만 표시합니다.",
 });

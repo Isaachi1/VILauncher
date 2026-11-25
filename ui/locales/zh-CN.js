@@ -54,7 +54,7 @@ I18N.add("zh-CN", {
   "compat.opusHint": "（没有它，Wine 中的 Opus 音频将无声）",
 
   "runtimes.check": "查找新版本",
-  "runtimes.intro": "vilauncher-builder 每 3 小时构建一次 PortWatch VI 上评分 59% 及以上、代码公开的移植（VIctory 和 XCL 系列），并在 VirusTotal 上检查。",
+  "runtimes.intro": "PortWatch VI 上评分 59% 及以上的各项目的 VIctory 和 XCL 构建，已在 VirusTotal 上检查。",
   "runtimes.why": "构建是如何选出的",
   "runtimes.installed": "已安装：{build}",
   "runtimes.update": "更新",
@@ -254,5 +254,5 @@ I18N.add("zh-CN", {
   "runtimes.rollback": "回退到此版本",
   "runtimes.installedPill": "已安装",
   "runtimes.rolledBack": "{name} 已回退到 {build}。",
-  "runtimes.offline": "无法访问已发布的构建；仅显示已安装的内容。（{error}）",
+  "runtimes.offline": "无法获取已发布的构建；仅显示已安装的内容。",
 });

@@ -41,7 +41,7 @@ pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/vilauncher-builde
 /// No runtime archive is this large; a bigger download is refused.
 const MAX_ARCHIVE: u64 = 2 << 30;
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 pub struct Manifest {
     pub schema: u32,
     #[serde(default)]
@@ -421,12 +421,12 @@ pub fn check_scan(asset: &Asset, staging: &Path) -> Result<()> {
     Ok(())
 }
 
+/// The published builds. Nothing at the address (404) is simply no build published yet:
+/// an empty list, not an error.
 fn fetch_manifest_from(url: &str) -> Result<Manifest> {
     match net::get_text_opt(url, Duration::from_secs(20))? {
         Some(text) => parse_manifest(&text),
-        None => Err(Error::Config(format!(
-            "no runtimes published yet at {url}: vilauncher-builder publishes them every 3 hours"
-        ))),
+        None => Ok(Manifest { schema: 1, ..Manifest::default() }),
     }
 }
 
@@ -675,6 +675,22 @@ mod tests {
         {"family": "victory", "file": "victory-uiliannn-vitoriabr-bbb.tar.gz", "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
          "size": 6, "commit": "bbb", "repo": "uiliannn/VItoriaBr", "effort": "Uilian", "score": 59.6}],
       "candidates": []}"#;
+
+    #[test]
+    fn nothing_published_is_an_empty_list() {
+        // A server that answers 404, as GitHub does before the first release.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/runtimes.json", listener.local_addr().unwrap());
+        std::thread::spawn(move || {
+            use std::io::{Read, Write};
+            let (mut c, _) = listener.accept().unwrap();
+            let _ = c.read(&mut [0u8; 2048]);
+            c.write_all(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+        });
+        let m = fetch_manifest_from(&url).unwrap();
+        assert!(m.builds.is_empty() && m.victory.is_none() && m.xcl.is_none());
+        assert!(m.builds_of(BackendKind::Victory).is_empty());
+    }
 
     #[test]
     fn every_build_can_be_picked() {

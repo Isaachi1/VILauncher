@@ -54,7 +54,7 @@ I18N.add("hi", {
   "compat.opusHint": "(इसके बिना Wine में Opus ऑडियो नहीं बजता)",
 
   "runtimes.check": "नए बिल्ड खोजें",
-  "runtimes.intro": "हर 3 घंटे में vilauncher-builder PortWatch VI पर 59% या अधिक स्कोर वाले खुले कोड के हर पोर्ट (VIctory और XCL परिवार) को बिल्ड करता है और VirusTotal पर जाँचता है।",
+  "runtimes.intro": "PortWatch VI पर 59% या अधिक स्कोर वाले हर प्रोजेक्ट के VIctory और XCL बिल्ड, VirusTotal पर पहले से जाँचे हुए।",
   "runtimes.why": "बिल्ड कैसे चुने गए",
   "runtimes.installed": "इंस्टॉल किया हुआ: {build}",
   "runtimes.update": "अपडेट करें",
@@ -254,5 +254,5 @@ I18N.add("hi", {
   "runtimes.rollback": "इस पर वापस जाएँ",
   "runtimes.installedPill": "इंस्टॉल है",
   "runtimes.rolledBack": "{name} वापस {build} पर है।",
-  "runtimes.offline": "प्रकाशित बिल्ड तक पहुँच नहीं; केवल इंस्टॉल किया गया दिखाया जा रहा है। ({error})",
+  "runtimes.offline": "प्रकाशित बिल्ड नहीं मिल सके; केवल इंस्टॉल किया हुआ दिखाया जा रहा है।",
 });

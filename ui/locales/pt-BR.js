@@ -54,7 +54,7 @@ I18N.add("pt-BR", {
   "compat.opusHint": "(sem ele o áudio Opus fica mudo no Wine)",
 
   "runtimes.check": "Procurar builds novas",
-  "runtimes.intro": "A cada 3 horas o vilauncher-builder compila cada port com código público e nota 59% ou mais no PortWatch VI (famílias VIctory e XCL) e o verifica no VirusTotal.",
+  "runtimes.intro": "As builds do VIctory e do XCL de cada projeto com nota 59% ou mais no PortWatch VI, já verificadas no VirusTotal.",
   "runtimes.why": "Como as builds foram escolhidas",
   "runtimes.installed": "Instalada: {build}",
   "runtimes.update": "Atualizar",
@@ -254,5 +254,5 @@ I18N.add("pt-BR", {
   "runtimes.rollback": "Voltar para esta",
   "runtimes.installedPill": "instalada",
   "runtimes.rolledBack": "{name} voltou para {build}.",
-  "runtimes.offline": "Sem acesso às builds publicadas; mostrando só o que está instalado. ({error})",
+  "runtimes.offline": "Não foi possível buscar as builds publicadas; mostrando só o que está instalado.",
 });

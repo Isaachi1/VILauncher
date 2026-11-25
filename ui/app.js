@@ -669,7 +669,10 @@ function showBuildDetail(rt) {
 function showRuntimes(rt) {
   lastRuntimes = rt;
   showBuilds(rt);
-  if (rt.offline) say("#runtimes-info", "runtimes.offline", { error: rt.offline });
+  if (rt.offline) {
+    console.warn("runtimes:", rt.offline); // the detail (address, network error) is for debugging
+    say("#runtimes-info", "runtimes.offline");
+  }
   const cands = $("#runtimes-candidates");
   cands.replaceChildren();
   for (const c of rt.candidates) cands.append(el("li", null, `${c.name} (${c.repo}): ${c.result}`));
@@ -1234,7 +1237,8 @@ async function init() {
     .then(showRuntimes)
     .catch((e) => {
       showBuilds({ backends: [] });
-      say("#runtimes-info", "runtimes.offline", { error: String(e) });
+      console.warn("runtimes:", e);
+      say("#runtimes-info", "runtimes.offline");
     });
   showNotifySettings(config.notifications);
   for (const box of $$("[data-notify]")) box.addEventListener("change", saveNotifySettings);
