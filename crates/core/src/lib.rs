@@ -22,6 +22,7 @@ pub mod fixes;
 pub mod gamedir;
 pub mod gpu;
 pub mod host;
+pub mod integrity;
 pub mod launch;
 pub mod net;
 pub mod notify;

@@ -7,7 +7,7 @@ use vilauncher_core::config::{self, BackendKind, Config, Console, GpuProfile, Ru
 use vilauncher_core::doctor::{self, Status};
 use vilauncher_core::fixes::{self, Fix};
 use vilauncher_core::runners::{self, Runner};
-use vilauncher_core::{gamedir, gpu, launch, paths, perf, protons, report, status, update, virustotal};
+use vilauncher_core::{gamedir, gpu, integrity, launch, paths, perf, protons, report, status, update, virustotal};
 
 const HELP: &str = "\
 vilauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
@@ -34,6 +34,9 @@ Usage:
       --gamemode on|off           Feral's GameMode while the game runs
       --no-prefix                 only write the configuration
   vilauncher doctor [--config-only]   check the machine and the configuration
+  vilauncher verify [FILE]        the SHA-256 of the game's executable (or of FILE, such as the
+                                  game's .zip) against the known ones; `[game] verify = false`
+                                  turns off the automatic check
   vilauncher fix [max_map_count|userfaultfd ...] [--print]
                                   fix the kernel settings the checks warn about (pkexec asks
                                   for the password; kept in /etc/sysctl.d); without a name,
@@ -520,6 +523,46 @@ fn print_checks(checks: &[doctor::Check]) -> usize {
     fails
 }
 
+fn verify_cmd(args: &[String]) -> ExitCode {
+    let path = match args.first() {
+        Some(f) => PathBuf::from(f),
+        None => {
+            let cfg = match load() {
+                Ok(c) => c,
+                Err(code) => return code,
+            };
+            let Some(dir) = cfg.game_dir() else {
+                return fail("no game folder configured; pass a file: `vilauncher verify FILE`");
+            };
+            match gamedir::inspect(&dir).and_then(|info| gamedir::resolve_exe(&info, cfg.game.exe.as_deref())) {
+                Ok(exe) => exe,
+                Err(e) => return fail(e),
+            }
+        }
+    };
+    match integrity::verify(&path) {
+        Ok(v) => {
+            println!("{}
+SHA-256 {}", v.path.display(), v.sha256);
+            match v.known {
+                Some(k) => {
+                    let what = match k.kind {
+                        integrity::Kind::Exe => "executable",
+                        integrity::Kind::Zip => ".zip",
+                    };
+                    println!("ok: the known {} {what}", k.name);
+                    ExitCode::SUCCESS
+                }
+                None => {
+                    println!("not a known file: another version, or a changed or damaged file");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Err(e) => fail(e),
+    }
+}
+
 fn load() -> Result<Config, ExitCode> {
     config::load().map_err(fail)
 }
@@ -707,6 +750,7 @@ fn main() -> ExitCode {
             let checks = if rest.iter().any(|a| a == "--config-only") { doctor::config_checks(&cfg) } else { doctor::run_all(&cfg) };
             if print_checks(&checks) > 0 { ExitCode::FAILURE } else { ExitCode::SUCCESS }
         }
+        Some("verify") => verify_cmd(rest),
         Some("fix") => fix_cmd(rest),
         Some("report") => report_cmd(rest),
         Some("run") => run(rest),

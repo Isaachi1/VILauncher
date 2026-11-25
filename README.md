@@ -65,6 +65,21 @@ Os dois backends:
 O vilauncher-builder compila os forks dessas duas famílias que têm nota 59% ou mais no PortWatch VI
 (veja abaixo), e você escolhe qual instalar.
 
+## Verificação do jogo (SHA-256)
+
+Com **Jogo › Verificar o executável do jogo** ligado (o padrão), o launcher calcula o SHA-256 do
+executável quando a pasta muda e na **Verificação** antes de jogar, e compara com o conhecido:
+
+| Arquivo | SHA-256 |
+|---|---|
+| executável | `e95020b2fa4a721db3df59fdecf75621730ac559d8835252f6c3b658d5a08993` |
+| `.zip` | `7545a2f7fb4b399cf8850987f087ed9a4d8499ddb6d6c2d642fd60c27f569730` |
+
+Se não bater, aparece um aviso (não um erro): pode ser outra versão, ou um arquivo alterado ou
+corrompido. O resultado fica guardado em `~/.cache/vilauncher/hashes.json` com o tamanho e a data do
+arquivo, então o cálculo só se repete quando o arquivo muda. **Verificar um .zip…** (ou
+`vilauncher verify arquivo.zip`) confere o `.zip`. Os valores ficam em `crates/core/src/integrity.rs`.
+
 ## O que ele não faz
 
 - Não baixa nenhum arquivo do jogo.
@@ -311,6 +326,7 @@ vilauncher setup --game ~/Jogos/titulo --backend-exe ~/builds/xcl/xcl.exe \
     --runner wine --vkd3d ~/Downloads/vkd3d-proton-2.14 --dxc-dir ~/dxc/bin/x64 --opus-dir ~/opus
 
 vilauncher doctor                         # verifica a máquina e a configuração
+vilauncher verify [ARQUIVO]               # SHA-256 do executável do jogo (ou do .zip) contra o conhecido
 vilauncher fix [--print]                  # corrige os ajustes do kernel que dão aviso (pede a senha)
 vilauncher report [arquivo.zip]           # o .zip com verificação, sistema e logs para os devs
 vilauncher run --dry-run                  # mostra o comando e o ambiente, sem rodar
@@ -346,6 +362,7 @@ CLI leem e escrevem o mesmo arquivo:
 [game]
 dir = "/home/eu/Jogos/gta6"
 args = []
+verify = true                 # confere o SHA-256 do executável (false desliga)
 
 [backend]
 kind = "victory"              # ou "xcl"

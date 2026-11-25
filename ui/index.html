@@ -106,6 +106,16 @@
         <span><span data-i18n="game.args">Argumentos do jogo</span> <em data-i18n="game.argsHint">(um por linha)</em></span>
         <textarea data-path="game.args" data-kind="lines" rows="3"></textarea>
       </label>
+      <div class="toggles">
+        <label class="toggle">
+          <input type="checkbox" data-path="game.verify" data-kind="bool">
+          <span class="toggle-text"><b data-i18n="game.verify">Verificar o executável do jogo</b> <span data-i18n="game.verifyHint">compara o SHA-256 com o do executável conhecido quando a pasta muda e antes de jogar</span><small class="status" id="game-verify"></small></span>
+        </label>
+      </div>
+      <div class="actions">
+        <button id="verify-zip" class="ghost" data-i18n="game.verifyZip">Verificar um .zip…</button>
+        <span class="status" id="zip-verify"></span>
+      </div>
       <div class="note" data-i18n="game.note">
         O VILauncher só roda arquivos de um jogo que você possui, já desempacotados. Ele não desempacota,
         não descriptografa e não contorna DRM ou licenças; uma pasta com um pacote XVC / MSIXVC é recusada.

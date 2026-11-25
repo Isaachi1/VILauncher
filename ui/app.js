@@ -98,10 +98,50 @@ async function refreshTitle() {
     const info = await invoke("game_info", { dir });
     plain("#game-title", info.display_name || info.identity || dir.split("/").pop());
     plain("#game-sub", [info.identity, info.version].filter(Boolean).join(" · ") || dir);
+    verifyGame();
   } catch (e) {
     plain("#game-title", dir.split("/").pop() || dir);
     plain("#game-sub", String(e));
   }
+}
+
+// -- the game's files against the known SHA-256 (integrity.rs) -----------------------------
+
+const short12 = (h) => (h ? h.slice(0, 12) : "");
+let verifyRun = 0;
+
+// The executable, when the folder or the executable changes and the check is on. Hashing a
+// large file takes seconds the first time; then the result comes from the launcher's cache.
+async function verifyGame() {
+  const box = $("#game-verify");
+  const form = readForm();
+  const run = ++verifyRun;
+  box.classList.remove("ok", "missing");
+  if (!form.game.verify || !form.game.dir) return plain("#game-verify", "");
+  say("#game-verify", "game.verifying");
+  try {
+    const v = await invoke("verify_game", { config: form });
+    if (run !== verifyRun) return; // a newer check started meanwhile
+    if (!v) return plain("#game-verify", "");
+    const ok = v.known && v.known.kind === "exe";
+    box.classList.add(ok ? "ok" : "missing");
+    if (ok) say("#game-verify", "game.verifyOk", { name: v.known.name, sha: short12(v.sha256) });
+    else say("#game-verify", "game.verifyUnknown", { sha: short12(v.sha256) });
+  } catch (e) {
+    if (run !== verifyRun) return;
+    box.classList.add("missing");
+    say("#game-verify", "game.verifyError", { error: String(e) });
+  }
+}
+
+async function verifyZip() {
+  const picked = await dialog.open({ multiple: false, filters: [{ name: "ZIP", extensions: ["zip"] }] });
+  if (typeof picked !== "string") return;
+  const file = picked.split("/").pop();
+  say("#zip-verify", "game.verifying");
+  const v = await invoke("verify_file", { path: picked });
+  if (v.known && v.known.kind === "zip") say("#zip-verify", "game.zipOk", { file, name: v.known.name, sha: short12(v.sha256) });
+  else say("#zip-verify", "game.zipUnknown", { file, sha: short12(v.sha256) });
 }
 
 // -- feedback ----------------------------------------------------------------------------
@@ -1140,6 +1180,9 @@ async function init() {
   for (const el of $$('select[data-path], input[data-kind="bool"]')) el.addEventListener("change", refreshVisibility);
   loadHardware();
   $('[data-path="game.dir"]').addEventListener("change", refreshTitle);
+  $('[data-path="game.exe"]').addEventListener("change", verifyGame);
+  $('[data-path="game.verify"]').addEventListener("change", verifyGame);
+  $("#verify-zip").addEventListener("click", () => guarded($("#verify-zip"), verifyZip));
   $('[data-path="backend.exe"]').addEventListener("change", async (ev) => {
     const kind = await invoke("guess_backend", { exe: ev.target.value });
     if (kind) {

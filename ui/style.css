@@ -391,6 +391,7 @@ input:focus, select:focus, textarea:focus {
 .toggle-text b { display: block; color: var(--ink); }
 .toggle-text small { display: block; margin-top: 4px; font-size: 12px; }
 .toggle-text small.missing { color: var(--warn-fg); }
+.toggle-text small.ok { color: var(--ok-fg); }
 
 /* The build picked in Compatibilidade > Backend. */
 .build-detail { display: grid; gap: 8px; margin: 12px 0; padding: 12px 14px; border-radius: 12px; background: var(--soft); }

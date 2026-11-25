@@ -21,6 +21,7 @@ use vilauncher_core::config::{self, Config};
 use vilauncher_core::doctor::{self, Check};
 use vilauncher_core::fixes::{self, Fix};
 use vilauncher_core::gamedir::{self, GameInfo};
+use vilauncher_core::integrity;
 use vilauncher_core::launch;
 use vilauncher_core::{gpu, notify, perf};
 use vilauncher_core::paths;
@@ -130,6 +131,30 @@ async fn export_report(app: AppHandle, config: Config, path: String) -> Result<r
 #[tauri::command]
 fn game_info(dir: String) -> Result<GameInfo, String> {
     gamedir::inspect(&paths::expand(&PathBuf::from(dir))).map_err(err)
+}
+
+/// The game's executable against the known SHA-256 (integrity.rs); `None` when the
+/// automatic check is off or there is no game folder yet.
+#[tauri::command]
+async fn verify_game(config: Config) -> Result<Option<integrity::Verdict>, String> {
+    if !config.game.verify {
+        return Ok(None);
+    }
+    let Some(dir) = config.game_dir() else { return Ok(None) };
+    tauri::async_runtime::spawn_blocking(move || {
+        let exe = gamedir::inspect(&dir).and_then(|info| gamedir::resolve_exe(&info, config.game.exe.as_deref()))?;
+        integrity::verify(&exe).map(Some)
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)
+}
+
+/// Any file (the game's .zip) against the known SHA-256 values.
+#[tauri::command]
+async fn verify_file(path: String) -> Result<integrity::Verdict, String> {
+    let path = paths::expand(&PathBuf::from(path));
+    tauri::async_runtime::spawn_blocking(move || integrity::verify(&path)).await.map_err(err)?.map_err(err)
 }
 
 #[tauri::command]
@@ -552,6 +577,8 @@ fn main() {
             report_default_path,
             export_report,
             game_info,
+            verify_game,
+            verify_file,
             setup_prefix,
             dry_run,
             hardware,

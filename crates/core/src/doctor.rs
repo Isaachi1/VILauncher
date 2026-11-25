@@ -13,7 +13,7 @@ use crate::backends::{self, MACHINE_X86_64};
 use crate::config::{BackendKind, Config};
 use crate::fixes::{self, Fix};
 use crate::runners::{self, Runner};
-use crate::{gamedir, gpu, paths, perf};
+use crate::{Result, gamedir, gpu, integrity, paths, perf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -302,7 +302,33 @@ pub fn check_game(cfg: &Config) -> Vec<Check> {
     }
     let version = info.version.as_deref().map(|v| format!(" {v}")).unwrap_or_default();
     let shown = exe.strip_prefix(&info.folder).unwrap_or(&exe).display().to_string();
-    vec![check(Status::Ok, "game", format!("{}{version}: {shown}", info.title()))]
+    let mut checks = vec![check(Status::Ok, "game", format!("{}{version}: {shown}", info.title()))];
+    if cfg.game.verify {
+        checks.push(check_game_hash(integrity::verify(&exe), &shown));
+    }
+    checks
+}
+
+/// The executable against the known SHA-256: a warning, never a failure, when it differs
+/// (another version of the game is not an error).
+pub fn check_game_hash(verdict: Result<integrity::Verdict>, shown: &str) -> Check {
+    match verdict {
+        Ok(v) if v.is(integrity::Kind::Exe) => check(
+            Status::Ok,
+            "game-sha256",
+            format!("{shown} is the known {} executable (SHA-256 {})", v.known.map_or("", |k| k.name), &v.sha256[..12]),
+        ),
+        Ok(v) => check(
+            Status::Warn,
+            "game-sha256",
+            format!(
+                "{shown}: SHA-256 {} is not the known executable's ({}): another version, or a changed or damaged file",
+                &v.sha256[..12],
+                integrity::expected(integrity::Kind::Exe).iter().map(|h| &h[..12]).collect::<Vec<_>>().join(", ")
+            ),
+        ),
+        Err(e) => check(Status::Warn, "game-sha256", format!("{shown}: could not read it to check its SHA-256: {e}")),
+    }
 }
 
 /// Which GPU runs the game and what `[gpu]` adds for it.
@@ -518,5 +544,19 @@ mod tests {
         let c = check_game(&cfg);
         assert_eq!(c[0].status, Status::Ok);
         assert_eq!(c[0].detail, "Test Title 1.2.3.0: bin/title.exe");
+        // The test executable is not the known one: a warning, not a failure.
+        assert_eq!((c.len(), c[1].name.as_str(), c[1].status), (2, "game-sha256", Status::Warn));
+        assert!(c[1].detail.contains("is not the known executable's (e95020b2fa4a)"), "{}", c[1].detail);
+        cfg.game.verify = false;
+        assert_eq!(check_game(&cfg).len(), 1, "verify off: no hash");
+    }
+
+    #[test]
+    fn known_executable_passes() {
+        let known = integrity::KNOWN.iter().find(|k| k.kind == integrity::Kind::Exe).unwrap();
+        let v = integrity::Verdict { path: "g.exe".into(), sha256: known.sha256.into(), known: Some(*known), cached: true };
+        let c = check_game_hash(Ok(v), "g.exe");
+        assert_eq!(c.status, Status::Ok);
+        assert_eq!(c.detail, "g.exe is the known Grand Theft Auto VI executable (SHA-256 e95020b2fa4a)");
     }
 }
