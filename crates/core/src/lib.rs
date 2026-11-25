@@ -23,6 +23,7 @@ pub mod host;
 pub mod launch;
 pub mod net;
 pub mod paths;
+pub mod protons;
 pub mod runners;
 pub mod selfupdate;
 pub mod status;
