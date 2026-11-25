@@ -275,12 +275,36 @@
       <pre id="dry-out" hidden></pre>
     </section>
 
+    <dialog id="fix-dialog" class="fix-dialog">
+      <form method="dialog">
+        <h3 id="fix-title"></h3>
+        <p id="fix-what"></p>
+        <p id="fix-risk" class="fix-risk" hidden data-i18n="fix.userfaultfdRisk">Atenção: com isso, qualquer programa do seu usuário pode usar o userfaultfd. Ele já foi usado para facilitar falhas de segurança no kernel, e por isso muitas distribuições o deixam desligado. Para desfazer, apague o arquivo e reinicie.</p>
+        <p class="fix-password" data-i18n="fix.password">O sistema vai pedir a senha de administrador. Nada muda se você cancelar.</p>
+        <p class="fix-manual-label" data-i18n="fix.manual">Prefere fazer à mão? No terminal:</p>
+        <pre id="fix-manual"></pre>
+        <div class="actions">
+          <button value="cancel" class="ghost" data-i18n="fix.cancel">Cancelar</button>
+          <button value="apply" id="fix-apply" class="primary" data-i18n="fix.apply">Corrigir agora</button>
+        </div>
+      </form>
+    </dialog>
+
     <section id="tab-log" class="panel" hidden>
       <p class="kicker" data-i18n="log.kicker">Saída do jogo</p>
       <h2 data-i18n="log.title">Log</h2>
       <div class="actions">
         <span class="status" id="log-path"></span>
         <button id="log-clear" class="ghost" data-i18n="log.clear">Limpar</button>
+      </div>
+      <div class="report">
+        <div class="report-text">
+          <b data-i18n="report.title">Relatório para os desenvolvedores</b>
+          <span data-i18n="report.sub">Um .zip com a verificação, a configuração, o sistema e os logs do launcher, do Proton, do vkd3d-proton e do backend. O caminho da sua pasta pessoal aparece como ~.</span>
+          <label class="toggle"><input type="checkbox" id="verbose-logs"> <span data-i18n="report.verbose">Logs detalhados na próxima vez que jogar (Proton e vkd3d-proton)</span></label>
+          <span class="status" id="report-status"></span>
+        </div>
+        <button id="report-export" class="primary" data-i18n="report.export">Exportar .zip</button>
       </div>
       <pre id="log"></pre>
     </section>
