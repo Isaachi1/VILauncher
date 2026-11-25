@@ -1,5 +1,6 @@
 //! VILauncher's window (Tauri): configure, check, prepare the prefix, play, read the log,
-//! update the backends and see where each effort stands.
+//! update the backends and see where each effort stands. It also keeps itself up to date
+//! from this repository's releases (see `app_update_check`).
 //!
 //! Everything it does goes through `vilauncher-core`, the same code as the
 //! `vilauncher` command line.
@@ -14,12 +15,14 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
+use tauri_plugin_updater::UpdaterExt;
 use vilauncher_core::config::{self, Config};
 use vilauncher_core::doctor::{self, Check};
 use vilauncher_core::gamedir::{self, GameInfo};
 use vilauncher_core::launch;
 use vilauncher_core::paths;
 use vilauncher_core::runners::{self, ProtonInstall, Runner};
+use vilauncher_core::selfupdate;
 use vilauncher_core::status::{self, Report};
 use vilauncher_core::update::{self, Runtimes};
 use vilauncher_core::virustotal::{self, Verdict};
@@ -204,6 +207,97 @@ async fn virustotal_upload(config: Config, file: String) -> Result<String, Strin
     .map_err(err)?
 }
 
+/// The package Tauri's bundler stamped into this binary, if any.
+fn packaged() -> Option<&'static str> {
+    use tauri::utils::config::BundleType;
+    match tauri::utils::platform::bundle_type()? {
+        BundleType::AppImage => Some("appimage"),
+        BundleType::Deb => Some("deb"),
+        BundleType::Rpm => Some("rpm"),
+        _ => None,
+    }
+}
+
+/// The updater's public key (tauri.conf.json > plugins.updater.pubkey, filled in by CI).
+/// Without one nothing can be verified, so nothing is installed automatically.
+fn updater_pubkey(app: &AppHandle) -> bool {
+    app.config()
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|u| u.get("pubkey"))
+        .and_then(|k| k.as_str())
+        .is_some_and(|k| !k.trim().is_empty())
+}
+
+/// Whether a newer VILauncher is published (the newest release's latest.json), and whether
+/// this copy can install it by itself: an AppImage, or the .deb / .rpm installed under /usr,
+/// from a signed release. A Flatpak or the tarball is told where to download it.
+#[tauri::command]
+async fn app_update_check(app: AppHandle) -> Result<Option<selfupdate::Check>, String> {
+    let current = app.package_info().version.to_string();
+    let can_verify = updater_pubkey(&app);
+    tauri::async_runtime::spawn_blocking(move || {
+        let install = selfupdate::detect_current(packaged());
+        selfupdate::fetch_manifest()
+            .map(|m| m.map(|m| selfupdate::evaluate(&m, &current, install, can_verify)))
+            .map_err(err)
+    })
+    .await
+    .map_err(err)?
+}
+
+#[derive(Clone, Serialize)]
+struct AppUpdateProgress {
+    done: u64,
+    total: Option<u64>,
+}
+
+/// Downloads the newest VILauncher, checks its signature and installs it over this one
+/// (the AppImage file is replaced; a .deb or .rpm is installed with pkexec, which asks for
+/// the password). Progress arrives as `app-update-progress` events. Returns the version
+/// installed, or None when there was nothing newer. The new version runs on the next start
+/// (`app_restart`).
+#[tauri::command]
+async fn app_update_install(app: AppHandle) -> Result<Option<String>, String> {
+    if !updater_pubkey(&app) {
+        return Err("this copy of VILauncher has no updater public key".into());
+    }
+    let Some(update) = app.updater().map_err(err)?.check().await.map_err(err)? else {
+        return Ok(None);
+    };
+    let mut done = 0u64;
+    let mut last = 0u64;
+    let emitter = app.clone();
+    update
+        .download_and_install(
+            move |chunk, total| {
+                done += chunk as u64;
+                // About one event per percent.
+                let step = total.map_or(1 << 20, |t| (t / 100).max(1));
+                if done - last >= step || Some(done) == total {
+                    last = done;
+                    let _ = emitter.emit("app-update-progress", AppUpdateProgress { done, total });
+                }
+            },
+            || {},
+        )
+        .await
+        .map_err(err)?;
+    Ok(Some(update.version))
+}
+
+/// Starts the installed (new) VILauncher in place of this one. Refused while the game runs,
+/// since the window owns its process and its log.
+#[tauri::command]
+fn app_restart(app: AppHandle, running: State<Running>) -> Result<(), String> {
+    if running.child.lock().unwrap().is_some() {
+        return Err("stop the game before restarting VILauncher".into());
+    }
+    app.request_restart();
+    Ok(())
+}
+
 #[tauri::command]
 fn dry_run(config: Config) -> Result<String, String> {
     launch::build(&config).map(|l| l.shell_text()).map_err(err)
@@ -298,6 +392,7 @@ fn stop_game(running: State<Running>) -> Result<(), String> {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Running::default())
         .invoke_handler(tauri::generate_handler![
             get_state,
@@ -313,6 +408,9 @@ fn main() {
             virustotal_key,
             virustotal_check,
             virustotal_upload,
+            app_update_check,
+            app_update_install,
+            app_restart,
             create_desktop_entry,
             launch_game,
             stop_game

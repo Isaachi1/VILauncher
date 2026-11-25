@@ -23,6 +23,14 @@
 # Every push to main (a merged PR) publishes the files as a GitHub release, versioned
 # <major>.<minor>.<run number> from Cargo.toml's workspace version (job `version`); a `v*` tag
 # pushed by hand publishes one under that tag.
+#
+# Self-update: each release carries latest.json (Tauri updater format). The window reads it from
+# the latest release; an AppImage, .deb or .rpm installs the new version by itself when the
+# release is signed. Signing needs, in Settings > Secrets and variables > Actions:
+#   secret   TAURI_SIGNING_PRIVATE_KEY           the private key (`cargo tauri signer generate`)
+#   secret   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password (may be empty)
+#   variable TAURI_UPDATER_PUBKEY                the matching public key (the .pub file's text)
+# Without them the packages are built unsigned and the window only says a new version exists.
 name: build
 
 on:
@@ -106,6 +114,28 @@ jobs:
           sed -i -E "s/^(  \"version\": )\"[^\"]*\"/\1\"$VERSION\"/" app/tauri.conf.json
           grep -n '"version"' app/tauri.conf.json
 
+      # The updater's public key goes into the window (it checks every update against it), and
+      # with the private key at hand the AppImage, .deb and .rpm get a .sig each.
+      - name: Updater keys
+        env:
+          PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+          HAS_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        run: |
+          set -euo pipefail
+          conf=app/tauri.conf.json
+          if [ -n "$PUBKEY" ]; then
+            jq --arg k "$PUBKEY" '.plugins.updater.pubkey = $k' "$conf" > conf.tmp && mv conf.tmp "$conf"
+            echo "updater public key set"
+          else
+            echo "::notice::no TAURI_UPDATER_PUBKEY variable: this build cannot install updates by itself"
+          fi
+          if [ "$HAS_PRIVATE_KEY" = true ]; then
+            jq '.bundle.createUpdaterArtifacts = true' "$conf" > conf.tmp && mv conf.tmp "$conf"
+            echo "the packages will be signed"
+          else
+            echo "::notice::no TAURI_SIGNING_PRIVATE_KEY secret: the packages are not signed for the updater"
+          fi
+
       - name: Tauri system libraries
         run: |
           sudo apt-get update
@@ -115,8 +145,12 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
+      # Upgraded when a newer 2.x exists (the cache keeps the old one otherwise): signing the
+      # .deb and .rpm for the updater needs a recent bundler.
       - name: Tauri CLI
-        run: cargo tauri --version || cargo install tauri-cli --version '^2' --locked
+        run: |
+          cargo install tauri-cli --version '^2' --locked
+          cargo tauri --version
 
       - name: Build the CLI
         run: cargo build --release --locked -p vilauncher-cli
@@ -126,6 +160,8 @@ jobs:
         env:
           # linuxdeploy is an AppImage itself; the runner has no FUSE.
           APPIMAGE_EXTRACT_AND_RUN: 1
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: cargo tauri build
 
       - name: Collect
@@ -133,6 +169,10 @@ jobs:
           mkdir -p out
           cp target/release/vilauncher target/release/vilauncher-app out/
           cp target/release/bundle/deb/*.deb target/release/bundle/rpm/*.rpm target/release/bundle/appimage/*.AppImage out/
+          # The updater signatures, when the build was signed.
+          shopt -s nullglob
+          sigs=(target/release/bundle/{deb,rpm,appimage}/*.sig)
+          if [ ${#sigs[@]} -gt 0 ]; then cp "${sigs[@]}" out/; fi
           echo "VILauncher $(git rev-parse HEAD)" > out/VILAUNCHER_COMMIT.txt
           ls -l out
 
@@ -365,6 +405,7 @@ jobs:
           tar -C dl/xcl-windows-x64 --owner=0 --group=0 --numeric-owner -czf release/xcl-windows-x64.tar.gz .
           tar -C dl/victory-windows-x64 --owner=0 --group=0 --numeric-owner -czf release/victory-windows-x64.tar.gz .
           cp dl/vilauncher-linux-x64/*.deb dl/vilauncher-linux-x64/*.rpm dl/vilauncher-linux-x64/*.AppImage release/
+          cp dl/vilauncher-linux-x64/*.sig release/ 2>/dev/null || echo "no updater signatures (unsigned build)"
           ls -l release
 
       - uses: actions/upload-artifact@v4
@@ -507,6 +548,9 @@ jobs:
   # One release per merge into main (and per `v*` tag), with every package: .deb, .rpm, AppImage,
   # Flatpak, the bundle with both backends and each backend alone. Only the newest version is
   # marked as the latest release, so two merges whose runs finish out of order keep it right.
+  # It also carries latest.json, which the window reads from the latest release
+  # (releases/latest/download/latest.json) to update itself: the version and, for each signed
+  # package, its URL and signature under linux-x86_64-{appimage,deb,rpm}.
   # On a pull request it runs as a dry run: it lists what it would publish and creates nothing.
   release:
     name: Release
@@ -529,6 +573,28 @@ jobs:
         with:
           name: vilauncher-flatpak
           path: release
+
+      - name: latest.json (self-update manifest)
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          base="${{ github.server_url }}/${{ github.repository }}/releases/download/v$VERSION"
+          platforms='{}'
+          shopt -s nullglob
+          for pair in appimage:AppImage deb:deb rpm:rpm; do
+            key=${pair%%:*} ext=${pair#*:}
+            files=(release/*."$ext")
+            [ ${#files[@]} -eq 1 ] || { echo "::warning::expected one .$ext, found ${#files[@]}"; continue; }
+            f=${files[0]}
+            if [ ! -f "$f.sig" ]; then echo "$(basename "$f"): not signed, no updater entry"; continue; fi
+            platforms=$(jq --arg k "linux-x86_64-$key" --arg url "$base/$(basename "$f")" --rawfile sig "$f.sig" \
+              '. + {($k): {url: $url, signature: $sig}}' <<<"$platforms")
+          done
+          jq -n --arg v "$VERSION" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson p "$platforms" \
+            --arg notes "${{ github.server_url }}/${{ github.repository }}/releases/tag/v$VERSION" \
+            '{version: $v, notes: $notes, pub_date: $at, platforms: $p}' > release/latest.json
+          cat release/latest.json
 
       - name: Publish ${{ needs.version.outputs.release == 'true' && format('v{0}', needs.version.outputs.version) || '(dry run)' }}
         env:

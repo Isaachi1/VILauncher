@@ -23,6 +23,7 @@ pub mod launch;
 pub mod net;
 pub mod paths;
 pub mod runners;
+pub mod selfupdate;
 pub mod status;
 pub mod update;
 pub mod virustotal;
