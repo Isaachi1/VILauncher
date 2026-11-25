@@ -246,9 +246,13 @@ inicia com `flatpak-spawn --host`. Por isso:
 2. **Abra o VILauncher** pelo menu de aplicativos, ou rode `vilauncher-app`.
 3. **Aba Jogo:** clique em **Escolher…** e aponte para a pasta **desempacotada** do seu jogo. O
    launcher acha o executável. Se precisar, adicione argumentos e clique em **Salvar**.
-4. **Aba Compatibilidade › Procurar builds novas:** o launcher lê o `runtimes.json` e mostra a build
-   recomendada, com o projeto, o commit e o resultado do VirusTotal. Clique em **Instalar e usar**. A
-   build é baixada, conferida e passa a ser o backend em uso.
+4. **Aba Compatibilidade:** o campo **Backend** lista as builds publicadas pelo repositório de onde
+   vêm (por exemplo `fxceless/victory-fork · hyphennn (VIctory) · mais avançado` e `xcl-dev/xcl
+   (XCL)`), já com a mais avançada escolhida no primeiro uso. Os outros projetos dessas famílias no
+   PortWatch VI aparecem desativados, com o motivo (por exemplo "atrás de fxceless/victory-fork"),
+   porque o CI só compila o mais avançado de cada família. Abaixo, o launcher mostra a build
+   recomendada, com o projeto, o commit e o resultado do VirusTotal. Clique em **Instalar e usar**.
+   A build é baixada, conferida e passa a ser o backend em uso.
    - Se você mesmo compilou o `victory.exe` ou o `xcl.exe`, aponte o executável do backend para ele.
 5. **Ainda em Compatibilidade:** escolha o Proton (ou o Wine e a pasta do vkd3d-proton) e clique em
    **Preparar prefixo**.
@@ -266,7 +270,7 @@ com **Rodar mesmo assim**.
 | Aba | Atalho | O que tem |
 |---|---|---|
 | **Jogo** | `Ctrl+1` | a pasta do jogo, o executável e os argumentos |
-| **Compatibilidade** | `Ctrl+2` | o backend (VIctory ou XCL) e o executável dele; as builds do CI (**Procurar builds novas**, **Instalar e usar**, **Como o CI escolheu**) com o projeto, o commit e o selo do VirusTotal; o Proton ou o Wine; o vkd3d-proton, o DXC e o Opus; a chave do VirusTotal |
+| **Compatibilidade** | `Ctrl+2` | o backend, escolhido pelo repositório da build (o mais avançado vem primeiro; os outros projetos das mesmas famílias aparecem desativados, com o motivo) e o executável dele; as builds do CI (**Procurar builds novas**, **Instalar e usar**, **Como o CI escolheu**) com o projeto, o commit e o selo do VirusTotal; o Proton ou o Wine; o vkd3d-proton, o DXC e o Opus; a chave do VirusTotal |
 | **Verificação** | `Ctrl+3` | as checagens da máquina e da configuração, e o comando exato que vai rodar |
 | **Log** | `Ctrl+4` | a saída do jogo ao vivo, também gravada em `~/.local/state/vilauncher/last-run.log` |
 | **Status** | `Ctrl+5` | o progresso geral e a corrida dos ports, segundo o PortWatch VI |

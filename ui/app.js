@@ -67,7 +67,10 @@ function refreshVisibility() {
   for (const el of $$(".only-xcl")) el.hidden = backend !== "xcl";
   for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
   $("#runner-path-label").textContent = runner === "wine" ? "Binário do wine (vazio: o do PATH)" : "Pasta do Proton (vazio: o melhor encontrado)";
-  $("#backend-label").textContent = `${backend === "xcl" ? "XCL" : "VIctory"} · ${runner === "wine" ? "Wine + vkd3d-proton" : "Proton"}`;
+  const build = runtimes && runtimes.backends.find((r) => r.backend === backend);
+  const from = build && (build.source || build.latest);
+  const name = from && from.repo ? from.repo : BACKEND_NAME[backend] || backend;
+  $("#backend-label").textContent = `${name} · ${runner === "wine" ? "Wine + vkd3d-proton" : "Proton"}`;
 }
 
 async function refreshTitle() {
@@ -469,7 +472,73 @@ function sourceLine(a) {
   return [a.effort, a.repo ? `github.com/${a.repo}` : null, short(a.commit)].filter(Boolean).join(" · ");
 }
 
+// The Backend field lists the builds the CI publishes, by repository (one per family: the
+// most advanced public effort on PortWatch VI), the recommended one first. The other
+// efforts of the same families are listed too, disabled, with why the CI left them out.
+let runtimes = null;
+
+const MANAGED = "/vilauncher/runtimes/";
+
+function buildLabel(r) {
+  const a = r.latest || r.source;
+  const family = BACKEND_NAME[r.backend];
+  if (!a || !a.repo) return `${family} (nenhuma build publicada)`;
+  const effort = a.effort && a.effort.toLowerCase() !== a.repo.split("/").pop().toLowerCase() ? ` · ${a.effort}` : "";
+  return `${a.repo}${effort} (${family})`;
+}
+
+function fillBackendPicker(rt) {
+  const sel = $('[data-path="backend.kind"]');
+  const exe = $('[data-path="backend.exe"]');
+  let keep = sel.value;
+  // First run: nothing chosen yet, so start on the most advanced build.
+  if (!exe.value.trim() && rt.recommended) keep = rt.recommended;
+  const order = [...rt.backends].sort((a, b) => (b.backend === rt.recommended) - (a.backend === rt.recommended));
+  const built = document.createElement("optgroup");
+  built.label = "Builds do CI (PortWatch VI + VirusTotal)";
+  for (const r of order) {
+    const best = r.backend === rt.recommended ? " · mais avançado" : "";
+    const state = r.exe ? "" : r.latest ? " · não instalada" : "";
+    built.append(new Option(`${buildLabel(r)}${best}${state}`, r.backend));
+  }
+  const others = document.createElement("optgroup");
+  others.label = "Outros projetos no PortWatch VI (sem build publicada)";
+  for (const c of rt.candidates) {
+    if (!c.family || !BACKEND_NAME[c.family] || c.result.startsWith("selected")) continue;
+    const why = c.result.startsWith("behind ") ? `atrás de ${c.result.slice(7)}` : c.result;
+    const name = c.name && c.name.toLowerCase() !== c.repo.split("/").pop().toLowerCase() ? ` · ${c.name}` : "";
+    const opt = new Option(`${c.repo}${name} (${BACKEND_NAME[c.family]}) · ${why}`, "");
+    opt.disabled = true;
+    others.append(opt);
+  }
+  sel.replaceChildren(built);
+  if (others.children.length) sel.append(others);
+  sel.value = keep;
+  if (sel.value !== keep) sel.value = order[0] ? order[0].backend : "victory";
+  pickBackend();
+}
+
+// After the Backend field changes: use that family's installed build, unless the
+// executable was set by hand to something the launcher did not install.
+function pickBackend() {
+  refreshVisibility();
+  if (!runtimes) return;
+  const kind = $('[data-path="backend.kind"]').value;
+  const r = runtimes.backends.find((b) => b.backend === kind);
+  if (!r) return;
+  const exe = $('[data-path="backend.exe"]');
+  const current = exe.value.trim();
+  const managed = !current || current.includes(MANAGED);
+  if (r.exe && r.exe !== current && managed) exe.value = r.exe;
+  else if (!r.exe && managed) exe.value = "";
+  const info = $("#runtimes-info");
+  if (!r.exe && r.latest) info.textContent = `A build de ${buildLabel(r)} ainda não está instalada: clique em Instalar abaixo.`;
+  else if (r.exe && exe.value.trim() === r.exe) info.textContent = `Usando a build de ${buildLabel(r)}.`;
+}
+
 function showRuntimes(rt) {
+  runtimes = rt;
+  fillBackendPicker(rt);
   const body = $("#runtimes tbody");
   body.replaceChildren();
   const current = $('[data-path="backend.exe"]').value.trim();
@@ -640,6 +709,7 @@ async function init() {
 
   for (const b of $$(".tabs button")) b.addEventListener("click", () => selectTab(b.dataset.tab));
   for (const el of $$('select[data-path]')) el.addEventListener("change", refreshVisibility);
+  $('[data-path="backend.kind"]').addEventListener("change", pickBackend);
   $('[data-path="game.dir"]').addEventListener("change", refreshTitle);
   $('[data-path="backend.exe"]').addEventListener("change", async (ev) => {
     const kind = await invoke("guess_backend", { exe: ev.target.value });
@@ -711,6 +781,9 @@ async function init() {
   $("#runtimes-check").addEventListener("click", () =>
     guarded($("#runtimes-check"), async () => showRuntimes(await invoke("runtime_status"))),
   );
+  // Fill the Backend field with the published builds right away; offline it keeps the two
+  // families until "Procurar builds novas" works.
+  invoke("runtime_status").then(showRuntimes, () => {});
   $("#status-refresh").addEventListener("click", () =>
     guarded($("#status-refresh"), async () => {
       $("#status-info").textContent = "Buscando…";
