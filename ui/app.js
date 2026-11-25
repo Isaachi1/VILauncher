@@ -71,6 +71,7 @@ function refreshVisibility() {
   for (const el of $$(".only-victory")) el.hidden = backend !== "victory";
   for (const el of $$(".only-xcl")) el.hidden = backend !== "xcl";
   for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
+  for (const el of $$(".only-proton")) el.hidden = runner !== "proton";
   say("#runner-path-label", runner === "wine" ? "run.winePath" : "run.protonPath");
   $("#backend-label").textContent = `${backend === "xcl" ? "XCL" : "VIctory"} · ${runner === "wine" ? "Wine + vkd3d-proton" : "Proton"}`;
 }
@@ -486,6 +487,7 @@ let lastRuntimes = null;
 
 function showRuntimes(rt) {
   lastRuntimes = rt;
+  if (rt.offline) say("#runtimes-info", "runtimes.offline", { error: rt.offline });
   const body = $("#runtimes tbody");
   body.replaceChildren();
   const current = $('[data-path="backend.exe"]').value.trim();
@@ -517,6 +519,7 @@ function showRuntimes(rt) {
       line.append(pill, " ", flagged.length ? flagged.join(", ") : scan.files.map((f) => `${f.name} ${f.malicious}/${f.engines}`).join(" · "));
       info.append(line);
     }
+    if (r.previous && r.previous.length) info.append(previousBuilds(r));
     tr.append(info);
     const td = el("td");
     if (r.latest && r.update) {
@@ -533,6 +536,30 @@ function showRuntimes(rt) {
     tr.append(td);
     body.append(tr);
   }
+}
+
+const when = (secs) => new Date(secs * 1000).toLocaleString(I18N.locale(), { dateStyle: "short", timeStyle: "short" });
+
+// The builds earlier updates replaced: one click puts one back (the one in use is kept).
+function previousBuilds(r) {
+  const box = el("details", "previous");
+  box.append(el("summary", null, t("runtimes.previous", { n: r.previous.length })));
+  for (const p of r.previous) {
+    const row = el("div", "previous-row");
+    const what = sourceLine(p.source) || short(p.commit || p.id);
+    const text = el("span", null, p.replaced_at ? `${what} · ${t("runtimes.replacedAt", { date: when(p.replaced_at) })}` : what);
+    const b = el("button", "ghost", t("runtimes.rollback"));
+    b.addEventListener("click", () =>
+      guarded(b, async () => {
+        const exe = await invoke("runtime_rollback", { backend: r.backend, id: p.id });
+        await useRuntime(r.backend, exe);
+        say("#runtimes-info", "runtimes.rolledBack", { name: BACKEND_NAME[r.backend], build: what });
+      }),
+    );
+    row.append(text, b);
+    box.append(row);
+  }
+  return box;
 }
 
 function useRuntime(backend, exe) {
@@ -558,6 +585,104 @@ async function installRuntime(backend, button, force = false) {
   say("#runtimes-info", "runtimes.installedAt", { name: BACKEND_NAME[backend], exe: r.exe, vt });
   button.hidden = true;
   await useRuntime(backend, r.exe);
+}
+
+// -- Proton versions ---------------------------------------------------------------------------
+
+let protonList = [];
+let protonReleases = null;
+
+function showProtons(list) {
+  protonList = list;
+  const datalist = $("#protons");
+  datalist.replaceChildren();
+  for (const p of list) {
+    const opt = document.createElement("option");
+    opt.value = p.path;
+    opt.label = p.version;
+    datalist.appendChild(opt);
+  }
+  const body = $("#proton-list tbody");
+  body.replaceChildren();
+  if (!list.length) {
+    const tr = el("tr");
+    tr.append(el("td", "status", t("proton.none")));
+    body.append(tr);
+  }
+  const chosen = $('[data-path="runner.path"]').value.trim();
+  list.forEach((p, i) => {
+    const tr = el("tr");
+    const name = el("td", "name");
+    name.append(el("div", null, p.name), el("div", "status", p.path));
+    tr.append(name);
+    const origin = el("td");
+    origin.append(el("span", `pill ${p.origin === "launcher" ? "violet" : "ok"}`, t(`proton.origin.${p.origin}`)));
+    tr.append(origin);
+    const td = el("td");
+    const inUse = chosen ? chosen === p.path : i === 0;
+    if (inUse) td.append(el("span", "pill ok", t(chosen ? "proton.inUse" : "proton.auto")));
+    else {
+      const b = el("button", null, t("proton.use"));
+      b.addEventListener("click", () => guarded(b, () => useProton(p)));
+      td.append(b);
+    }
+    if (p.origin === "launcher" && !(chosen && inUse)) {
+      const del = el("button", "ghost", t("proton.remove"));
+      del.addEventListener("click", () =>
+        guarded(del, async () => {
+          await invoke("proton_remove", { name: p.name, config: readForm() });
+          say("#proton-info", "proton.removed", { name: p.name });
+          await refreshProtons();
+        }),
+      );
+      td.append(" ", del);
+    }
+    tr.append(td);
+    body.append(tr);
+  });
+}
+
+async function refreshProtons() {
+  showProtons(await invoke("list_protons"));
+  if (protonReleases) showReleases(protonReleases);
+}
+
+async function useProton(p) {
+  $('[data-path="runner.kind"]').value = "proton";
+  $('[data-path="runner.path"]').value = p.path;
+  refreshVisibility();
+  await save();
+  say("#proton-info", "proton.selected", { name: p.name });
+  showProtons(protonList);
+}
+
+function showReleases(list) {
+  protonReleases = list;
+  const have = new Set(protonList.filter((p) => p.origin === "launcher").map((p) => p.name));
+  const sel = $("#proton-releases");
+  sel.replaceChildren();
+  for (const r of list) {
+    const date = r.published_at ? new Date(r.published_at).toLocaleDateString(I18N.locale()) : "—";
+    const label = t("proton.release", { name: r.name, date, mb: Math.round(r.size / 1048576) });
+    const opt = el("option", null, have.has(r.name) ? t("proton.have", { release: label }) : label);
+    opt.value = r.name;
+    opt.disabled = have.has(r.name);
+    sel.append(opt);
+  }
+  const first = list.find((r) => !have.has(r.name));
+  if (first) sel.value = first.name;
+  sel.hidden = list.length === 0;
+  $("#proton-get").hidden = !first;
+}
+
+async function installProton() {
+  const name = $("#proton-releases").value;
+  if (!name) return;
+  say("#proton-info", "proton.downloading", { name });
+  const p = await invoke("proton_install", { name });
+  await refreshProtons();
+  await useProton(p);
+  say("#proton-info", "proton.installed", { name: p.name });
 }
 
 // -- VirusTotal ----------------------------------------------------------------------------------
@@ -628,6 +753,8 @@ function relabel() {
   refreshTitle();
   if (lastChecks) showChecks(lastChecks);
   if (lastRuntimes) showRuntimes(lastRuntimes);
+  showProtons(protonList);
+  if (protonReleases) showReleases(protonReleases);
   if (lastVerdicts) showVerdicts(lastVerdicts);
   showVtKey(vtSaved);
   if (lastReport) showEfforts(lastReport);
@@ -820,14 +947,16 @@ async function init() {
   showVtKey(state.virustotal);
   say("#config-path", "config.path", { path: state.config_path });
   say("#log-path", "log.path", { path: state.log_file });
-  const list = $("#protons");
-  list.replaceChildren();
-  for (const p of state.protons) {
-    const opt = document.createElement("option");
-    opt.value = p.path;
-    opt.label = p.version;
-    list.appendChild(opt);
-  }
+  showProtons(state.protons);
+  $('[data-path="runner.path"]').addEventListener("change", () => showProtons(protonList));
+  $("#proton-check").addEventListener("click", () =>
+    guarded($("#proton-check"), async () => {
+      say("#proton-info", "proton.loading");
+      showReleases(await invoke("proton_available"));
+      say("#proton-info", "proton.intro");
+    }),
+  );
+  $("#proton-get").addEventListener("click", () => guarded($("#proton-get"), installProton));
 
   for (const b of $$(".tabs button")) b.addEventListener("click", () => selectTab(b.dataset.tab));
   for (const el of $$('select[data-path]')) el.addEventListener("change", refreshVisibility);
@@ -936,6 +1065,11 @@ async function init() {
     const { backend, done, total } = ev.payload;
     const pct = total ? Math.floor((done * 100) / total) : 0;
     say("#runtimes-info", "runtimes.progress", { name: BACKEND_NAME[backend], pct, mb: (total / 1048576).toFixed(1) });
+  });
+  await listen("proton-progress", (ev) => {
+    const { name, done, total } = ev.payload;
+    const pct = total ? Math.floor((done * 100) / total) : 0;
+    say("#proton-info", "proton.progress", { name, pct, mb: (total / 1048576).toFixed(1) });
   });
   await listen("app-update-progress", (ev) => {
     const { done, total } = ev.payload;

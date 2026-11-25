@@ -189,6 +189,18 @@
         <div class="row"><input data-path="runner.path" list="protons" placeholder="detectado automaticamente" data-i18n-attr="placeholder:run.pathPh"><button data-browse="any" data-target="runner.path" data-i18n="browse">Escolher…</button></div>
         <datalist id="protons"></datalist>
       </label>
+      <div class="protons only-proton">
+        <div class="actions">
+          <b data-i18n="proton.title">Versões do Proton</b>
+          <span class="status" id="proton-info" data-i18n="proton.intro">Baixe o GE-Proton direto do GitHub, sem a Steam (tamanho e SHA-512 conferidos). O Proton Experimental aparece aqui se a Steam já o tiver instalado.</span>
+        </div>
+        <table id="proton-list"><tbody></tbody></table>
+        <div class="actions">
+          <button id="proton-check" data-i18n="proton.check">Procurar GE-Proton</button>
+          <select id="proton-releases" hidden data-i18n-attr="aria-label:proton.releases" aria-label="Releases do GE-Proton"></select>
+          <button id="proton-get" class="primary" hidden data-i18n="proton.download">Baixar e usar</button>
+        </div>
+      </div>
       <label class="field only-wine">
         <span><span data-i18n="run.vkd3d">vkd3d-proton</span> <em data-i18n="run.vkd3dHint">(release descompactado, com x64/d3d12.dll)</em></span>
         <div class="row"><input data-path="runner.vkd3d_dir"><button data-browse="dir" data-target="runner.vkd3d_dir" data-i18n="browse">Escolher…</button></div>

@@ -24,6 +24,7 @@ pub mod launch;
 pub mod net;
 pub mod notify;
 pub mod paths;
+pub mod protons;
 pub mod runners;
 pub mod selfupdate;
 pub mod status;

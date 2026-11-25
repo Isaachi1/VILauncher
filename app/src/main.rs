@@ -23,6 +23,7 @@ use vilauncher_core::gamedir::{self, GameInfo};
 use vilauncher_core::launch;
 use vilauncher_core::notify;
 use vilauncher_core::paths;
+use vilauncher_core::protons::{self, Release};
 use vilauncher_core::runners::{self, ProtonInstall, Runner};
 use vilauncher_core::selfupdate;
 use vilauncher_core::status::{self, Report};
@@ -131,10 +132,70 @@ async fn portwatch_avatars(wanted: Vec<avatars::Wanted>) -> Result<std::collecti
 }
 
 /// The installed and the newest builds of VIctory and XCL (the `runtimes` release), with
-/// the repository each comes from, its VirusTotal result and the tracker's pick.
+/// the repository each comes from, its VirusTotal result, the tracker's pick and the
+/// builds kept from earlier updates. Offline, only what is installed (`offline` says why).
 #[tauri::command]
 async fn runtime_status() -> Result<Runtimes, String> {
-    tauri::async_runtime::spawn_blocking(update::status).await.map_err(err)?.map_err(err)
+    tauri::async_runtime::spawn_blocking(update::status_or_local).await.map_err(err)
+}
+
+/// Puts back a build an earlier update replaced; the one in use is kept in its place.
+#[tauri::command]
+async fn runtime_rollback(running: State<'_, Running>, backend: config::BackendKind, id: String) -> Result<String, String> {
+    if running.child.lock().unwrap().is_some() {
+        return Err("stop the game before changing its runtime".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || update::rollback(backend, &id).map(|p| p.display().to_string()))
+        .await
+        .map_err(err)?
+        .map_err(err)
+}
+
+/// Every Proton found: Steam's and the ones the launcher downloaded.
+#[tauri::command]
+fn list_protons() -> Vec<ProtonInstall> {
+    runners::find_protons(&paths::home())
+}
+
+/// GE-Proton releases on GitHub, marking the ones already downloaded.
+#[tauri::command]
+async fn proton_available() -> Result<Vec<Release>, String> {
+    tauri::async_runtime::spawn_blocking(protons::available).await.map_err(err)?.map_err(err)
+}
+
+#[derive(Clone, Serialize)]
+struct ProtonProgress {
+    name: String,
+    done: u64,
+    total: u64,
+}
+
+/// Downloads a GE-Proton release, checks its size and SHA-512 and unpacks it into the
+/// launcher's folder. Progress arrives as `proton-progress` events.
+#[tauri::command]
+async fn proton_install(app: AppHandle, name: String) -> Result<ProtonInstall, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut last = 0u64;
+        let label = name.clone();
+        protons::install(&name, &mut |done, total| {
+            if done == total || done - last >= total / 100 {
+                last = done;
+                let _ = app.emit("proton-progress", ProtonProgress { name: label.clone(), done, total });
+            }
+        })
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)
+}
+
+/// Deletes a Proton the launcher downloaded (never Steam's, never the one in use).
+#[tauri::command]
+async fn proton_remove(running: State<'_, Running>, name: String, config: Config) -> Result<(), String> {
+    if running.child.lock().unwrap().is_some() {
+        return Err("stop the game before removing a Proton".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || protons::remove(&name, &config)).await.map_err(err)?.map_err(err)
 }
 
 /// Downloads, checks and installs the newest build of `backend`. With a VirusTotal
@@ -441,7 +502,12 @@ fn main() {
             portwatch_status,
             portwatch_avatars,
             runtime_status,
+            runtime_rollback,
             install_runtime,
+            list_protons,
+            proton_available,
+            proton_install,
+            proton_remove,
             virustotal_key,
             virustotal_check,
             virustotal_upload,
