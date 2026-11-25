@@ -17,6 +17,12 @@
 //!
 //! An installed build lives in `~/.local/share/vilauncher/runtimes/<backend>`,
 //! with the `VICTORY_COMMIT.txt` / `XCL_COMMIT.txt` the workflow writes.
+//!
+//! The build an update replaces is not deleted: it moves to
+//! `runtimes/previous/<backend>/<commit>`, and the last [`KEEP_PREVIOUS`] stay there.
+//! [`rollback`] puts one of them back in place (the build it replaces is kept the
+//! same way), so a new build that breaks the game is one click from undone. The
+//! folder of the build in use never changes, so the configuration needs no edit.
 
 use std::fs;
 use std::io::{self, Read, Write};
@@ -129,6 +135,10 @@ pub fn exe_name(kind: BackendKind) -> &'static str {
 
 /// Written next to an installed build: the manifest entry it came from.
 const SOURCE_FILE: &str = "VILAUNCHER_SOURCE.json";
+/// Written into a build when it is replaced: when that happened (Unix seconds).
+const RETIRED_FILE: &str = "VILAUNCHER_REPLACED_AT";
+/// How many replaced builds of each backend are kept for [`rollback`].
+pub const KEEP_PREVIOUS: usize = 3;
 
 fn commit_file(kind: BackendKind) -> &'static str {
     match kind {
@@ -147,6 +157,11 @@ pub fn runtimes_dir() -> PathBuf {
 
 pub fn install_dir(kind: BackendKind) -> PathBuf {
     runtimes_dir().join(kind.name())
+}
+
+/// Where the builds that `kind`'s updates replaced are kept, under `root` (the runtimes folder).
+pub fn previous_dir(root: &Path, kind: BackendKind) -> PathBuf {
+    root.join("previous").join(kind.name())
 }
 
 pub fn parse_manifest(text: &str) -> Result<Manifest> {
@@ -190,6 +205,20 @@ pub struct RuntimeStatus {
     pub exe: Option<PathBuf>,
     pub latest: Option<Asset>,
     pub update: bool,
+    /// Builds an update replaced, newest first: [`rollback`] brings one back.
+    pub previous: Vec<PreviousBuild>,
+}
+
+/// A build an update replaced, kept so it can be brought back.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PreviousBuild {
+    /// What [`rollback`] takes: the folder's name (the build's commit).
+    pub id: String,
+    pub commit: Option<String>,
+    /// The manifest entry it came from (repository, effort, VirusTotal result).
+    pub source: Option<Asset>,
+    /// When it was replaced (Unix seconds).
+    pub replaced_at: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -198,6 +227,8 @@ pub struct Runtimes {
     pub recommended: Option<BackendKind>,
     pub candidates: Vec<Candidate>,
     pub backends: Vec<RuntimeStatus>,
+    /// Set when the manifest could not be fetched: only what is installed is shown.
+    pub offline: Option<String>,
 }
 
 pub fn installed_source(dir: &Path) -> Option<Asset> {
@@ -213,7 +244,8 @@ pub fn status_from(manifest: Option<&Manifest>, root: &Path) -> Runtimes {
             let exe = Some(dir.join(exe_name(kind))).filter(|e| e.is_file());
             let latest = manifest.and_then(|m| m.asset(kind)).cloned();
             let update = latest.as_ref().is_some_and(|l| installed.as_deref() != Some(l.commit.as_str()) || exe.is_none());
-            RuntimeStatus { backend: kind, installed, source: installed_source(&dir), exe, latest, update }
+            let previous = previous_from(root, kind);
+            RuntimeStatus { backend: kind, installed, source: installed_source(&dir), exe, latest, update, previous }
         })
         .collect();
     Runtimes {
@@ -221,7 +253,109 @@ pub fn status_from(manifest: Option<&Manifest>, root: &Path) -> Runtimes {
         recommended: manifest.and_then(|m| m.recommended),
         candidates: manifest.map(|m| m.candidates.clone()).unwrap_or_default(),
         backends,
+        offline: None,
     }
+}
+
+/// The builds kept in `root`'s previous folder for `kind`, newest first. Only folders
+/// that still hold the backend's executable count.
+pub fn previous_from(root: &Path, kind: BackendKind) -> Vec<PreviousBuild> {
+    let Ok(rd) = fs::read_dir(previous_dir(root, kind)) else { return Vec::new() };
+    let mut list: Vec<PreviousBuild> = rd
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.join(exe_name(kind)).is_file())
+        .filter_map(|p| {
+            let id = p.file_name()?.to_string_lossy().into_owned();
+            let replaced_at = fs::read_to_string(p.join(RETIRED_FILE)).ok().and_then(|t| t.trim().parse().ok());
+            Some(PreviousBuild { id, commit: installed_commit(kind, &p), source: installed_source(&p), replaced_at })
+        })
+        .collect();
+    list.sort_by(|a, b| b.replaced_at.cmp(&a.replaced_at).then_with(|| a.id.cmp(&b.id)));
+    list
+}
+
+pub fn previous(kind: BackendKind) -> Vec<PreviousBuild> {
+    previous_from(&runtimes_dir(), kind)
+}
+
+fn now() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
+}
+
+fn folder_name(commit: Option<&str>) -> String {
+    match commit {
+        Some(c) if crate::protons::plain_name(c) => c.to_owned(),
+        _ => format!("unknown-{}", now()),
+    }
+}
+
+/// Moves the replaced build `old` into the previous folder (named by its commit),
+/// then keeps only the newest [`KEEP_PREVIOUS`]. A build with the commit of the one
+/// now in use is just deleted: there is nothing to go back to.
+fn retire(kind: BackendKind, old: &Path, root: &Path, current: Option<&str>) -> Result<()> {
+    let commit = installed_commit(kind, old);
+    if commit.is_some() && commit.as_deref() == current {
+        fs::remove_dir_all(old)?;
+        return Ok(());
+    }
+    let keep = previous_dir(root, kind);
+    fs::create_dir_all(&keep)?;
+    fs::write(old.join(RETIRED_FILE), now().to_string())?;
+    let dest = keep.join(folder_name(commit.as_deref()));
+    if dest.exists() {
+        fs::remove_dir_all(&dest)?;
+    }
+    fs::rename(old, &dest)?;
+    for stale in previous_from(root, kind).into_iter().skip(KEEP_PREVIOUS) {
+        fs::remove_dir_all(keep.join(stale.id))?;
+    }
+    Ok(())
+}
+
+/// Puts `incoming` (a complete build) in place of `root/<kind>` and keeps the build
+/// it replaces among the previous ones. If keeping fails, the old build is deleted
+/// rather than leaving the new one half done.
+fn replace_keeping(kind: BackendKind, incoming: &Path, root: &Path) -> Result<()> {
+    let dir = root.join(kind.name());
+    fs::create_dir_all(root)?;
+    let old = dir.with_extension("old");
+    if old.exists() {
+        fs::remove_dir_all(&old)?;
+    }
+    if dir.exists() {
+        fs::rename(&dir, &old)?;
+    }
+    if let Err(e) = fs::rename(incoming, &dir) {
+        if old.exists() {
+            let _ = fs::rename(&old, &dir);
+        }
+        return Err(e.into());
+    }
+    if old.exists() && retire(kind, &old, root, installed_commit(kind, &dir).as_deref()).is_err() && old.exists() {
+        fs::remove_dir_all(&old)?;
+    }
+    Ok(())
+}
+
+/// Brings back the previous build `id` of `kind` (see [`previous`]); the build in use
+/// becomes a previous one. Returns the executable, at the same path as before.
+pub fn rollback(kind: BackendKind, id: &str) -> Result<PathBuf> {
+    rollback_in(&runtimes_dir(), kind, id)
+}
+
+pub fn rollback_in(root: &Path, kind: BackendKind, id: &str) -> Result<PathBuf> {
+    let src = previous_dir(root, kind).join(id);
+    if !crate::protons::plain_name(id) || !src.is_dir() {
+        return Err(Error::Config(format!("there is no previous {} build {id}", kind.name())));
+    }
+    let exe = src.join(exe_name(kind));
+    if pe_machine(&exe) != Some(MACHINE_X86_64) {
+        return Err(Error::Config(format!("{}: no x86-64 {} in it", src.display(), exe_name(kind))));
+    }
+    let _ = fs::remove_file(src.join(RETIRED_FILE));
+    replace_keeping(kind, &src, root)?;
+    Ok(root.join(kind.name()).join(exe_name(kind)))
 }
 
 /// Refuses a build VirusTotal flagged, and one whose binaries are not the ones
@@ -261,6 +395,15 @@ pub fn fetch_manifest() -> Result<Manifest> {
 pub fn status() -> Result<Runtimes> {
     let m = fetch_manifest()?;
     Ok(status_from(Some(&m), &runtimes_dir()))
+}
+
+/// Like [`status`], but offline it still lists what is installed and the previous
+/// builds (so a rollback works without the network), with the error in `offline`.
+pub fn status_or_local() -> Runtimes {
+    match fetch_manifest() {
+        Ok(m) => status_from(Some(&m), &runtimes_dir()),
+        Err(e) => Runtimes { offline: Some(e.to_string()), ..status_from(None, &runtimes_dir()) },
+    }
 }
 
 pub fn sha256_hex(data: impl AsRef<[u8]>) -> String {
@@ -382,7 +525,7 @@ pub fn install(
         .and_then(|_| {
             let json = serde_json::to_string_pretty(&asset).map_err(|e| Error::Config(e.to_string()))?;
             fs::write(staging.join(SOURCE_FILE), json)?;
-            swap_in(&staging, &dir)
+            replace_keeping(kind, &staging, &runtimes_dir())
         });
     let _ = fs::remove_file(&archive);
     if result.is_err() && staging.exists() {
@@ -546,6 +689,63 @@ mod tests {
         assert_eq!(installed_commit(BackendKind::Xcl, &dir).as_deref(), Some("new"));
         assert!(!dir.join("stale.dll").exists());
         assert!(!staging.exists() && !dir.with_extension("old").exists());
+    }
+
+    fn build(root: &Path, commit: &str) -> PathBuf {
+        let dir = root.join(format!("incoming-{commit}"));
+        testutil::fake_pe(&dir.join("victory.exe"), 0x8664);
+        fs::write(dir.join("VICTORY_COMMIT.txt"), format!("victory {commit}\n")).unwrap();
+        dir
+    }
+
+    #[test]
+    fn updates_keep_previous_builds_and_roll_back() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path().join("runtimes");
+        let kind = BackendKind::Victory;
+        let commit = |root: &Path| installed_commit(kind, &root.join("victory"));
+        for c in ["c1", "c2", "c3", "c4", "c5"] {
+            replace_keeping(kind, &build(t.path(), c), &root).unwrap();
+            // Distinct replacement times, newest last.
+            for (i, p) in previous_from(&root, kind).iter().rev().enumerate() {
+                fs::write(previous_dir(&root, kind).join(&p.id).join(RETIRED_FILE), i.to_string()).unwrap();
+            }
+        }
+        assert_eq!(commit(&root).as_deref(), Some("c5"));
+        let ids: Vec<String> = previous_from(&root, kind).into_iter().map(|p| p.id).collect();
+        assert_eq!(ids, ["c4", "c3", "c2"], "only the newest {KEEP_PREVIOUS} are kept");
+        assert!(!root.join("victory.old").exists());
+
+        let exe = rollback_in(&root, kind, "c3").unwrap();
+        assert_eq!(exe, root.join("victory/victory.exe"));
+        assert_eq!(commit(&root).as_deref(), Some("c3"));
+        let ids: Vec<String> = previous_from(&root, kind).into_iter().map(|p| p.id).collect();
+        assert!(ids.contains(&"c5".to_string()) && !ids.contains(&"c3".to_string()), "{ids:?}");
+        assert!(!previous_dir(&root, kind).join("c3").exists());
+
+        assert!(rollback_in(&root, kind, "nope").is_err());
+        assert!(rollback_in(&root, kind, "../victory").is_err());
+        assert_eq!(commit(&root).as_deref(), Some("c3"), "a failed rollback changes nothing");
+
+        // Reinstalling the same commit does not fill the list with copies of it.
+        let before = previous_from(&root, kind).len();
+        replace_keeping(kind, &build(t.path(), "c3"), &root).unwrap();
+        assert_eq!(previous_from(&root, kind).len(), before);
+    }
+
+    #[test]
+    fn status_lists_previous_builds_offline() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path().join("runtimes");
+        replace_keeping(BackendKind::Victory, &build(t.path(), "a1"), &root).unwrap();
+        replace_keeping(BackendKind::Victory, &build(t.path(), "b2"), &root).unwrap();
+        let s = status_from(None, &root);
+        let v = &s.backends[0];
+        assert_eq!((v.installed.as_deref(), v.update), (Some("b2"), false));
+        assert_eq!(v.previous.len(), 1);
+        assert_eq!((v.previous[0].id.as_str(), v.previous[0].commit.as_deref()), ("a1", Some("a1")));
+        assert!(v.previous[0].replaced_at.is_some());
+        assert!(s.backends[1].previous.is_empty());
     }
 
     #[test]

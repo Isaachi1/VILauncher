@@ -475,6 +475,14 @@ pre#log .stderr { color: #ff8a9e; }
 #runtimes td:last-child { text-align: end; white-space: nowrap; }
 #runtimes .status { font-size: 12px; }
 #runtimes td div + div { margin-top: 2px; }
+#runtimes .previous { margin-top: 6px; font-size: 12.5px; }
+#runtimes .previous summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+#runtimes .previous-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.protons { margin: 4px 0 14px; }
+.protons > .actions:first-child { margin-top: 0; flex-wrap: wrap; }
+#proton-list td:last-child { text-align: end; white-space: nowrap; }
+#proton-list .status { font-size: 12px; overflow-wrap: anywhere; }
+#proton-releases { max-width: 100%; }
 #runtimes-why { margin: 0 0 8px; color: var(--muted); font-size: 12.5px; }
 #runtimes-why summary { cursor: pointer; font-weight: 600; }
 .actions.vt { margin-top: 14px; }
