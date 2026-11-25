@@ -249,6 +249,23 @@ inicia com `flatpak-spawn --host`. Por isso:
   sandbox;
 - os atalhos de menu que o launcher cria chamam `flatpak run`.
 
+### macOS (Apple Silicon, experimental)
+
+Cada release traz `VILauncher_<versão>_aarch64.dmg` (o app) e `vilauncher-macos-arm64.tar.gz` (a
+CLI). No Mac o jogo roda pelo Wine com o D3DMetal da Apple, através do Rosetta 2, com as builds do
+[VIctory for macOS](https://github.com/romainhedouin/VIctory-macOS):
+
+- **Wine:** instale o CrossOver (26 ou mais novo) ou o Game Porting Toolkit da Apple; o launcher
+  procura os dois nos lugares de sempre (`/Applications/...`), ou aponte o `wine` à mão. O D3DMetal
+  precisa ser 4.0 ou mais novo. Proton não existe no Mac.
+- **D3D12:** o launcher usa o D3D12 do próprio Wine (`WINEDLLOVERRIDES=d3d12,d3d12core,dxgi=b`), que
+  o D3DMetal atende; não há vkd3d-proton.
+- **Builds:** a lista **Backend** mostra só as builds feitas para macOS; no Linux elas não aparecem.
+- **Verificação:** as checagens do Linux (kernel, Vulkan, GPU, MangoHud, GameMode) não rodam no Mac.
+- **Primeira abertura:** o app não é assinado nem notarizado com um Apple Developer ID. Abra com
+  clique direito › **Abrir**, ou rode `xattr -dr com.apple.quarantine /Applications/VILauncher.app`.
+- A atualização automática do launcher ainda não cobre o Mac: baixe a release nova à mão.
+
 ## Primeiro uso, passo a passo
 
 1. **Instale o Proton.** O jeito mais simples é pela própria janela: **Compatibilidade › Versões

@@ -4,6 +4,7 @@
 #             AppImage)
 # * flatpak:  VILauncher as a Flatpak bundle (packaging/flatpak), for the Steam Deck and any distro
 # * bundle:   one tarball with the CLI and the window
+# * macos:    VILauncher for macOS on Apple Silicon (.dmg with the app, and the CLI)
 #
 # VIctory and XCL are not built here: SixLauncher/vilauncher-builder (on Railway) builds, every
 # 3 hours, each public VIctory / XCL tree scoring 59% or more on PortWatch VI, scans it on
@@ -176,6 +177,71 @@ jobs:
           path: out/
           if-no-files-found: error
 
+  # VILauncher for macOS on Apple Silicon: the window as VILauncher.app in a .dmg, and the CLI.
+  # There the title runs under a Wine with D3DMetal (CrossOver or Apple's Game Porting Toolkit),
+  # with VIctory for macOS builds. Not signed or notarized with an Apple Developer ID: the first
+  # open needs right-click > Open (or `xattr -dr com.apple.quarantine VILauncher.app`).
+  macos:
+    name: VILauncher (macOS)
+    needs: version
+    runs-on: macos-14
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version ${{ needs.version.outputs.version }}
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          perl -pi -e 's/^(  "version": )"[^"]*"/$1"$ENV{VERSION}"/' app/tauri.conf.json
+          grep -n '"version"' app/tauri.conf.json
+
+      - name: Updater public key
+        env:
+          PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+        run: |
+          if [ -n "$PUBKEY" ]; then
+            jq --arg k "$PUBKEY" '.plugins.updater.pubkey = $k' app/tauri.conf.json > conf.tmp && mv conf.tmp app/tauri.conf.json
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Tauri CLI
+        run: |
+          cargo install tauri-cli --version '^2' --locked
+          cargo tauri --version
+
+      - name: Build the CLI
+        run: cargo build --release --locked -p vilauncher-cli
+
+      # Only the .app from Tauri; the .dmg comes from hdiutil, which needs no Finder scripting
+      # (Tauri's DMG layout script drives Finder, which a CI runner may refuse).
+      - name: Build VILauncher.app
+        working-directory: app
+        run: cargo tauri build --bundles app
+
+      - name: Collect
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p out dmg
+          app=$(ls -d target/release/bundle/macos/*.app | head -1)
+          cp -R "$app" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname VILauncher -srcfolder dmg -ov -format UDZO "out/VILauncher_${VERSION}_aarch64.dmg"
+          mkdir cli && cp target/release/vilauncher cli/
+          echo "VILauncher $(git rev-parse HEAD)" > cli/BUILD.txt
+          tar -czf "out/vilauncher-macos-arm64.tar.gz" -C cli .
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vilauncher-macos-arm64
+          path: out/
+          if-no-files-found: error
+
   flatpak:
     name: VILauncher (Flatpak)
     needs: version
@@ -268,7 +334,7 @@ jobs:
   release:
     name: Release
     if: needs.version.outputs.release == 'true' || github.event_name == 'pull_request'
-    needs: [version, bundle, flatpak]
+    needs: [version, bundle, flatpak, macos]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -285,6 +351,11 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: vilauncher-flatpak
+          path: release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vilauncher-macos-arm64
           path: release
 
       - name: latest.json (self-update manifest)

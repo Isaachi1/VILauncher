@@ -21,6 +21,23 @@ use crate::{Error, Result};
 
 pub const VKD3D_DLLS: [&str; 2] = ["d3d12.dll", "d3d12core.dll"];
 pub const D3D12_OVERRIDE: &str = "d3d12,d3d12core=n,b";
+
+/// This build runs on macOS: there the title runs under a Wine with Apple's D3DMetal (CrossOver
+/// or the Game Porting Toolkit, through Rosetta 2), not under Proton or vkd3d-proton.
+pub const MACOS: bool = cfg!(target_os = "macos");
+/// On macOS, D3D12 and DXGI are the Wine build's own (D3DMetal stands behind them).
+pub const D3DMETAL_OVERRIDE: &str = "d3d12,d3d12core,dxgi=b";
+/// Where the Wines with D3DMetal install on macOS, first found first used.
+pub const MACOS_WINES: [&str; 3] = [
+    "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine",
+    "/Applications/Game Porting Toolkit.app/Contents/Resources/wine/bin/wine64",
+    "/usr/local/bin/wine64",
+];
+
+/// The DLL overrides that send D3D12 where it must go on this host.
+pub fn d3d12_override(macos: bool) -> &'static str {
+    if macos { D3DMETAL_OVERRIDE } else { D3D12_OVERRIDE }
+}
 /// Wine's placeholder DLLs in system32 carry this marker after the DOS header.
 pub const WINE_BUILTIN_MARKER: &[u8] = b"Wine builtin DLL";
 
@@ -218,6 +235,10 @@ impl WineRunner {
             let server = if server.is_file() { server } else { PathBuf::from("wineserver") };
             let _ = host::command(&[server.into(), "-w".into()], &env, None).status();
         }
+        if MACOS {
+            log("macOS: D3D12 goes to the Wine build's D3DMetal; no vkd3d-proton to install".to_string());
+            return Ok(());
+        }
         let Some(vkd3d) = &self.vkd3d_dir else {
             return Err(Error::Runner(
                 "the wine runner needs vkd3d-proton: set the vkd3d-proton folder (an unpacked vkd3d-proton release)".into(),
@@ -244,11 +265,23 @@ impl Runner {
     pub fn from_config(cfg: &Config) -> Result<Runner> {
         match cfg.runner.kind {
             RunnerKind::Wine => {
-                let wine = cfg.runner_path().or_else(|| which("wine")).ok_or_else(|| {
-                    Error::Runner("no wine found: install Wine (9.0 or newer) or set the wine binary".into())
+                let found = if MACOS {
+                    MACOS_WINES.iter().map(PathBuf::from).find(|p| p.is_file()).or_else(|| which("wine64")).or_else(|| which("wine"))
+                } else {
+                    which("wine")
+                };
+                let wine = cfg.runner_path().or(found).ok_or_else(|| {
+                    Error::Runner(if MACOS {
+                        "no Wine with D3DMetal found: install CrossOver or Apple's Game Porting Toolkit, or set the wine binary".into()
+                    } else {
+                        "no wine found: install Wine (9.0 or newer) or set the wine binary".into()
+                    })
                 })?;
                 Ok(Runner::Wine(WineRunner { wine, prefix: cfg.prefix(), vkd3d_dir: cfg.vkd3d_dir() }))
             }
+            RunnerKind::Proton if MACOS => Err(Error::Runner(
+                "Proton runs only on Linux: on macOS choose Wine, with D3DMetal 4.0 or newer (CrossOver or the Game Porting Toolkit)".into(),
+            )),
             RunnerKind::Proton => {
                 let proton = cfg
                     .runner_path()
@@ -292,7 +325,7 @@ impl Runner {
                 env.insert("WINEARCH".into(), "win64".into());
                 env.insert(
                     "WINEDLLOVERRIDES".into(),
-                    merge_dll_overrides(base.get("WINEDLLOVERRIDES").map(String::as_str), D3D12_OVERRIDE),
+                    merge_dll_overrides(base.get("WINEDLLOVERRIDES").map(String::as_str), d3d12_override(MACOS)),
                 );
                 env.insert("WINEDEBUG".into(), base.get("WINEDEBUG").cloned().unwrap_or_else(|| "-all".into()));
             }
@@ -380,6 +413,9 @@ mod tests {
     #[test]
     fn dll_overrides_keep_other_dlls() {
         assert_eq!(merge_dll_overrides(None, D3D12_OVERRIDE), "d3d12,d3d12core=n,b");
+        // macOS: the Wine build's own D3D12 and DXGI, which D3DMetal stands behind.
+        assert_eq!(d3d12_override(true), "d3d12,d3d12core,dxgi=b");
+        assert_eq!(d3d12_override(false), D3D12_OVERRIDE);
         assert_eq!(
             merge_dll_overrides(Some("dxgi=n;d3d12=b;xinput1_3,d3d12core=n"), D3D12_OVERRIDE),
             "d3d12,d3d12core=n,b;dxgi=n;xinput1_3=n"

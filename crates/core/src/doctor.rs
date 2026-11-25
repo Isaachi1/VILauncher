@@ -51,16 +51,24 @@ pub const MAX_MAP_COUNT: u64 = 1_048_576;
 // -- the machine -------------------------------------------------------------------------------
 
 pub fn check_platform() -> Check {
-    if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+    platform_check(std::env::consts::OS, std::env::consts::ARCH)
+}
+
+/// Linux x86-64 runs the title's code directly; macOS on Apple Silicon runs it through Rosetta 2
+/// under a Wine with D3DMetal (VIctory for macOS).
+pub fn platform_check(os: &str, arch: &str) -> Check {
+    if os == "linux" && arch == "x86_64" {
         check(Status::Ok, "platform", "Linux x86_64")
+    } else if os == "macos" && arch == "aarch64" {
+        check(Status::Ok, "platform", "macOS on Apple Silicon: Rosetta 2 runs the title's x86-64 code under Wine with D3DMetal")
+    } else if os == "macos" {
+        check(Status::Fail, "platform", "macOS on Intel: VIctory for macOS needs Apple Silicon (M1 or newer)")
     } else {
         check(
             Status::Fail,
             "platform",
             format!(
-                "{} {}: the title's x86-64 code runs directly on the CPU, so an x86-64 Linux is required",
-                std::env::consts::OS,
-                std::env::consts::ARCH
+                "{os} {arch}: the title's x86-64 code runs directly on the CPU, so an x86-64 Linux (or an Apple Silicon Mac) is required"
             ),
         )
     }
@@ -172,6 +180,10 @@ fn vulkaninfo() -> Option<String> {
 }
 
 pub fn machine_checks() -> Vec<Check> {
+    // The other checks read Linux's /proc and Vulkan; on a Mac D3DMetal stands in for them.
+    if runners::MACOS {
+        return vec![check_platform()];
+    }
     let mut checks = vec![
         check_platform(),
         check_avx2(read("/proc/cpuinfo").as_deref()),
@@ -194,6 +206,8 @@ pub fn check_runner(cfg: &Config) -> Vec<Check> {
     let is_wine = matches!(runner, Runner::Wine(_));
     if !is_wine && std::env::var_os("PROTON_USE_WINED3D").is_some_and(|v| !v.is_empty() && v != "0") {
         checks.push(check(Status::Fail, "vkd3d-proton", "PROTON_USE_WINED3D is set: unset it, D3D12 must go through vkd3d-proton"));
+    } else if runners::MACOS && is_wine {
+        checks.push(check(Status::Ok, "d3d12", "D3D12 goes to the Wine build's D3DMetal (4.0 or newer is needed)"));
     } else if runner.vkd3d_installed() {
         checks.push(check(Status::Ok, "vkd3d-proton", if is_wine { "installed in the prefix" } else { "bundled with Proton" }));
     } else if let Runner::Wine(w) = &runner {
@@ -388,6 +402,10 @@ pub fn config_checks(cfg: &Config) -> Vec<Check> {
     let mut checks = check_runner(cfg);
     checks.extend(check_backend(cfg));
     checks.extend(check_game(cfg));
+    // GPU choice, MangoHud and GameMode are Linux's (DRM, Vulkan layers, Feral's daemon).
+    if runners::MACOS {
+        return checks;
+    }
     checks.push(check_gpu(cfg, &gpu::list()));
     if perf::wanted(cfg) {
         checks.extend(check_performance(cfg, &perf::detect()));
@@ -413,6 +431,10 @@ mod tests {
 
     #[test]
     fn machine_checks_from_text() {
+        assert_eq!(platform_check("linux", "x86_64").status, Status::Ok);
+        assert_eq!(platform_check("macos", "aarch64").status, Status::Ok);
+        assert_eq!(platform_check("macos", "x86_64").status, Status::Fail);
+        assert_eq!(platform_check("windows", "x86_64").status, Status::Fail);
         assert_eq!(check_avx2(Some("flags\t: fpu sse avx avx2 bmi2\n")).status, Status::Ok);
         assert_eq!(check_avx2(Some("flags\t: fpu sse avx\n")).status, Status::Fail);
         assert_eq!(check_memory(Some("MemTotal:       16000000 kB\nSwapTotal:       2000000 kB\n")).status, Status::Warn);
