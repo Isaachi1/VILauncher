@@ -76,7 +76,7 @@ impl Unimplemented {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct GameSection {
     /// The unpacked folder of a game you own (the one with MicrosoftGame.config).
@@ -86,6 +86,15 @@ pub struct GameSection {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exe: Option<String>,
     pub args: Vec<String>,
+    /// Check the executable's SHA-256 against the known one (integrity.rs) when the folder
+    /// changes and before playing. On by default.
+    pub verify: bool,
+}
+
+impl Default for GameSection {
+    fn default() -> Self {
+        GameSection { dir: None, exe: None, args: Vec::new(), verify: true }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
