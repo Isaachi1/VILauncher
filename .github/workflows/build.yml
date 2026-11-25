@@ -118,10 +118,15 @@ jobs:
 
       # The updater's public key goes into the window (it checks every update against it), and
       # with the private key at hand the AppImage, .deb and .rpm get a .sig each.
+      # The secret must hold the whole key file `cargo tauri signer generate` wrote (one base64
+      # line). Whitespace and line breaks a paste adds are dropped; a key that still does not
+      # decode is reported and the packages are built unsigned instead of failing the build at
+      # the very end ("failed to decode secret key ... Invalid padding").
       - name: Updater keys
         env:
           PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
-          HAS_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+          PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           conf=app/tauri.conf.json
@@ -129,11 +134,23 @@ jobs:
             jq --arg k "$PUBKEY" '.plugins.updater.pubkey = $k' "$conf" > conf.tmp && mv conf.tmp "$conf"
             echo "updater public key replaced by the TAURI_UPDATER_PUBKEY variable"
           fi
-          if [ "$HAS_PRIVATE_KEY" = true ]; then
-            jq '.bundle.createUpdaterArtifacts = true' "$conf" > conf.tmp && mv conf.tmp "$conf"
-            echo "the packages will be signed"
-          else
+          key=$(printf '%s' "$PRIVATE_KEY" | tr -d '[:space:]')
+          if [ -z "$key" ]; then
             echo "::notice::no TAURI_SIGNING_PRIVATE_KEY secret: the packages are not signed for the updater"
+          elif ! decoded=$(printf '%s' "$key" | base64 -d 2>/dev/null) || [ -z "$decoded" ]; then
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY is not valid base64 (truncated or not the key file's content); the packages are built unsigned. Paste the whole file from 'cargo tauri signer generate' into the secret."
+          else
+            jq '.bundle.createUpdaterArtifacts = true' "$conf" > conf.tmp && mv conf.tmp "$conf"
+            echo "::add-mask::$key"
+            echo "TAURI_SIGNING_PRIVATE_KEY=$key" >> "$GITHUB_ENV"
+            if [ -n "$PRIVATE_KEY_PASSWORD" ]; then
+              {
+                echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD<<VILAUNCHER_EOF"
+                printf '%s\n' "$PRIVATE_KEY_PASSWORD"
+                echo "VILAUNCHER_EOF"
+              } >> "$GITHUB_ENV"
+            fi
+            echo "the packages will be signed"
           fi
 
       - name: Tauri system libraries
@@ -160,8 +177,7 @@ jobs:
         env:
           # linuxdeploy is an AppImage itself; the runner has no FUSE.
           APPIMAGE_EXTRACT_AND_RUN: 1
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # TAURI_SIGNING_PRIVATE_KEY(_PASSWORD) come from the Updater keys step, only when valid.
         run: cargo tauri build
 
       - name: Collect
