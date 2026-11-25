@@ -54,7 +54,7 @@ I18N.add("ar", {
   "compat.opusHint": "(بدونه يبقى صوت Opus صامتًا في Wine)",
 
   "runtimes.check": "البحث عن إصدارات جديدة",
-  "runtimes.intro": "كل 3 ساعات يبني vilauncher-builder كل منفذ مفتوح الشيفرة تقييمه 59% أو أكثر على PortWatch VI (عائلتا VIctory وXCL) ويفحصه على VirusTotal.",
+  "runtimes.intro": "إصدارات VIctory وXCL لكل مشروع تقييمه 59% أو أكثر على PortWatch VI، مفحوصة مسبقًا على VirusTotal.",
   "runtimes.why": "كيف اختيرت الإصدارات",
   "runtimes.installed": "المثبّت: {build}",
   "runtimes.update": "تحديث",
@@ -254,5 +254,5 @@ I18N.add("ar", {
   "runtimes.rollback": "العودة إلى هذه",
   "runtimes.installedPill": "مثبّت",
   "runtimes.rolledBack": "عاد {name} إلى {build}.",
-  "runtimes.offline": "تعذّر الوصول إلى البنيات المنشورة؛ يُعرض المثبّت فقط. ({error})",
+  "runtimes.offline": "تعذّر جلب الإصدارات المنشورة؛ يُعرض المثبّت فقط.",
 });

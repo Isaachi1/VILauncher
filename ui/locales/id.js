@@ -54,7 +54,7 @@ I18N.add("id", {
   "compat.opusHint": "(tanpanya, audio Opus tidak bersuara di Wine)",
 
   "runtimes.check": "Cari build baru",
-  "runtimes.intro": "Setiap 3 jam vilauncher-builder membangun setiap port berkode publik dengan skor 59% atau lebih di PortWatch VI (keluarga VIctory dan XCL) dan memeriksanya di VirusTotal.",
+  "runtimes.intro": "Build VIctory dan XCL dari setiap proyek dengan skor 59% atau lebih di PortWatch VI, sudah diperiksa di VirusTotal.",
   "runtimes.why": "Cara build dipilih",
   "runtimes.installed": "Terpasang: {build}",
   "runtimes.update": "Perbarui",
@@ -254,5 +254,5 @@ I18N.add("id", {
   "runtimes.rollback": "Kembali ke build ini",
   "runtimes.installedPill": "terpasang",
   "runtimes.rolledBack": "{name} kembali ke {build}.",
-  "runtimes.offline": "Build yang dipublikasikan tidak dapat dijangkau; hanya yang terpasang ditampilkan. ({error})",
+  "runtimes.offline": "Tidak bisa mengambil build yang diterbitkan; hanya menampilkan yang terpasang.",
 });

@@ -54,7 +54,7 @@ I18N.add("ru", {
   "compat.opusHint": "(без неё звук Opus в Wine не воспроизводится)",
 
   "runtimes.check": "Искать новые сборки",
-  "runtimes.intro": "Каждые 3 часа vilauncher-builder собирает каждый порт с открытым кодом и оценкой от 59% на PortWatch VI (семейства VIctory и XCL) и проверяет его на VirusTotal.",
+  "runtimes.intro": "Сборки VIctory и XCL всех проектов с оценкой от 59% на PortWatch VI, уже проверенные на VirusTotal.",
   "runtimes.why": "Как выбирались сборки",
   "runtimes.installed": "Установлена: {build}",
   "runtimes.update": "Обновить",
@@ -254,5 +254,5 @@ I18N.add("ru", {
   "runtimes.rollback": "Вернуться к этой",
   "runtimes.installedPill": "установлена",
   "runtimes.rolledBack": "{name} возвращён к {build}.",
-  "runtimes.offline": "Опубликованные сборки недоступны; показано только установленное. ({error})",
+  "runtimes.offline": "Не удалось получить опубликованные сборки; показано только установленное.",
 });

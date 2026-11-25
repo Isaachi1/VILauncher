@@ -54,7 +54,7 @@ I18N.add("ur", {
   "compat.opusHint": "(اس کے بغیر Wine میں Opus آڈیو خاموش رہتا ہے)",
 
   "runtimes.check": "نئے بلڈ تلاش کریں",
-  "runtimes.intro": "ہر 3 گھنٹے بعد vilauncher-builder پورٹ واچ VI پر 59% یا زیادہ اسکور والے ہر کھلے کوڈ پورٹ (VIctory اور XCL خاندان) کو بلڈ کرتا ہے اور VirusTotal پر جانچتا ہے۔",
+  "runtimes.intro": "پورٹ واچ VI پر 59% یا زیادہ اسکور والے ہر پروجیکٹ کے VIctory اور XCL بلڈز، VirusTotal پر پہلے سے جانچے ہوئے۔",
   "runtimes.why": "بلڈز کیسے چنے گئے",
   "runtimes.installed": "انسٹال شدہ: {build}",
   "runtimes.update": "اپ ڈیٹ کریں",
@@ -254,5 +254,5 @@ I18N.add("ur", {
   "runtimes.rollback": "اس پر واپس جائیں",
   "runtimes.installedPill": "انسٹال شدہ",
   "runtimes.rolledBack": "{name} واپس {build} پر ہے۔",
-  "runtimes.offline": "شائع شدہ بلڈز تک رسائی نہیں؛ صرف انسٹال شدہ دکھایا جا رہا ہے۔ ({error})",
+  "runtimes.offline": "شائع شدہ بلڈز حاصل نہیں ہو سکے؛ صرف انسٹال شدہ دکھایا جا رہا ہے۔",
 });
