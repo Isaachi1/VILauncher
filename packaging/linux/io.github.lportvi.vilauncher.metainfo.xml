@@ -13,7 +13,7 @@
     </p>
   </description>
   <launchable type="desktop-id">io.github.lportvi.vilauncher.desktop</launchable>
-  <url type="homepage">https://github.com/LPortVI/VILauncher</url>
+  <url type="homepage">https://github.com/SixLauncher/launcher</url>
   <content_rating type="oars-1.1"/>
   <releases>
     <release version="0.1.0" date="2026-11-24"/>

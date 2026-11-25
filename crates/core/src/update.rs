@@ -1,6 +1,6 @@
 //! Keeps VIctory and XCL up to date from the builds vilauncher-builder publishes.
 //!
-//! Every 3 hours that service (SixLauncher/vilauncher-builder, on Railway) scores
+//! Every 3 hours that service (SixLauncher/builder, on Railway) scores
 //! PortWatch VI's efforts like the site, builds every public VIctory or XCL tree
 //! scoring 59% or more for Windows, scans the binaries on VirusTotal and publishes
 //! them on its `runtimes` release. `runtimes.json` names each archive, the
@@ -36,7 +36,7 @@ use crate::backends::{MACHINE_X86_64, pe_machine};
 use crate::config::BackendKind;
 use crate::{Error, Result, net, paths, runners};
 
-pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/vilauncher-builder/releases/download/runtimes/runtimes.json";
+pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/builder/releases/download/runtimes/runtimes.json";
 
 /// No runtime archive is this large; a bigger download is refused.
 const MAX_ARCHIVE: u64 = 2 << 30;
@@ -636,7 +636,7 @@ mod tests {
         let m = parse_manifest(MANIFEST).unwrap();
         assert_eq!(
             asset_url(MANIFEST_URL, m.xcl.as_ref().unwrap()),
-            "https://github.com/SixLauncher/vilauncher-builder/releases/download/runtimes/xcl-abc.tar.gz"
+            "https://github.com/SixLauncher/builder/releases/download/runtimes/xcl-abc.tar.gz"
         );
     }
 

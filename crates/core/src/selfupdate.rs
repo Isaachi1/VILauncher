@@ -20,9 +20,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{net, Error, Result};
 
-pub const REPO: &str = "LPortVI/VILauncher";
-pub const MANIFEST_URL: &str = "https://github.com/LPortVI/VILauncher/releases/latest/download/latest.json";
-pub const RELEASES_URL: &str = "https://github.com/LPortVI/VILauncher/releases/latest";
+pub const REPO: &str = "SixLauncher/launcher";
+pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/launcher/releases/latest/download/latest.json";
+pub const RELEASES_URL: &str = "https://github.com/SixLauncher/launcher/releases/latest";
 
 /// How this copy of VILauncher was installed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -188,7 +188,7 @@ mod tests {
         let c = evaluate(&m, "0.1.57", Install::AppImage, true);
         assert!(c.newer && c.automatic);
         assert_eq!(c.latest, "0.1.60");
-        assert_eq!(c.url, "https://github.com/LPortVI/VILauncher/releases/tag/v0.1.60");
+        assert_eq!(c.url, "https://github.com/SixLauncher/launcher/releases/tag/v0.1.60");
         assert!(!evaluate(&m, "0.1.57", Install::Rpm, true).automatic);
         assert!(!evaluate(&m, "0.1.57", Install::Flatpak, true).automatic);
         assert!(!evaluate(&m, "0.1.57", Install::Deb, false).automatic);

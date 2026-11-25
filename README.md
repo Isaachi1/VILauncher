@@ -10,7 +10,7 @@ It relies on two outside services:
 
 - **[PortWatch VI](https://portwatch-vi.xyz/)** tracks how far each GTA VI port has got. VILauncher
   shows that race in the **Status** tab, and
-  [vilauncher-builder](https://github.com/SixLauncher/vilauncher-builder) builds every port with
+  [builder](https://github.com/SixLauncher/builder) builds every port with
   public code that PortWatch VI scores high enough.
 - **[VirusTotal](https://www.virustotal.com/)** scans every build before it is published. The result
   ships with the build as JSON, and VILauncher checks that JSON before it installs anything.
@@ -162,7 +162,7 @@ only **reads** this data.
 
 ### 2. Choosing what gets built (vilauncher-builder)
 
-[vilauncher-builder](https://github.com/SixLauncher/vilauncher-builder), a service on Railway that
+[builder](https://github.com/SixLauncher/builder), a service on Railway that
 runs **every 3 hours**, reads the same `tracker.json` and:
 
 1. scores every project the way the site does (0–100);
@@ -230,7 +230,7 @@ ranking, and VirusTotal is one more layer of care, not a guarantee.
 
 ## Install
 
-Every merge into `main` publishes a [release](https://github.com/SixLauncher/VILauncher/releases/latest)
+Every merge into `main` publishes a [release](https://github.com/SixLauncher/launcher/releases/latest)
 with every package. Pick the one for your distribution:
 
 | Distribution | Package | How to install |
@@ -471,7 +471,7 @@ sudo sysctl -w vm.unprivileged_userfaultfd=1     # vkd3d-proton must see writes 
 
 The `build` workflow (`.github/workflows/build.yml`) runs on every push to `main`, on every pull
 request and by hand from **Actions › build › Run workflow**. It builds VILauncher only: VIctory and
-XCL come from [vilauncher-builder](https://github.com/SixLauncher/vilauncher-builder).
+XCL come from [builder](https://github.com/SixLauncher/builder).
 
 | Job | What it does |
 |---|---|

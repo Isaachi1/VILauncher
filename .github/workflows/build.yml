@@ -6,7 +6,7 @@
 # * bundle:   one tarball with the CLI and the window
 # * macos:    VILauncher for macOS on Apple Silicon (.dmg with the app, and the CLI)
 #
-# VIctory and XCL are not built here: SixLauncher/vilauncher-builder (on Railway) builds, every
+# VIctory and XCL are not built here: SixLauncher/builder (on Railway) builds, every
 # 3 hours, each public VIctory / XCL tree scoring 59% or more on PortWatch VI, scans it on
 # VirusTotal and publishes it on its own `runtimes` release, where the launcher installs it from
 # (crates/core/src/update.rs).
@@ -310,7 +310,7 @@ jobs:
           chmod +x "$b/vilauncher" "$b/vilauncher-app"
           cp dl/VILAUNCHER_COMMIT.txt "$b/BUILD.txt"
           echo "Built by ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$b/BUILD.txt"
-          echo "VIctory and XCL: Compatibilidade > Procurar builds novas (built by SixLauncher/vilauncher-builder)" >> "$b/BUILD.txt"
+          echo "VIctory and XCL: Compatibilidade > Procurar builds novas (built by SixLauncher/builder)" >> "$b/BUILD.txt"
           cat "$b/BUILD.txt"
           mkdir release
           tar -czf "release/$b.tar.gz" "$b"
