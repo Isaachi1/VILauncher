@@ -118,9 +118,13 @@
       <div class="grid">
         <label class="field">
           <span><span data-i18n="compat.backend">Backend</span></span>
-          <select data-path="backend.kind">
-            <option value="victory">VIctory (VILinux)</option>
-            <option value="xcl">XCL (LinuxCL)</option>
+          <!-- The builds vilauncher-builder published (runtimes.json), filled by showBuilds(). -->
+          <select id="backend-build">
+            <option value="" data-i18n="compat.loadingBuilds">Carregando as builds…</option>
+          </select>
+          <select data-path="backend.kind" hidden>
+            <option value="victory">VIctory</option>
+            <option value="xcl">XCL</option>
           </select>
         </label>
         <label class="field only-victory">

@@ -557,8 +557,54 @@ function sourceLine(a) {
 
 let lastRuntimes = null;
 
+// The Backend list: every build vilauncher-builder published (runtimes.json), as
+// "project · family · score". Picking one installs it if needed and makes it the backend;
+// "your own executable" leaves the path below as it is.
+const CUSTOM_BUILD = "custom";
+
+function showBuilds(rt) {
+  const sel = $("#backend-build");
+  const kind = $('[data-path="backend.kind"]').value;
+  const exe = $('[data-path="backend.exe"]').value.trim();
+  sel.replaceChildren();
+  let selected = CUSTOM_BUILD;
+  for (const r of rt ? rt.backends : []) {
+    for (const c of r.choices || []) {
+      const installed = r.installed === c.commit && r.exe;
+      const pct = c.score != null ? c.score.toLocaleString(document.documentElement.lang || undefined, { maximumFractionDigits: 1 }) : null;
+      const score = pct ? ` · ${pct}%` : "";
+      const label = `${c.effort || c.repo || short(c.commit)} · ${BACKEND_NAME[r.backend]}${score}${installed ? ` · ${t("runtimes.installedPill")}` : ""}`;
+      const opt = el("option", null, label);
+      opt.value = `${r.backend}|${c.file}`;
+      opt.title = sourceLine(c);
+      sel.append(opt);
+      if (installed && r.backend === kind && r.exe === exe) selected = opt.value;
+    }
+  }
+  if (!sel.options.length) {
+    const none = el("option", null, t(rt ? "compat.noBuilds" : "compat.loadingBuilds"));
+    none.value = "";
+    none.disabled = true;
+    sel.append(none);
+  }
+  const own = el("option", null, t("compat.customBuild", { name: BACKEND_NAME[kind] }));
+  own.value = CUSTOM_BUILD;
+  sel.append(own);
+  sel.value = selected;
+}
+
+async function pickBuild(sel) {
+  const [backend, file] = sel.value.split("|");
+  if (!file) return;
+  const r = lastRuntimes && lastRuntimes.backends.find((b) => b.backend === backend);
+  const c = r && (r.choices || []).find((x) => x.file === file);
+  if (r && c && r.installed === c.commit && r.exe) await useRuntime(backend, r.exe);
+  else await installRuntime(backend, null, false, file);
+}
+
 function showRuntimes(rt) {
   lastRuntimes = rt;
+  showBuilds(rt);
   if (rt.offline) say("#runtimes-info", "runtimes.offline", { error: rt.offline });
   const body = $("#runtimes tbody");
   body.replaceChildren();
@@ -672,12 +718,14 @@ async function installRuntime(backend, button, force = false, file = null) {
     showBanner(`${r.blocked}\n\n${t("runtimes.keptOld")}`, false);
     const again = el("button", "danger", t("runtimes.installAnyway"));
     again.addEventListener("click", () => guarded(again, () => installRuntime(backend, again, true, file)));
-    button.replaceWith(again);
+    if (button) button.replaceWith(again);
+    else $("#runtimes-info").after(again);
+    if (lastRuntimes) showBuilds(lastRuntimes);
     return;
   }
   const vt = { k: r.checked ? "runtimes.vtChecked" : "runtimes.vtNone" };
   say("#runtimes-info", "runtimes.installedAt", { name: BACKEND_NAME[backend], exe: r.exe, vt });
-  button.hidden = true;
+  if (button) button.hidden = true;
   await useRuntime(backend, r.exe);
 }
 
@@ -1103,6 +1151,7 @@ async function init() {
       $('[data-path="backend.kind"]').value = kind;
       refreshVisibility();
     }
+    showBuilds(lastRuntimes);
   });
 
   for (const b of $$("[data-browse]")) {
@@ -1176,6 +1225,22 @@ async function init() {
   $("#runtimes-check").addEventListener("click", () =>
     guarded($("#runtimes-check"), async () => showRuntimes(await invoke("runtime_status"))),
   );
+  $("#backend-build").addEventListener("change", (ev) =>
+    guarded(ev.target, () =>
+      pickBuild(ev.target).catch((e) => {
+        showBuilds(lastRuntimes); // back to the build actually in use
+        throw e;
+      }),
+    ),
+  );
+  // The Backend list comes from the builder: load it once at start, without blocking.
+  showBuilds(null);
+  invoke("runtime_status")
+    .then(showRuntimes)
+    .catch((e) => {
+      showBuilds({ backends: [] });
+      say("#runtimes-info", "runtimes.offline", { error: String(e) });
+    });
   showNotifySettings(config.notifications);
   for (const box of $$("[data-notify]")) box.addEventListener("change", saveNotifySettings);
   $("#notify-test").addEventListener("click", () =>

@@ -125,8 +125,8 @@ A aba **Status** (`Ctrl+5`) lê o `tracker.json` e mostra:
 - Uma barra única com os melhores projetos marcados em cima, e um gráfico com a pontuação do líder
   dia a dia.
 - **A corrida:** um cartão por projeto, com o avatar, o repositório, o backend, a etapa, a pontuação,
-  a barra de marcos, os destaques e o que está travando. VIctory e XCL aparecem primeiro, e os outros
-  vêm em seguida, por pontuação.
+  a barra de marcos, os destaques e o que está travando. Os projetos aparecem pela porcentagem,
+  do maior para o menor, como no site.
 
 Os avatares são a imagem do próprio site para um build privado, ou o avatar do dono do repositório
 no GitHub. Quem baixa as imagens é o núcleo em Rust, não a página. Ele aceita só PNG, JPEG, GIF ou
