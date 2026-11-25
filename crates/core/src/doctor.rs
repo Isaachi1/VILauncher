@@ -12,7 +12,7 @@ use serde::Serialize;
 use crate::backends::{self, MACHINE_X86_64};
 use crate::config::{BackendKind, Config};
 use crate::runners::{self, Runner};
-use crate::{gamedir, paths};
+use crate::{gamedir, gpu, paths, perf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -291,10 +291,67 @@ pub fn check_game(cfg: &Config) -> Vec<Check> {
     vec![check(Status::Ok, "game", format!("{}{version}: {shown}", info.title()))]
 }
 
+/// Which GPU runs the game and what `[gpu]` adds for it.
+pub fn check_gpu(cfg: &Config, gpus: &[gpu::Gpu]) -> Check {
+    let vars = |env: std::collections::BTreeMap<String, String>| {
+        if env.is_empty() { String::new() } else { format!("; adds {}", env.keys().cloned().collect::<Vec<_>>().join(", ")) }
+    };
+    match gpu::choose(&cfg.gpu.device, gpus) {
+        gpu::Choice::Gpu(g) => {
+            let how = if gpus.len() < 2 {
+                "the only GPU"
+            } else if g.nvidia_blob() && !g.boot_vga {
+                "PRIME render offload"
+            } else if !g.boot_vga {
+                "DRI_PRIME offload"
+            } else {
+                "the boot GPU"
+            };
+            let mut detail = format!("{} ({}, {}): {how}{}", g.name, g.slot, g.driver, vars(gpu::env_for(cfg, gpus)));
+            let status = if g.integrated && gpus.iter().any(|o| !o.integrated) {
+                detail += ". It is the integrated GPU while a dedicated one is there";
+                Status::Warn
+            } else {
+                Status::Ok
+            };
+            check(status, "GPU", detail)
+        }
+        gpu::Choice::System => {
+            let what = if gpus.is_empty() { "no GPU found in /sys/class/drm" } else { "left to the system" };
+            check(Status::Ok, "GPU", format!("{what}{}", vars(gpu::env_for(cfg, gpus))))
+        }
+        gpu::Choice::Missing(slot) => check(
+            Status::Warn,
+            "GPU",
+            format!("{slot} is not on this machine (now); the system picks the GPU. Choose another one or `auto`"),
+        ),
+    }
+}
+
+/// MangoHud and GameMode, when they are turned on.
+pub fn check_performance(cfg: &Config, tools: &perf::Tools) -> Vec<Check> {
+    let mut checks = Vec::new();
+    for (on, name, package, tool) in [
+        (cfg.performance.mangohud, "MangoHud", "mangohud", &tools.mangohud),
+        (cfg.performance.gamemode, "GameMode", "gamemode", &tools.gamemode),
+    ] {
+        if on {
+            let (ok, detail) = perf::describe(package, tool, tools.sandboxed);
+            let detail = if ok { detail } else { format!("{detail}; the game runs without it") };
+            checks.push(check(if ok { Status::Ok } else { Status::Warn }, name, detail));
+        }
+    }
+    checks
+}
+
 pub fn config_checks(cfg: &Config) -> Vec<Check> {
     let mut checks = check_runner(cfg);
     checks.extend(check_backend(cfg));
     checks.extend(check_game(cfg));
+    checks.push(check_gpu(cfg, &gpu::list()));
+    if perf::wanted(cfg) {
+        checks.extend(check_performance(cfg, &perf::detect()));
+    }
     checks
 }
 
@@ -395,6 +452,33 @@ mod tests {
         unsafe { std::env::set_var("PROTON_USE_WINED3D", "1") };
         assert_eq!(statuses(&check_runner(&cfg))["vkd3d-proton"], Status::Fail);
         unsafe { std::env::remove_var("PROTON_USE_WINED3D") };
+    }
+
+    #[test]
+    fn gpu_check_names_the_offload() {
+        let t = tempfile::tempdir().unwrap();
+        let gpus = gpu::tests::hybrid_nvidia(t.path());
+        let mut cfg = Config::default();
+        let c = check_gpu(&cfg, &gpus);
+        assert_eq!(c.status, Status::Ok);
+        assert!(c.detail.starts_with("NVIDIA GeForce RTX 3050 Mobile (0000:01:00.0, nvidia): PRIME render offload; adds "), "{}", c.detail);
+        cfg.gpu.device = "0000:00:02.0".into();
+        assert_eq!(check_gpu(&cfg, &gpus).status, Status::Warn);
+        cfg.gpu.device = "0000:07:00.0".into();
+        assert_eq!(check_gpu(&cfg, &gpus).status, Status::Warn);
+        cfg.gpu.device = "system".into();
+        assert_eq!(check_gpu(&cfg, &gpus).status, Status::Ok);
+    }
+
+    #[test]
+    fn performance_checks_only_when_on() {
+        let mut cfg = Config::default();
+        let tools = perf::Tools::default();
+        assert!(check_performance(&cfg, &tools).is_empty());
+        cfg.performance.mangohud = true;
+        let c = check_performance(&cfg, &tools);
+        assert_eq!((c.len(), c[0].status), (1, Status::Warn));
+        assert!(c[0].detail.contains("`mangohud` package"), "{}", c[0].detail);
     }
 
     #[test]

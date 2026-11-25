@@ -10,7 +10,7 @@ use serde::Serialize;
 use crate::config::{BackendKind, Config};
 use crate::doctor::{self, Check, Status};
 use crate::runners::Runner;
-use crate::{backends, gamedir, paths};
+use crate::{backends, gamedir, gpu, paths, perf};
 use crate::{Error, Result};
 
 /// The command line, the environment additions and the working folder of a run.
@@ -23,6 +23,12 @@ pub struct Launch {
 }
 
 pub fn build(cfg: &Config) -> Result<Launch> {
+    let tools = if perf::wanted(cfg) { perf::detect() } else { perf::Tools::default() };
+    build_with(cfg, &gpu::list(), &tools)
+}
+
+/// [`build`] on a machine with these GPUs and these tools installed.
+pub fn build_with(cfg: &Config, gpus: &[gpu::Gpu], tools: &perf::Tools) -> Result<Launch> {
     let game_dir = cfg.game_dir().ok_or_else(|| Error::Game("no game folder is set".into()))?;
     let info = gamedir::inspect(&game_dir)?;
     let game_exe = gamedir::resolve_exe(&info, cfg.game.exe.as_deref())?;
@@ -31,8 +37,12 @@ pub fn build(cfg: &Config) -> Result<Launch> {
     let base: BTreeMap<String, String> = std::env::vars().collect();
     let mut env = runner.env(&base);
     env.extend(plan.env);
+    env.extend(gpu::env_for(cfg, gpus));
+    env.extend(perf::env_for(&cfg.performance));
     env.extend(cfg.env.clone());
-    Ok(Launch { argv: runner.argv(&plan.exe, &plan.args), env, cwd: cfg.data_dir(), cache: cfg.cache_dir() })
+    let mut argv = perf::wrapper(&cfg.performance, tools);
+    argv.extend(runner.argv(&plan.exe, &plan.args));
+    Ok(Launch { argv, env, cwd: cfg.data_dir(), cache: cfg.cache_dir() })
 }
 
 /// The configuration checks that stop a run.
@@ -207,6 +217,27 @@ mod tests {
         assert!(text.contains("WINEDLLOVERRIDES=d3d12,d3d12core=n,b\n"), "{text}");
         assert!(text.contains(&format!("WINEPREFIX={}\n", prefix.display())), "{text}");
         assert!(text.contains(&format!("{} {} run 'Z:", wine.display(), exe.display())), "{text}");
+    }
+
+    #[test]
+    fn gpu_and_performance_options_reach_the_run() {
+        let h = TempHome::new();
+        let (mut cfg, _, exe, proton) = victory_config(&h);
+        let gpus = gpu::tests::hybrid_nvidia(&h.path().join("sys"));
+        cfg.performance.mangohud = true;
+        cfg.performance.gamemode = true;
+        cfg.env.insert("PROTON_ENABLE_NVAPI".into(), "0".into());
+        let mut tools = perf::Tools::default();
+        // GameMode on but not installed: the run goes ahead without it.
+        let l = build_with(&cfg, &gpus, &tools).unwrap();
+        assert_eq!(l.argv[0], proton.join("proton").to_string_lossy());
+        assert_eq!(l.env["__NV_PRIME_RENDER_OFFLOAD"], "1");
+        assert_eq!(l.env["MANGOHUD"], "1");
+        assert_eq!(l.env["PROTON_ENABLE_NVAPI"], "0", "[env] wins over the preset");
+        tools.gamemode = perf::Tool { installed: true, path: Some("/usr/bin/gamemoderun".into()), flatpak: vec![] };
+        let l = build_with(&cfg, &gpus, &tools).unwrap();
+        assert_eq!(&l.argv[..3], ["/usr/bin/gamemoderun", &*proton.join("proton").to_string_lossy(), "waitforexitandrun"]);
+        assert_eq!(l.argv[3], exe.to_string_lossy());
     }
 
     #[test]

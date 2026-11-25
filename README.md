@@ -44,6 +44,8 @@ O launcher usa dois serviços externos:
 | Baixa, lista, escolhe e remove versões do GE-Proton sem a Steam, conferindo o tamanho e o SHA-512 de cada download | **Compatibilidade › Versões do Proton**, `vilauncher proton` |
 | Guarda as 3 últimas builds que cada atualização substituiu e volta para uma delas com um clique, mesmo offline | **Compatibilidade › Builds anteriores**, `vilauncher rollback` |
 | Prepara o prefixo Wine e passa para o backend as variáveis que ele documenta | **Compatibilidade › Preparar prefixo**, ao jogar |
+| Escolhe a GPU que roda o jogo (em notebooks híbridos liga o PRIME offload da NVIDIA ou o DRI_PRIME) e aplica um perfil de variáveis para NVIDIA, AMD ou Intel | **Compatibilidade › GPU e overlay**, `vilauncher gpus`, `setup --gpu --gpu-profile` |
+| Liga o MangoHud (FPS, tempo de quadro, uso de GPU e CPU, limite de FPS) e o GameMode, e avisa se não estão instalados no sistema (uma extensão Flatpak sozinha não serve, porque o jogo roda fora do Flatpak) | **Compatibilidade › GPU e overlay**, `setup --mangohud --gamemode --fps-limit` |
 | Verifica a máquina e a configuração antes de rodar: CPU, GPU e Vulkan, mesh shaders, memória, ajustes do kernel, caminhos | aba **Verificação**, `vilauncher doctor` |
 | Roda o jogo e mostra a saída ao vivo, que também fica gravada em arquivo | **Jogar**, aba **Log**, `vilauncher run` |
 | Consulta a build em uso no VirusTotal com a sua chave (opcional) | **Compatibilidade**, `vilauncher virustotal` |

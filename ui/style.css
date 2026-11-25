@@ -368,6 +368,27 @@ input:focus, select:focus, textarea:focus {
 }
 .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0 16px; }
 .status { color: var(--muted); }
+.hint { margin: -4px 0 14px; font-size: 13px; }
+
+/* -- on/off options (MangoHud, GameMode) ---------------------------------------------------- */
+
+.toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.toggle {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--soft);
+  cursor: pointer;
+}
+.toggle:has(input:checked) { border-color: var(--violet); }
+.toggle input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--violet); }
+.toggle-text { font-size: 13.5px; color: var(--ink-2); }
+.toggle-text b { color: var(--ink); }
+.toggle-text small { display: block; margin-top: 4px; font-size: 12px; }
+.toggle-text small.missing { color: var(--warn-fg); }
 
 /* -- tables (checks, runtimes, VirusTotal) -------------------------------------------------- */
 

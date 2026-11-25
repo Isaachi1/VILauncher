@@ -209,6 +209,48 @@
         <span><span data-i18n="run.prefix">Prefixo</span> <em data-i18n="run.prefixHint">(opcional)</em></span>
         <div class="row"><input data-path="runner.prefix" placeholder="~/.local/share/vilauncher/…"><button data-browse="dir" data-target="runner.prefix" data-i18n="browse">Escolher…</button></div>
       </label>
+      <p class="kicker" data-i18n="perf.kicker">Desempenho</p>
+      <h2 data-i18n="perf.title">GPU e overlay</h2>
+      <div class="grid">
+        <label class="field">
+          <span><span data-i18n="gpu.device">GPU que roda o jogo</span></span>
+          <select data-path="gpu.device" id="gpu-device">
+            <option value="auto" data-i18n="gpu.auto">Automática (a dedicada, se houver)</option>
+            <option value="system" data-i18n="gpu.system">Deixar o sistema escolher</option>
+          </select>
+        </label>
+        <label class="field">
+          <span><span data-i18n="gpu.profile">Perfil de variáveis</span></span>
+          <select data-path="gpu.profile">
+            <option value="auto" data-i18n="gpu.profileAuto">Automático (o da GPU escolhida)</option>
+            <option value="nvidia">NVIDIA</option>
+            <option value="amd">AMD</option>
+            <option value="intel">Intel</option>
+            <option value="off" data-i18n="gpu.profileOff">Nenhum</option>
+          </select>
+        </label>
+      </div>
+      <p class="status hint" id="gpu-info" data-i18n="gpu.hint">Em notebooks com duas GPUs, o launcher liga o PRIME offload (NVIDIA) ou o DRI_PRIME (AMD, Intel) para a GPU escolhida. As variáveis extras abaixo sempre têm prioridade.</p>
+      <div class="toggles">
+        <label class="toggle">
+          <input type="checkbox" data-path="performance.mangohud" data-kind="bool">
+          <span class="toggle-text"><b>MangoHud</b> <span data-i18n="perf.mangohud">mostra FPS, tempo de quadro e uso de GPU e CPU por cima do jogo</span><small class="status" id="mangohud-info"></small></span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" data-path="performance.gamemode" data-kind="bool">
+          <span class="toggle-text"><b>GameMode</b> <span data-i18n="perf.gamemode">deixa CPU e GPU no modo de desempenho enquanto o jogo roda</span><small class="status" id="gamemode-info"></small></span>
+        </label>
+      </div>
+      <div class="grid">
+        <label class="field only-mangohud">
+          <span><span data-i18n="perf.fpsLimit">Limite de FPS</span> <em data-i18n="perf.fpsLimitHint">(pelo MangoHud; vazio: sem limite)</em></span>
+          <input type="number" min="0" step="1" data-path="performance.fps_limit" data-kind="int" placeholder="60">
+        </label>
+        <label class="field only-mangohud">
+          <span><span data-i18n="perf.hudConfig">O que o overlay mostra</span> <em data-i18n="perf.hudConfigHint">(MANGOHUD_CONFIG; vazio: o padrão)</em></span>
+          <input data-path="performance.mangohud_config" placeholder="fps,frametime,gpu_stats,cpu_stats,ram,vram">
+        </label>
+      </div>
       <label class="field">
         <span><span data-i18n="run.env">Variáveis extras</span> <em data-i18n="run.envHint">(NOME=valor, uma por linha)</em></span>
         <textarea data-path="env" data-kind="env" rows="3" placeholder="VICTORY_LOG=info"></textarea>
