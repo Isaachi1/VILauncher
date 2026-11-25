@@ -61,6 +61,8 @@ struct RawEffort {
     id: String,
     name: String,
     repo: Option<String>,
+    /// The site's own picture for it, a path under `assets/img/`.
+    avatar: Option<String>,
     tier: String,
     gta: Milestones,
     groundwork: Option<Groundwork>,
@@ -222,6 +224,8 @@ pub struct Effort {
     pub private: bool,
     /// For a private build, the names of the efforts it builds on.
     pub based_on: Vec<String>,
+    /// Where its picture is (see [`crate::avatars`]); the window asks for them separately.
+    pub avatar_url: Option<String>,
 }
 
 /// The headline: how close the leading effort is to the whole game.
@@ -302,6 +306,7 @@ pub fn parse(json: &str) -> Result<Report> {
             };
             let based_on = based_on.iter().map(|id| names.get(id).cloned().unwrap_or_else(|| id.clone())).collect();
             let name = if e.name.is_empty() { e.id.clone() } else { e.name };
+            let avatar_url = crate::avatars::url_for(e.avatar.as_deref(), repo.as_deref());
             (
                 rank,
                 e.stats.as_ref().map_or(0.0, |s| s.stars),
@@ -321,6 +326,7 @@ pub fn parse(json: &str) -> Result<Report> {
                     score,
                     reached: reached.into(),
                     based_on,
+                    avatar_url,
                 },
             )
         })
@@ -407,7 +413,7 @@ mod tests {
     const SAMPLE: &str = r#"{
       "updated": "2026-11-24T21:00:00Z",
       "efforts": [
-        {"id": "closed", "name": "Closed", "repo": null, "tier": "tracked", "basedOn": ["marvis"],
+        {"id": "closed", "name": "Closed", "repo": null, "tier": "tracked", "basedOn": ["marvis"], "avatar": "assets/img/efforts/closed.jpg",
          "gta": {"loads": 1, "boots": 1, "menu": 1, "world": 1, "playable": 1, "render": 0.5, "fps": 4, "stability": "unknown"}},
         {"id": "marvis", "name": "VIctory", "repo": "Marvisak/VIctory", "tier": "tracked",
          "gta": {"loads": 1, "boots": 1, "menu": 1, "world": 1}, "highlights": ["h"], "blockers": ["b"]},
@@ -450,6 +456,8 @@ mod tests {
         // Playable, then the tracks: 50 + 50 * (0.25 * 0.5 + 0.2 * 4/30) = 57.6
         assert_eq!((by("closed").score, by("closed").reached.as_str()), (57.6, "playable"));
         assert!(by("closed").private);
+        assert_eq!(by("closed").avatar_url.as_deref(), Some("https://raw.githubusercontent.com/4lwayz/portwatch-vi/main/assets/img/efforts/closed.jpg"));
+        assert_eq!(by("marvis").avatar_url.as_deref(), Some("https://avatars.githubusercontent.com/Marvisak?s=88"));
         assert_eq!(by("closed").based_on, ["VIctory"]);
         assert_eq!((by("marvis").score, by("marvis").reached.as_str()), (40.0, "world"));
         // Half of the way from Menus (30) to In the world (40).

@@ -14,6 +14,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
+use vilauncher_core::avatars;
 use vilauncher_core::config::{self, Config};
 use vilauncher_core::doctor::{self, Check};
 use vilauncher_core::gamedir::{self, GameInfo};
@@ -116,6 +117,13 @@ async fn setup_prefix(config: Config) -> Result<Vec<String>, String> {
 #[tauri::command]
 async fn portwatch_status() -> Result<Report, String> {
     tauri::async_runtime::spawn_blocking(status::report).await.map_err(err)?.map_err(err)
+}
+
+/// The efforts' pictures as `data:` URLs by id (downloaded here, cached for a week),
+/// so the window itself never loads anything from other sites.
+#[tauri::command]
+async fn portwatch_avatars(wanted: Vec<avatars::Wanted>) -> Result<std::collections::HashMap<String, String>, String> {
+    tauri::async_runtime::spawn_blocking(move || avatars::fetch_all(&wanted)).await.map_err(err)
 }
 
 /// The installed and the newest builds of VIctory and XCL (the `runtimes` release), with
@@ -308,6 +316,7 @@ fn main() {
             setup_prefix,
             dry_run,
             portwatch_status,
+            portwatch_avatars,
             runtime_status,
             install_runtime,
             virustotal_key,
