@@ -377,18 +377,25 @@ fn packaged() -> Option<&'static str> {
 /// The updater's public key (tauri.conf.json > plugins.updater.pubkey, filled in by CI).
 /// Without one nothing can be verified, so nothing is installed automatically.
 fn updater_pubkey(app: &AppHandle) -> bool {
+    pubkey(app).is_some()
+}
+
+fn pubkey(app: &AppHandle) -> Option<String> {
     app.config()
         .plugins
         .0
         .get("updater")
         .and_then(|u| u.get("pubkey"))
         .and_then(|k| k.as_str())
-        .is_some_and(|k| !k.trim().is_empty())
+        .map(str::trim)
+        .filter(|k| !k.is_empty())
+        .map(str::to_owned)
 }
 
 /// Whether a newer SixLauncher is published (the newest release's latest.json), and whether
-/// this copy can install it by itself: an AppImage, or the .deb / .rpm installed under /usr,
-/// from a signed release. A Flatpak or the tarball is told where to download it.
+/// this copy can install it by itself: an AppImage, the .deb / .rpm installed under /usr, the
+/// Windows installer's copy or the Flatpak, from a signed release. The tarball and the .zip are
+/// told where to download it.
 #[tauri::command]
 async fn app_update_check(app: AppHandle) -> Result<Option<selfupdate::Check>, String> {
     let current = app.package_info().version.to_string();
@@ -416,8 +423,27 @@ struct AppUpdateProgress {
 /// (`app_restart`).
 #[tauri::command]
 async fn app_update_install(app: AppHandle) -> Result<Option<String>, String> {
-    if !updater_pubkey(&app) {
+    let Some(key) = pubkey(&app) else {
         return Err("this copy of SixLauncher has no updater public key".into());
+    };
+    // Tauri's updater cannot replace a Flatpak: the core downloads the signed bundle, checks it
+    // with the same key and installs it on the host with `flatpak install`.
+    if selfupdate::detect_current(packaged()) == selfupdate::Install::Flatpak {
+        let current = app.package_info().version.to_string();
+        let emitter = app.clone();
+        return tauri::async_runtime::spawn_blocking(move || {
+            let mut last = 0u64;
+            selfupdate::install_flatpak(&current, &key, &mut |done, total| {
+                let step = total.map_or(1 << 20, |t| (t / 100).max(1));
+                if done - last >= step || Some(done) == total {
+                    last = done;
+                    let _ = emitter.emit("app-update-progress", AppUpdateProgress { done, total });
+                }
+            })
+        })
+        .await
+        .map_err(err)?
+        .map_err(err);
     }
     let Some(update) = app.updater().map_err(err)?.check().await.map_err(err)? else {
         return Ok(None);
@@ -449,6 +475,13 @@ async fn app_update_install(app: AppHandle) -> Result<Option<String>, String> {
 fn app_restart(app: AppHandle, running: State<Running>) -> Result<(), String> {
     if running.child.lock().unwrap().is_some() {
         return Err("stop the game before restarting SixLauncher".into());
+    }
+    // A Flatpak restarted from inside keeps running the old copy's files: the new one is
+    // started on the host and this one closes.
+    if selfupdate::detect_current(packaged()) == selfupdate::Install::Flatpak {
+        selfupdate::flatpak_relaunch().map_err(err)?;
+        app.exit(0);
+        return Ok(());
     }
     app.request_restart();
     Ok(())

@@ -731,6 +731,8 @@ function showRuntimes(rt) {
   if (rt.offline) {
     console.warn("runtimes:", rt.offline); // the detail (address, network error) is for debugging
     say("#runtimes-info", "runtimes.offline");
+  } else if (rt.unpublished) {
+    say("#runtimes-info", "runtimes.unpublished", { url: rt.unpublished });
   }
   const cands = $("#runtimes-candidates");
   cands.replaceChildren();
@@ -1038,7 +1040,8 @@ async function play(force) {
 // At start and every 6 hours: if a newer release exists, an AppImage downloads and installs it
 // by itself (no password) and offers a restart; the .deb / .rpm install it on a click (pkexec asks
 // for the password); on Windows the installer's copy runs the new installer on a click (the window
-// closes while it installs); a Flatpak, the tarball or the .zip shows where to download it.
+// closes while it installs); the Flatpak downloads the signed bundle and installs it with
+// `flatpak install` on a click; the tarball or the .zip shows where to download it.
 
 const UPDATE_EVERY_MS = 6 * 60 * 60 * 1000;
 let updateBusy = false;
@@ -1070,7 +1073,7 @@ async function installUpdate(u) {
   if (updateBusy) return;
   updateBusy = true;
   $("#update-go").disabled = true;
-  showUpdate(u.latest, { title: `Baixando o SixLauncher ${u.latest}…`, sub: u.install === "appimage" ? "" : u.install === "nsis" ? "O instalador abre em seguida e o SixLauncher fecha enquanto ele atualiza." : "O sistema vai pedir sua senha para instalar o pacote." });
+  showUpdate(u.latest, { title: `Baixando o SixLauncher ${u.latest}…`, sub: u.install === "appimage" ? "" : u.install === "flatpak" ? "O Flatpak novo é instalado pelo flatpak do sistema; numa instalação do sistema ele pode pedir sua senha." : u.install === "nsis" ? "O instalador abre em seguida e o SixLauncher fecha enquanto ele atualiza." : "O sistema vai pedir sua senha para instalar o pacote." });
   try {
     const version = await invoke("app_update_install");
     if (!version) {

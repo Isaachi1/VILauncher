@@ -267,4 +267,5 @@ I18N.add("de", {
   "runtimes.installedPill": "installiert",
   "runtimes.rolledBack": "{name} ist zurück auf {build}.",
   "runtimes.offline": "Die veröffentlichten Builds konnten nicht geladen werden; nur Installiertes wird gezeigt.",
+  "runtimes.unpublished": "Unter {url} sind keine Builds veröffentlicht (GitHub antwortete 404). Der Builder hat noch nichts veröffentlicht, oder sein Repository ist privat: Downloads aus einem privaten Repository liefern dem Launcher 404.",
 });

@@ -255,7 +255,10 @@ starts them with `flatpak-spawn --host`. So:
   system;
 - use Proton (Steam's or GE-Proton), because a Wine installed in `/usr` is not visible inside the
   sandbox;
-- the menu shortcuts it creates call `flatpak run`.
+- the menu shortcuts it creates call `flatpak run`;
+- it updates itself: **Update** downloads the release's `sixlauncher.flatpak`, checks its signature
+  (the same key as the other packages) and installs it with the system's `flatpak install`, in the
+  installation it runs from (`--user`, or `--system`, which may ask for your password).
 
 ### macOS (Apple Silicon, experimental)
 
@@ -528,9 +531,10 @@ Each archive holds the executable at its root (XCL's with DXC and `opus.dll` nex
 `xcl.exe` finds by itself), the licenses and a file with the commit.
 
 **Launcher self-update.** When the release is signed (the `TAURI_SIGNING_PRIVATE_KEY` secret), the
-AppImage, `.deb`, `.rpm` and the Windows installer's copy update themselves from the window, which
-checks the signature. The Flatpak, the tarball, the Windows `.zip` and builds from source are told
-about the new version and pointed to the release.
+AppImage, `.deb`, `.rpm`, the Flatpak and the Windows installer's copy update themselves from the
+window, which checks the signature (the `Release` job signs `sixlauncher.flatpak` with the Tauri CLI's
+`signer sign`; the other packages are signed where they are built). The tarball, the Windows `.zip`
+and builds from source are told about the new version and pointed to the release.
 
 ## Building
 

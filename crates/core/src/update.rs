@@ -58,6 +58,9 @@ pub struct Manifest {
     /// Every published build, best first (`victory` and `xcl` are the first of each family).
     #[serde(default)]
     pub builds: Vec<Build>,
+    /// Nothing was at the manifest's address (HTTP 404); set by the launcher, not read.
+    #[serde(skip)]
+    pub missing: bool,
     /// The lowest PortWatch VI score the builder builds (59).
     #[serde(default)]
     pub min_score: Option<f64>,
@@ -284,6 +287,9 @@ pub struct Runtimes {
     pub backends: Vec<RuntimeStatus>,
     /// Set when the manifest could not be fetched: only what is installed is shown.
     pub offline: Option<String>,
+    /// The manifest's address, when nothing is there (HTTP 404): no build is published yet, or
+    /// the builder's repository is private (GitHub answers 404 to a download from a private one).
+    pub unpublished: Option<String>,
 }
 
 pub fn installed_source(dir: &Path) -> Option<Asset> {
@@ -314,6 +320,7 @@ pub fn status_from(manifest: Option<&Manifest>, root: &Path) -> Runtimes {
         candidates: manifest.map(|m| m.candidates.clone()).unwrap_or_default(),
         backends,
         offline: None,
+        unpublished: manifest.filter(|m| m.missing).map(|_| manifest_url()),
     }
 }
 
@@ -438,12 +445,12 @@ pub fn check_scan(asset: &Asset, staging: &Path) -> Result<()> {
     Ok(())
 }
 
-/// The published builds. Nothing at the address (404) is simply no build published yet:
-/// an empty list, not an error.
+/// The published builds. Nothing at the address (404) is no build published yet, or a private
+/// builder repository: an empty list marked `missing`, which the window explains.
 fn fetch_manifest_from(url: &str) -> Result<Manifest> {
     match net::get_text_opt(url, Duration::from_secs(20))? {
         Some(text) => parse_manifest(&text),
-        None => Ok(Manifest { schema: 1, ..Manifest::default() }),
+        None => Ok(Manifest { schema: 1, missing: true, ..Manifest::default() }),
     }
 }
 
@@ -707,6 +714,8 @@ mod tests {
         let m = fetch_manifest_from(&url).unwrap();
         assert!(m.builds.is_empty() && m.victory.is_none() && m.xcl.is_none());
         assert!(m.builds_of(BackendKind::Victory).is_empty());
+        assert!(m.missing, "the window says nothing is published there");
+        assert!(!parse_manifest(BUILDS).unwrap().missing);
     }
 
     #[test]

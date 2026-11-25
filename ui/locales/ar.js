@@ -267,4 +267,5 @@ I18N.add("ar", {
   "runtimes.installedPill": "مثبّت",
   "runtimes.rolledBack": "عاد {name} إلى {build}.",
   "runtimes.offline": "تعذّر جلب الإصدارات المنشورة؛ يُعرض المثبّت فقط.",
+  "runtimes.unpublished": "لا توجد إصدارات منشورة على {url} (أجاب GitHub بالرمز 404). لم ينشر الـbuilder شيئًا بعد، أو أن مستودعه خاص: تنزيلات المستودع الخاص تُرجع 404 للمشغّل.",
 });

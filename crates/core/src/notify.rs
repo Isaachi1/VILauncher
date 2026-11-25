@@ -320,7 +320,7 @@ mod tests {
     }
 
     fn manifest(victory: Option<Asset>, xcl: Option<Asset>) -> Manifest {
-        Manifest { schema: 1, published_at: None, run_url: None, victory, xcl, recommended: None, builds: vec![], min_score: None, candidates: vec![] }
+        Manifest { schema: 1, published_at: None, run_url: None, victory, xcl, recommended: None, builds: vec![], min_score: None, candidates: vec![], missing: false }
     }
 
     #[test]
