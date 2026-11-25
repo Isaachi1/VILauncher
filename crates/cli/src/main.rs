@@ -3,10 +3,10 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use vilauncher_core::config::{self, BackendKind, Config, Console, RunnerKind};
+use vilauncher_core::config::{self, BackendKind, Config, Console, GpuProfile, RunnerKind};
 use vilauncher_core::doctor::{self, Status};
 use vilauncher_core::runners::{self, Runner};
-use vilauncher_core::{gamedir, launch, paths, status, update, virustotal};
+use vilauncher_core::{gamedir, gpu, launch, paths, perf, status, update, virustotal};
 
 const HELP: &str = "\
 vilauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
@@ -25,11 +25,18 @@ Usage:
       --vkd3d DIR                 wine: an unpacked vkd3d-proton release
       --dxc-dir DIR               xcl: DXC's bin/x64 (dxcompiler.dll, dxil.dll)
       --opus-dir DIR              xcl: a folder with opus.dll
+      --gpu auto|system|PCI       which GPU runs the game (auto: a dedicated one; see `gpus`)
+      --gpu-profile auto|off|nvidia|amd|intel
+                                  the vendor preset of variables (auto: the chosen GPU's)
+      --mangohud on|off           MangoHud's overlay (FPS, frame time, GPU / CPU load)
+      --fps-limit N               cap the frame rate through MangoHud (0: no cap)
+      --gamemode on|off           Feral's GameMode while the game runs
       --no-prefix                 only write the configuration
   vilauncher doctor [--config-only]   check the machine and the configuration
   vilauncher run [--dry-run] [--force] [-- title args]
   vilauncher info [DIR]           what MicrosoftGame.config says about a game folder
   vilauncher protons              the Proton installs found
+  vilauncher gpus                 the GPUs, the one `auto` picks, MangoHud and GameMode
   vilauncher config               print the configuration
   vilauncher desktop              add a menu entry that runs the game
   vilauncher status               where VIctory, XCL and the others stand (PortWatch VI)
@@ -255,6 +262,29 @@ fn setup(args: &[String]) -> ExitCode {
             "--vkd3d" => cfg.runner.vkd3d_dir = Some(abs(v)),
             "--dxc-dir" => cfg.backend.dxc_dir = Some(abs(v)),
             "--opus-dir" => cfg.backend.opus_dir = Some(abs(v)),
+            "--gpu" => cfg.gpu.device = v.clone(),
+            "--gpu-profile" => {
+                cfg.gpu.profile = match v.as_str() {
+                    "auto" => GpuProfile::Auto,
+                    "off" => GpuProfile::Off,
+                    "nvidia" => GpuProfile::Nvidia,
+                    "amd" => GpuProfile::Amd,
+                    "intel" => GpuProfile::Intel,
+                    _ => return fail("--gpu-profile is auto, off, nvidia, amd or intel"),
+                }
+            }
+            "--mangohud" | "--gamemode" => {
+                let on = match v.as_str() {
+                    "on" => true,
+                    "off" => false,
+                    _ => return fail(format!("{flag} is on or off")),
+                };
+                if flag == "--mangohud" { cfg.performance.mangohud = on } else { cfg.performance.gamemode = on }
+            }
+            "--fps-limit" => match v.parse::<u32>() {
+                Ok(n) => cfg.performance.fps_limit = Some(n).filter(|n| *n > 0),
+                Err(_) => return fail("--fps-limit is a number"),
+            },
             _ => return fail(format!("unknown option {flag}")),
         }
     }
@@ -351,6 +381,38 @@ fn run(args: &[String]) -> ExitCode {
     }
 }
 
+fn gpus() -> ExitCode {
+    let cfg = match load() {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+    let list = gpu::list();
+    let auto = gpu::pick_auto(&list).map(|g| g.slot.clone());
+    for g in &list {
+        let mut tags = vec![g.driver.clone()];
+        if g.boot_vga {
+            tags.push("boot".into());
+        }
+        tags.push(if g.integrated { "integrated" } else { "dedicated" }.into());
+        if auto.as_deref() == Some(g.slot.as_str()) {
+            tags.push("auto".into());
+        }
+        println!("{}  {:<40} {}  [{}]", g.slot, g.name, g.ids(), tags.join(", "));
+    }
+    if list.is_empty() {
+        println!("no GPU found in /sys/class/drm");
+    }
+    println!("\nconfigured: device = {}, profile = {}", cfg.gpu.device, cfg.gpu.profile.name());
+    for (k, v) in gpu::env_for(&cfg, &list) {
+        println!("  {k}={v}");
+    }
+    let tools = perf::detect();
+    for (name, package, t) in [("MangoHud", "mangohud", &tools.mangohud), ("GameMode", "gamemode", &tools.gamemode)] {
+        println!("{name:<9} {}", perf::describe(package, t, tools.sandboxed).1);
+    }
+    ExitCode::SUCCESS
+}
+
 fn info(args: &[String]) -> ExitCode {
     let cfg = match load() {
         Ok(c) => c,
@@ -394,6 +456,7 @@ fn main() -> ExitCode {
         }
         Some("run") => run(rest),
         Some("info") => info(rest),
+        Some("gpus") => gpus(),
         Some("protons") => {
             let found = runners::find_protons(&paths::home());
             for p in &found {

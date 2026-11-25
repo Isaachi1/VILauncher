@@ -119,6 +119,65 @@ pub struct RunnerSection {
     pub vkd3d_dir: Option<PathBuf>,
 }
 
+/// The vendor preset of variables a run gets (see [`crate::gpu::preset`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GpuProfile {
+    /// The preset of the GPU that runs the game.
+    #[default]
+    Auto,
+    Off,
+    Nvidia,
+    Amd,
+    Intel,
+}
+
+impl GpuProfile {
+    pub fn name(self) -> &'static str {
+        match self {
+            GpuProfile::Auto => "auto",
+            GpuProfile::Off => "off",
+            GpuProfile::Nvidia => "nvidia",
+            GpuProfile::Amd => "amd",
+            GpuProfile::Intel => "intel",
+        }
+    }
+}
+
+fn auto() -> String {
+    crate::gpu::DEVICE_AUTO.into()
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct GpuSection {
+    /// Which GPU runs the game: `auto` (a dedicated one when there is one), `system`
+    /// (no change), or a PCI address such as `0000:01:00.0`.
+    pub device: String,
+    pub profile: GpuProfile,
+}
+
+impl Default for GpuSection {
+    fn default() -> Self {
+        GpuSection { device: auto(), profile: GpuProfile::Auto }
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct PerformanceSection {
+    /// MangoHud's overlay (FPS, frame time, GPU / CPU load).
+    pub mangohud: bool,
+    /// MANGOHUD_CONFIG; default: [`crate::perf::MANGOHUD_DEFAULT`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mangohud_config: Option<String>,
+    /// A frame rate cap, through MangoHud.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fps_limit: Option<u32>,
+    /// Feral's GameMode, through gamemoderun.
+    pub gamemode: bool,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct DirsSection {
@@ -135,6 +194,8 @@ pub struct Config {
     pub backend: BackendSection,
     pub runner: RunnerSection,
     pub dirs: DirsSection,
+    pub gpu: GpuSection,
+    pub performance: PerformanceSection,
     /// Extra environment variables for the run (VICTORY_LOG, DXVK_HUD, ...).
     pub env: BTreeMap<String, String>,
 }
@@ -249,9 +310,15 @@ mod tests {
         cfg.runner.kind = RunnerKind::Wine;
         cfg.runner.vkd3d_dir = Some("/v".into());
         cfg.env.insert("VICTORY_LOG".into(), "info".into());
+        cfg.gpu = GpuSection { device: "0000:01:00.0".into(), profile: GpuProfile::Nvidia };
+        cfg.performance = PerformanceSection { mangohud: true, mangohud_config: None, fps_limit: Some(60), gamemode: true };
         let text = cfg.to_toml().unwrap();
         assert_eq!(Config::from_toml(&text).unwrap(), cfg);
         assert!(text.contains("console = \"series-s\""), "{text}");
+        assert!(text.contains("[gpu]\ndevice = \"0000:01:00.0\"\nprofile = \"nvidia\""), "{text}");
+        // A file from before [gpu] and [performance] existed still loads, with the defaults.
+        let old = Config::from_toml("[game]\nargs = []\n").unwrap();
+        assert_eq!((old.gpu.device.as_str(), old.performance.gamemode), ("auto", false));
     }
 
     #[test]

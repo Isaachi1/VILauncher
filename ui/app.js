@@ -37,7 +37,12 @@ function fillForm() {
     const v = getPath(config, el.dataset.path);
     if (el.dataset.kind === "lines") el.value = (v || []).join("\n");
     else if (el.dataset.kind === "env") el.value = Object.entries(v || {}).map(([k, x]) => `${k}=${x}`).join("\n");
-    else el.value = v ?? "";
+    else if (el.dataset.kind === "bool") el.checked = Boolean(v);
+    else {
+      // A value this window has no option for yet (a GPU not plugged in now) is kept.
+      if (el.tagName === "SELECT" && v && ![...el.options].some((o) => o.value === v)) el.appendChild(new Option(v, v));
+      el.value = v ?? "";
+    }
   }
   refreshVisibility();
 }
@@ -55,6 +60,11 @@ function readForm() {
         const i = line.indexOf("=");
         if (i > 0) v[line.slice(0, i).trim()] = line.slice(i + 1);
       }
+    } else if (el.dataset.kind === "bool") {
+      v = el.checked;
+    } else if (el.dataset.kind === "int") {
+      const n = parseInt(raw, 10);
+      v = Number.isFinite(n) && n > 0 ? n : null;
     } else if (el.tagName === "SELECT") {
       v = raw;
     } else {
@@ -71,6 +81,7 @@ function refreshVisibility() {
   for (const el of $$(".only-victory")) el.hidden = backend !== "victory";
   for (const el of $$(".only-xcl")) el.hidden = backend !== "xcl";
   for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
+  for (const el of $$(".only-mangohud")) el.hidden = !$('[data-path="performance.mangohud"]').checked;
   say("#runner-path-label", runner === "wine" ? "run.winePath" : "run.protonPath");
   $("#backend-label").textContent = `${backend === "xcl" ? "XCL" : "VIctory"} · ${runner === "wine" ? "Wine + vkd3d-proton" : "Proton"}`;
 }
@@ -605,6 +616,45 @@ function showVtKey(saved) {
   say("#vt-info", saved ? "vt.infoSaved" : "vt.infoNone");
 }
 
+// -- GPU, MangoHud and GameMode ------------------------------------------------------------
+
+let lastHardware = null;
+
+// The GPUs found go in the "GPU que roda o jogo" list; "auto" says which one it picks.
+function showHardware(hw) {
+  lastHardware = hw;
+  const select = $("#gpu-device");
+  const current = select.value || getPath(config, "gpu.device") || "auto";
+  for (const o of [...select.options]) if (o.value !== "auto" && o.value !== "system") select.removeChild(o);
+  for (const g of hw.gpus) select.appendChild(new Option(`${g.name} · ${g.slot}`, g.slot));
+  const auto = hw.gpus.find((g) => g.slot === hw.auto);
+  const autoOpt = select.querySelector('option[value="auto"]');
+  if (auto) I18N.text(autoOpt, "gpu.autoIs", { name: auto.name });
+  else I18N.text(autoOpt, "gpu.auto");
+  if (![...select.options].some((o) => o.value === current)) {
+    select.appendChild(new Option(t("gpu.missing", { slot: current }), current));
+  }
+  select.value = current;
+  showTool("#mangohud-info", hw.tools.mangohud, "mangohud", hw.tools.sandboxed);
+  showTool("#gamemode-info", hw.tools.gamemode, "gamemode", hw.tools.sandboxed);
+}
+
+function showTool(sel, tool, pkg, sandboxed) {
+  const node = $(sel);
+  node.classList.toggle("missing", !tool.installed);
+  if (tool.installed) say(sel, sandboxed ? "perf.foundHost" : "perf.found");
+  else if (tool.flatpak.length) say(sel, "perf.flatpakOnly", { ext: tool.flatpak.join(", "), pkg });
+  else say(sel, "perf.missing", { pkg });
+}
+
+async function loadHardware() {
+  try {
+    showHardware(await invoke("hardware"));
+  } catch (e) {
+    console.warn("hardware:", e);
+  }
+}
+
 // -- language ------------------------------------------------------------------------------
 
 // The footer's keyboard prompts, in the player's language.
@@ -631,6 +681,7 @@ function relabel() {
   if (lastVerdicts) showVerdicts(lastVerdicts);
   showVtKey(vtSaved);
   if (lastReport) showEfforts(lastReport);
+  if (lastHardware) showHardware(lastHardware);
 }
 
 // -- actions -----------------------------------------------------------------------------
@@ -760,7 +811,8 @@ async function init() {
   }
 
   for (const b of $$(".tabs button")) b.addEventListener("click", () => selectTab(b.dataset.tab));
-  for (const el of $$('select[data-path]')) el.addEventListener("change", refreshVisibility);
+  for (const el of $$('select[data-path], input[data-kind="bool"]')) el.addEventListener("change", refreshVisibility);
+  loadHardware();
   $('[data-path="game.dir"]').addEventListener("change", refreshTitle);
   $('[data-path="backend.exe"]').addEventListener("change", async (ev) => {
     const kind = await invoke("guess_backend", { exe: ev.target.value });

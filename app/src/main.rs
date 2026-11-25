@@ -21,6 +21,7 @@ use vilauncher_core::config::{self, Config};
 use vilauncher_core::doctor::{self, Check};
 use vilauncher_core::gamedir::{self, GameInfo};
 use vilauncher_core::launch;
+use vilauncher_core::{gpu, perf};
 use vilauncher_core::paths;
 use vilauncher_core::runners::{self, ProtonInstall, Runner};
 use vilauncher_core::selfupdate;
@@ -306,6 +307,26 @@ fn app_restart(app: AppHandle, running: State<Running>) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Serialize)]
+struct Hardware {
+    gpus: Vec<gpu::Gpu>,
+    /// The PCI address `auto` picks.
+    auto: Option<String>,
+    tools: perf::Tools,
+}
+
+/// The GPUs, and whether MangoHud and GameMode are installed where the game runs.
+#[tauri::command]
+async fn hardware() -> Result<Hardware, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let gpus = gpu::list();
+        let auto = gpu::pick_auto(&gpus).map(|g| g.slot.clone());
+        Hardware { gpus, auto, tools: perf::detect() }
+    })
+    .await
+    .map_err(err)
+}
+
 #[tauri::command]
 fn dry_run(config: Config) -> Result<String, String> {
     launch::build(&config).map(|l| l.shell_text()).map_err(err)
@@ -410,6 +431,7 @@ fn main() {
             game_info,
             setup_prefix,
             dry_run,
+            hardware,
             portwatch_status,
             portwatch_avatars,
             runtime_status,
