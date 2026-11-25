@@ -41,6 +41,8 @@ O launcher usa dois serviços externos:
 | Instala a build mais nova do backend mais avançado. A build vem compilada pelo CI e verificada no VirusTotal | **Compatibilidade › Procurar builds novas / Instalar e usar**, `vilauncher update` |
 | Confere cada download: tamanho, SHA-256, se os binários são os que o VirusTotal analisou e se algum foi acusado | ao instalar |
 | Acha o Proton do Steam (ou o GE-Proton), ou usa o Wine do sistema com o vkd3d-proton | **Compatibilidade** |
+| Baixa, lista, escolhe e remove versões do GE-Proton sem a Steam, conferindo o tamanho e o SHA-512 de cada download | **Compatibilidade › Versões do Proton**, `vilauncher proton` |
+| Guarda as 3 últimas builds que cada atualização substituiu e volta para uma delas com um clique, mesmo offline | **Compatibilidade › Builds anteriores**, `vilauncher rollback` |
 | Prepara o prefixo Wine e passa para o backend as variáveis que ele documenta | **Compatibilidade › Preparar prefixo**, ao jogar |
 | Verifica a máquina e a configuração antes de rodar: CPU, GPU e Vulkan, mesh shaders, memória, ajustes do kernel, caminhos | aba **Verificação**, `vilauncher doctor` |
 | Roda o jogo e mostra a saída ao vivo, que também fica gravada em arquivo | **Jogar**, aba **Log**, `vilauncher run` |
@@ -239,9 +241,9 @@ inicia com `flatpak-spawn --host`. Por isso:
 
 ## Primeiro uso, passo a passo
 
-1. **Instale o Proton.** No Steam, instale o *Proton Experimental*, ou instale o
-   [GE-Proton](https://github.com/GloriousEggroll/proton-ge-custom) em
-   `~/.steam/root/compatibilitytools.d`. Com o Wine do sistema, baixe também uma release do
+1. **Instale o Proton.** O jeito mais simples é pela própria janela: **Compatibilidade › Versões
+   do Proton › Procurar GE-Proton › Baixar e usar** (ou `vilauncher proton install latest --use`),
+   sem precisar da Steam. Se a Steam já tiver o *Proton Experimental*, ele aparece na mesma lista. Com o Wine do sistema, baixe também uma release do
    [vkd3d-proton](https://github.com/HansKristian-Work/vkd3d-proton/releases).
 2. **Abra o VILauncher** pelo menu de aplicativos, ou rode `vilauncher-app`.
 3. **Aba Jogo:** clique em **Escolher…** e aponte para a pasta **desempacotada** do seu jogo. O
@@ -304,6 +306,14 @@ vilauncher status                         # a corrida dos ports, segundo o PortW
 vilauncher update                         # mostra as builds publicadas e a instalada de cada backend
 vilauncher update best                    # instala a build da família mais avançada e passa a usá-la
 vilauncher update xcl|victory [--force]   # instala a de um backend (--force reinstala)
+vilauncher rollback victory               # lista as builds que as atualizações substituíram
+vilauncher rollback victory last          # volta para a anterior (ou passe o commit)
+
+vilauncher protons                        # todos os Proton encontrados (Steam e os do launcher)
+vilauncher proton available               # releases do GE-Proton no GitHub
+vilauncher proton install latest --use    # baixa o mais novo (SHA-512 conferido) e passa a usá-lo
+vilauncher proton use GE-Proton10-25      # escolhe um Proton instalado
+vilauncher proton remove GE-Proton10-20   # apaga um Proton que o launcher baixou
 
 vilauncher virustotal                     # consulta a build em uso no VirusTotal (precisa da sua chave)
 vilauncher virustotal --key CHAVE         # salva a chave
@@ -342,6 +352,8 @@ VICTORY_LOG = "info"          # qualquer variável extra para a execução
 | chave do VirusTotal (opcional) | `~/.config/vilauncher/virustotal.key` |
 | prefixo do Proton / Wine | `~/.local/share/vilauncher/compatdata` / `prefix` |
 | builds instaladas pelo launcher | `~/.local/share/vilauncher/runtimes/<backend>` (com `VILAUNCHER_SOURCE.json`: projeto, commit e resultado do VirusTotal) |
+| builds anteriores (as 3 últimas de cada backend) | `~/.local/share/vilauncher/runtimes/previous/<backend>/<commit>` |
+| versões do Proton baixadas pelo launcher | `~/.local/share/vilauncher/protons/<nome>` |
 | saves, configurações e logs do jogo | `~/.local/share/vilauncher/<backend>/data` (`VICTORY_DATA_DIR`, `XCL_DATA_ROOT`) |
 | cache de shaders e dados convertidos | `~/.cache/vilauncher/<backend>` (`VICTORY_CACHE_DIR`) |
 | última cópia do PortWatch VI e avatares | `~/.cache/vilauncher/portwatch-tracker.json`, `~/.cache/vilauncher/avatars` |
@@ -351,7 +363,8 @@ Como o VIctory, o launcher recusa pastas de dados, de cache ou do jogo que fique
 do VIctory (`.victory-root`), para que nada derivado do jogo vá parar num repositório.
 
 Variáveis para testes ou espelhos: `VILAUNCHER_TRACKER_URL` (outro `tracker.json`),
-`VILAUNCHER_RUNTIMES_URL` (outro `runtimes.json`) e `VILAUNCHER_VT_API` (outra API do VirusTotal).
+`VILAUNCHER_RUNTIMES_URL` (outro `runtimes.json`), `VILAUNCHER_GE_PROTON_API` (outra lista de releases
+do GE-Proton) e `VILAUNCHER_VT_API` (outra API do VirusTotal).
 
 ## Requisitos
 
@@ -359,7 +372,7 @@ Variáveis para testes ou espelhos: `VILAUNCHER_TRACKER_URL` (outro `tracker.jso
 - GPU com driver Vulkan com `VK_EXT_mesh_shader` (Mesa RADV recente ou NVIDIA). Os dois backends
   precisam de shader model 6.6 e de mesh shaders, e só o vkd3d-proton oferece isso. O `d3d12` do
   próprio Wine não oferece.
-- **Proton** (GE-Proton ou Proton Experimental, instalado pelo Steam) **ou** Wine 9+ com uma
+- **Proton** (GE-Proton, que o launcher baixa sozinho, ou Proton Experimental da Steam) **ou** Wine 9+ com uma
   release do [vkd3d-proton](https://github.com/HansKristian-Work/vkd3d-proton/releases)
   descompactada.
 - O backend. O mais simples é **Instalar e usar**. Para compilar à mão (num Windows):
@@ -472,7 +485,7 @@ flatpak-builder --user --install --force-clean build-dir packaging/flatpak/io.gi
 
 | Pasta | O quê |
 |---|---|
-| `crates/core` | `vilauncher-core`: configuração, pasta do jogo, Proton/Wine, backends, verificações, execução, PortWatch VI (`status.rs`, `avatars.rs`), builds do CI (`update.rs`), VirusTotal (`virustotal.rs`), execução no sistema a partir do Flatpak (`host.rs`) |
+| `crates/core` | `vilauncher-core`: configuração, pasta do jogo, Proton/Wine, backends, verificações, execução, PortWatch VI (`status.rs`, `avatars.rs`), builds do CI e builds anteriores (`update.rs`), versões do Proton (`protons.rs`), VirusTotal (`virustotal.rs`), execução no sistema a partir do Flatpak (`host.rs`) |
 | `crates/cli` | `vilauncher`: a linha de comando |
 | `app` | `vilauncher-app`: a janela Tauri 2 |
 | `ui` | a interface da janela (HTML, CSS e JS sem build; a lógica fica toda no Rust) |

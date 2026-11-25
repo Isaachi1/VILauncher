@@ -106,11 +106,24 @@ pub fn steam_roots(home: &Path) -> Vec<PathBuf> {
     out
 }
 
+/// Who installed a Proton folder.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Origin {
+    /// Steam (Proton Experimental, or a tool in Steam's compatibilitytools.d).
+    Steam,
+    /// VILauncher itself ([`crate::protons`]); only these can be removed from the launcher.
+    Launcher,
+    /// The distribution's package (/usr/share/steam/compatibilitytools.d).
+    System,
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct ProtonInstall {
     pub name: String,
     pub version: String,
     pub path: PathBuf,
+    pub origin: Origin,
 }
 
 pub fn proton_version(dir: &Path) -> String {
@@ -132,25 +145,27 @@ fn rank(name: &str) -> (u8, Vec<std::cmp::Reverse<u64>>, String) {
 }
 
 /// Proton folders (each has a `proton` script), best guess first:
-/// GE-Proton newest first, then Proton Experimental, then other Protons.
+/// GE-Proton newest first, then Proton Experimental, then other Protons. The versions
+/// VILauncher downloaded ([`crate::protons::managed_dir`]) are found along with Steam's.
 pub fn find_protons(home: &Path) -> Vec<ProtonInstall> {
-    let mut dirs = Vec::new();
+    let mut dirs = vec![(crate::protons::managed_dir(), Origin::Launcher)];
     for root in steam_roots(home) {
-        dirs.push(root.join("compatibilitytools.d"));
-        dirs.push(root.join("steamapps/common"));
+        dirs.push((root.join("compatibilitytools.d"), Origin::Steam));
+        dirs.push((root.join("steamapps/common"), Origin::Steam));
     }
-    dirs.push(PathBuf::from("/usr/share/steam/compatibilitytools.d"));
+    dirs.push((PathBuf::from("/usr/share/steam/compatibilitytools.d"), Origin::System));
     let mut seen = Vec::new();
     let mut found = Vec::new();
-    for d in dirs {
+    for (d, origin) in dirs {
         let Ok(rd) = fs::read_dir(&d) else { continue };
         for entry in rd.flatten().map(|e| e.path()) {
-            if entry.join("proton").is_file() {
+            let hidden = entry.file_name().is_some_and(|n| n.to_string_lossy().starts_with('.'));
+            if !hidden && entry.join("proton").is_file() {
                 let r = fs::canonicalize(&entry).unwrap_or(entry.clone());
                 if !seen.contains(&r) {
                     seen.push(r);
                     let name = entry.file_name().unwrap_or_default().to_string_lossy().into_owned();
-                    found.push(ProtonInstall { version: proton_version(&entry), name, path: entry });
+                    found.push(ProtonInstall { version: proton_version(&entry), name, path: entry, origin });
                 }
             }
         }
@@ -240,8 +255,8 @@ impl Runner {
                     .or_else(|| find_protons(&paths::home()).into_iter().next().map(|p| p.path))
                     .ok_or_else(|| {
                         Error::Runner(
-                            "no Proton found: install GE-Proton or Proton Experimental through Steam, \
-                             or choose a Proton folder"
+                            "no Proton found: download GE-Proton in the launcher (`vilauncher proton install latest`), \
+                             install Proton Experimental through Steam, or choose a Proton folder"
                                 .into(),
                         )
                     })?;
