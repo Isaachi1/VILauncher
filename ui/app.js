@@ -557,10 +557,21 @@ function sourceLine(a) {
 
 let lastRuntimes = null;
 
-// The Backend list: every build vilauncher-builder published (runtimes.json), as
+// The Backend list: every build vilauncher-builder published (runtimes.json), best first, as
 // "project · family · score". Picking one installs it if needed and makes it the backend;
-// "your own executable" leaves the path below as it is.
+// "your own executable" leaves the path below as it is. Under it, #build-detail shows the
+// picked build: VirusTotal, size, an update of the same project, the builds it replaced.
 const CUSTOM_BUILD = "custom";
+
+const pctOf = (score) =>
+  score != null ? `${score.toLocaleString(document.documentElement.lang || undefined, { maximumFractionDigits: 1 })}%` : "";
+
+// The build of a backend in use: same project as the installed one (an older commit of it is
+// still that build, with an update), or the same commit for a manifest without repositories.
+function inUseChoice(r) {
+  const repo = r.source && r.source.repo;
+  return (r.choices || []).find((c) => (repo && c.repo === repo) || c.commit === r.installed);
+}
 
 function showBuilds(rt) {
   const sel = $("#backend-build");
@@ -568,20 +579,20 @@ function showBuilds(rt) {
   const exe = $('[data-path="backend.exe"]').value.trim();
   sel.replaceChildren();
   let selected = CUSTOM_BUILD;
-  for (const r of rt ? rt.backends : []) {
-    for (const c of r.choices || []) {
-      const installed = r.installed === c.commit && r.exe;
-      const pct = c.score != null ? c.score.toLocaleString(document.documentElement.lang || undefined, { maximumFractionDigits: 1 }) : null;
-      const score = pct ? ` · ${pct}%` : "";
-      const label = `${c.effort || c.repo || short(c.commit)} · ${BACKEND_NAME[r.backend]}${score}${installed ? ` · ${t("runtimes.installedPill")}` : ""}`;
-      const opt = el("option", null, label);
-      opt.value = `${r.backend}|${c.file}`;
-      opt.title = sourceLine(c);
-      sel.append(opt);
-      if (installed && r.backend === kind && r.exe === exe) selected = opt.value;
-    }
+  const all = [];
+  for (const r of rt ? rt.backends : []) for (const c of r.choices || []) all.push({ r, c });
+  all.sort((a, b) => (b.c.score ?? -1) - (a.c.score ?? -1));
+  for (const { r, c } of all) {
+    const mine = r.exe && inUseChoice(r) === c;
+    const tag = mine ? (r.installed === c.commit ? t("runtimes.installedPill") : t("compat.updatePill")) : "";
+    const parts = [c.effort || c.repo || short(c.commit), BACKEND_NAME[r.backend], pctOf(c.score), tag].filter(Boolean);
+    const opt = el("option", null, parts.join(" · "));
+    opt.value = `${r.backend}|${c.file}`;
+    opt.title = sourceLine(c);
+    sel.append(opt);
+    if (mine && r.backend === kind && r.exe === exe) selected = opt.value;
   }
-  if (!sel.options.length) {
+  if (!all.length) {
     const none = el("option", null, t(rt ? "compat.noBuilds" : "compat.loadingBuilds"));
     none.value = "";
     none.disabled = true;
@@ -591,96 +602,80 @@ function showBuilds(rt) {
   own.value = CUSTOM_BUILD;
   sel.append(own);
   sel.value = selected;
+  showBuildDetail(rt);
+}
+
+function picked(rt) {
+  const [backend, file] = $("#backend-build").value.split("|");
+  const r = rt && file ? rt.backends.find((b) => b.backend === backend) : null;
+  const c = r && (r.choices || []).find((x) => x.file === file);
+  return r && c ? { r, c } : null;
 }
 
 async function pickBuild(sel) {
-  const [backend, file] = sel.value.split("|");
-  if (!file) return;
-  const r = lastRuntimes && lastRuntimes.backends.find((b) => b.backend === backend);
-  const c = r && (r.choices || []).find((x) => x.file === file);
-  if (r && c && r.installed === c.commit && r.exe) await useRuntime(backend, r.exe);
-  else await installRuntime(backend, null, false, file);
+  const p = picked(lastRuntimes);
+  if (!p) return showBuildDetail(lastRuntimes);
+  const { r, c } = p;
+  // Already installed (this commit): just use it. Otherwise download it.
+  if (r.exe && r.installed === c.commit) await useRuntime(r.backend, r.exe);
+  else await installRuntime(r.backend, null, false, c.file);
+}
+
+function scanLine(scan) {
+  const line = el("div", null);
+  const pill = el("span", `pill ${SCAN_PILL[scan.verdict] || "warn"}`, SCAN_KEYS.includes(scan.verdict) ? t(`scan.${scan.verdict}`) : scan.verdict);
+  const flagged = scan.files.filter((f) => f.malicious > 0).map((f) => `${f.name}: ${f.malicious}/${f.engines}`);
+  line.append(pill, " ", flagged.length ? flagged.join(", ") : scan.files.map((f) => `${f.name} ${f.malicious}/${f.engines}`).join(" · "));
+  return line;
+}
+
+function showBuildDetail(rt) {
+  const box = $("#build-detail");
+  box.replaceChildren();
+  const p = picked(rt);
+  const kind = $('[data-path="backend.kind"]').value;
+  const r = p ? p.r : rt && rt.backends.find((b) => b.backend === kind);
+  if (!p) {
+    // Your own executable: nothing to show but what replaced builds of this family there are.
+    if (r && r.previous && r.previous.length) box.append(previousBuilds(r));
+    box.hidden = !box.childElementCount;
+    return;
+  }
+  const { c } = p;
+  box.hidden = false;
+  const head = el("div", "build-head");
+  const what = el("div");
+  what.append(el("div", "build-name", `${c.effort || c.repo} · ${BACKEND_NAME[r.backend]}${c.score != null ? ` · ${pctOf(c.score)}` : ""}`));
+  const where = [c.repo ? `github.com/${c.repo}` : null, short(c.commit), `${(c.size / 1048576).toFixed(1)} MB`];
+  what.append(el("div", "status", where.filter(Boolean).join(" · ")));
+  head.append(what);
+  const inUse = r.exe && r.installed === c.commit && $('[data-path="backend.exe"]').value.trim() === r.exe;
+  const sameProject = r.exe && inUseChoice(r) === c;
+  if (sameProject && r.installed !== c.commit) {
+    const b = el("button", "primary", t("runtimes.update"));
+    b.addEventListener("click", () => guarded(b, () => installRuntime(r.backend, b, false, c.file)));
+    head.append(b);
+  } else if (inUse) {
+    head.append(el("span", "pill ok", t("runtimes.inUse")));
+  }
+  box.append(head);
+  if (sameProject && r.installed !== c.commit) {
+    box.append(el("div", "status", t("runtimes.installed", { build: sourceLine(r.source) || short(r.installed) })));
+  }
+  if (c.virustotal) box.append(scanLine(c.virustotal));
+  if (r.previous && r.previous.length) box.append(previousBuilds(r));
 }
 
 function showRuntimes(rt) {
   lastRuntimes = rt;
   showBuilds(rt);
   if (rt.offline) say("#runtimes-info", "runtimes.offline", { error: rt.offline });
-  const body = $("#runtimes tbody");
-  body.replaceChildren();
-  const current = $('[data-path="backend.exe"]').value.trim();
-  const best = rt.backends.find((r) => r.backend === rt.recommended);
-  const pick = $("#runtimes-best");
-  pick.hidden = !best || !best.latest;
-  if (best && best.latest) {
-    $("#runtimes-best-text").textContent = t("runtimes.best", { source: sourceLine(best.latest), backend: BACKEND_NAME[best.backend] });
-    const b = $("#runtimes-best-go");
-    b.onclick = () => guarded(b, () => (best.update ? installRuntime(best.backend, b) : useRuntime(best.backend, best.exe)));
-    I18N.text(b, best.update ? "runtimes.installUse" : "runtimes.use");
-  }
   const cands = $("#runtimes-candidates");
   cands.replaceChildren();
   for (const c of rt.candidates) cands.append(el("li", null, `${c.name} (${c.repo}): ${c.result}`));
   $("#runtimes-why").hidden = rt.candidates.length === 0;
-  for (const r of rt.backends) {
-    const tr = el("tr");
-    tr.append(el("td", "name", BACKEND_NAME[r.backend]));
-    const info = el("td");
-    const latest = r.latest ? `${sourceLine(r.latest)} (${(r.latest.size / 1048576).toFixed(1)} MB)` : t("runtimes.nonePublished");
-    info.append(el("div", null, t("runtimes.latest", { build: latest })));
-    info.append(el("div", "status", t("runtimes.installed", { build: r.installed ? sourceLine(r.source) || short(r.installed) : t("runtimes.noneInstalled") })));
-    const scan = r.latest && r.latest.virustotal;
-    if (scan) {
-      const pill = el("span", `pill ${SCAN_PILL[scan.verdict] || "warn"}`, SCAN_KEYS.includes(scan.verdict) ? t(`scan.${scan.verdict}`) : scan.verdict);
-      const flagged = scan.files.filter((f) => f.malicious > 0).map((f) => `${f.name}: ${f.malicious}/${f.engines}`);
-      const line = el("div", null);
-      line.append(pill, " ", flagged.length ? flagged.join(", ") : scan.files.map((f) => `${f.name} ${f.malicious}/${f.engines}`).join(" · "));
-      info.append(line);
-    }
-    if (r.choices && r.choices.length > 1) info.append(otherBuilds(r));
-    if (r.previous && r.previous.length) info.append(previousBuilds(r));
-    tr.append(info);
-    const td = el("td");
-    if (r.latest && r.update) {
-      const b = el("button", "primary", t(r.installed ? "runtimes.update" : "runtimes.install"));
-      b.addEventListener("click", () => guarded(b, () => installRuntime(r.backend, b)));
-      td.append(b);
-    } else if (r.exe && r.exe !== current) {
-      const b = el("button", null, t("runtimes.useThis"));
-      b.addEventListener("click", () => useRuntime(r.backend, r.exe));
-      td.append(b);
-    } else if (r.exe) {
-      td.append(el("span", "pill ok", t("runtimes.inUse")));
-    }
-    tr.append(td);
-    body.append(tr);
-  }
 }
 
-// Every build vilauncher-builder published for this backend (each project scoring 59% or
-// more on PortWatch VI), best first: any of them installs with one click.
-function otherBuilds(r) {
-  const box = el("details", "previous");
-  box.append(el("summary", null, t("runtimes.others", { n: r.choices.length })));
-  for (const c of r.choices) {
-    const row = el("div", "previous-row");
-    const score = c.score != null ? `${c.score.toFixed(1)}% · ` : "";
-    row.append(el("span", null, `${score}${sourceLine(c)}`));
-    if (r.installed === c.commit && r.exe) {
-      row.append(el("span", "pill ok", t("runtimes.installedPill")));
-    } else {
-      const b = el("button", "ghost", t("runtimes.installThis"));
-      b.addEventListener("click", () => guarded(b, () => installRuntime(r.backend, b, false, c.file)));
-      row.append(b);
-    }
-    box.append(row);
-  }
-  return box;
-}
-
-const when = (secs) => new Date(secs * 1000).toLocaleString(I18N.locale(), { dateStyle: "short", timeStyle: "short" });
-
-// The builds earlier updates replaced: one click puts one back (the one in use is kept).
 function previousBuilds(r) {
   const box = el("details", "previous");
   box.append(el("summary", null, t("runtimes.previous", { n: r.previous.length })));

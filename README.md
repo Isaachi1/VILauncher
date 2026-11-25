@@ -39,7 +39,7 @@ O launcher usa dois serviços externos:
 | O quê | Onde |
 |---|---|
 | Mostra a corrida dos ports: o progresso geral, o ranking, os marcos, os destaques e os bloqueios de cada projeto, segundo o PortWatch VI | aba **Status**, `vilauncher status` |
-| Instala a build mais nova do backend mais avançado. A build vem compilada pelo vilauncher-builder e verificada no VirusTotal | **Compatibilidade › Procurar builds novas / Instalar e usar**, `vilauncher update` |
+| Instala a build mais nova do backend mais avançado. A build vem compilada pelo vilauncher-builder e verificada no VirusTotal | **Compatibilidade › Backend**, `vilauncher update` |
 | Confere cada download: tamanho, SHA-256, se os binários são os que o VirusTotal analisou e se algum foi acusado | ao instalar |
 | Acha o Proton do Steam (ou o GE-Proton), ou usa o Wine do sistema com o vkd3d-proton | **Compatibilidade** |
 | Baixa, lista, escolhe e remove versões do GE-Proton sem a Steam, conferindo o tamanho e o SHA-512 de cada download | **Compatibilidade › Versões do Proton**, `vilauncher proton` |
@@ -185,7 +185,7 @@ publicadas como "não verificadas".
 
 ### No launcher, ao instalar
 
-**Instalar e usar** confere o JSON antes de trocar a build:
+Ao instalar uma build da lista **Backend**, o launcher confere o JSON antes de trocar a build:
 
 - recusa uma build com veredito `flagged`;
 - confere que cada arquivo analisado existe na build e tem o mesmo SHA-256. Um binário diferente do
@@ -243,11 +243,12 @@ inicia com `flatpak-spawn --host`. Por isso:
 2. **Abra o VILauncher** pelo menu de aplicativos, ou rode `vilauncher-app`.
 3. **Aba Jogo:** clique em **Escolher…** e aponte para a pasta **desempacotada** do seu jogo. O
    launcher acha o executável. Se precisar, adicione argumentos e clique em **Salvar**.
-4. **Aba Compatibilidade › Procurar builds novas:** o launcher lê o `runtimes.json` e mostra a build
-   recomendada, com o projeto, o commit e o resultado do VirusTotal. Clique em **Instalar e usar**. A
-   build é baixada, conferida e passa a ser o backend em uso. Em **Builds publicadas** estão todos os
-   projetos com nota 59% ou mais, e qualquer um se instala com **Instalar esta**.
-   - Se você mesmo compilou o `victory.exe` ou o `xcl.exe`, aponte o executável do backend para ele.
+4. **Aba Compatibilidade › Backend:** a lista traz as builds publicadas pelo vilauncher-builder, da
+   maior nota para a menor (por exemplo "Belobug · VIctory · 77,4%"). Escolha uma: ela é baixada,
+   conferida e passa a ser o backend em uso. Embaixo aparecem o resultado do VirusTotal, **Atualizar**
+   quando sai um commit novo do mesmo projeto e as builds anteriores, para voltar.
+   - Se você mesmo compilou o `victory.exe` ou o `xcl.exe`, escolha **Executável próprio** e aponte o
+     executável do backend para ele.
 5. **Ainda em Compatibilidade:** escolha o Proton (ou o Wine e a pasta do vkd3d-proton) e clique em
    **Preparar prefixo**.
 6. **Aba Verificação** (`Ctrl+D`): veja o que passa, o que é aviso e o que falha. Cada item traz a
@@ -264,7 +265,7 @@ com **Rodar mesmo assim**.
 | Aba | Atalho | O que tem |
 |---|---|---|
 | **Jogo** | `Ctrl+1` | a pasta do jogo, o executável e os argumentos |
-| **Compatibilidade** | `Ctrl+2` | o backend (VIctory ou XCL) e o executável dele; as builds do vilauncher-builder (**Procurar builds novas**, **Instalar e usar**, **Builds publicadas**, **Como as builds foram escolhidas**) com o projeto, o commit e o selo do VirusTotal; o Proton ou o Wine; o vkd3d-proton, o DXC e o Opus; a chave do VirusTotal |
+| **Compatibilidade** | `Ctrl+2` | o backend (VIctory ou XCL) e o executável dele; as builds do vilauncher-builder (a lista **Backend**, **Procurar builds novas**, **Como as builds foram escolhidas**) com o projeto, o commit e o selo do VirusTotal; o Proton ou o Wine; o vkd3d-proton, o DXC e o Opus; a chave do VirusTotal |
 | **Verificação** | `Ctrl+3` | as checagens da máquina e da configuração, o botão **Corrigir** nos avisos do kernel (mostra o que vai gravar, o risco do userfaultfd e os comandos para fazer à mão) e o comando exato que vai rodar |
 | **Log** | `Ctrl+4` | a saída do jogo ao vivo, também gravada em `~/.local/state/vilauncher/last-run.log`; os **logs detalhados** (`PROTON_LOG=1`, ou `VKD3D_DEBUG`/`WINEDEBUG` com Wine) e o **relatório .zip** para os desenvolvedores, com o caminho da pasta pessoal trocado por `~` |
 | **Status** | `Ctrl+5` | o progresso geral e a corrida dos ports, segundo o PortWatch VI; as notificações |
@@ -397,7 +398,7 @@ do GE-Proton) e `VILAUNCHER_VT_API` (outra API do VirusTotal).
 - **Proton** (GE-Proton, que o launcher baixa sozinho, ou Proton Experimental da Steam) **ou** Wine 9+ com uma
   release do [vkd3d-proton](https://github.com/HansKristian-Work/vkd3d-proton/releases)
   descompactada.
-- O backend. O mais simples é **Instalar e usar**. Para compilar à mão (num Windows):
+- O backend. O mais simples é escolher uma build na lista **Backend**. Para compilar à mão (num Windows):
   - `victory.exe`: `cargo build --release -p victory` no VIctory (o toolchain fixado é
     `x86_64-pc-windows-msvc`);
   - `xcl.exe`: `cargo build --release` no xcl, mais o DXC

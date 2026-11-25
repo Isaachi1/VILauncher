@@ -392,6 +392,11 @@ input:focus, select:focus, textarea:focus {
 .toggle-text small { display: block; margin-top: 4px; font-size: 12px; }
 .toggle-text small.missing { color: var(--warn-fg); }
 
+/* The build picked in Compatibilidade > Backend. */
+.build-detail { display: grid; gap: 8px; margin: 12px 0; padding: 12px 14px; border-radius: 12px; background: var(--soft); }
+.build-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.build-name { font-weight: 600; color: var(--ink); }
+
 /* -- tables (checks, runtimes, VirusTotal) -------------------------------------------------- */
 
 table { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
