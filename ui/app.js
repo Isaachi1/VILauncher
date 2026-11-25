@@ -152,12 +152,73 @@ function showChecks(checks) {
     tdN.textContent = c.name;
     const tdD = document.createElement("td");
     tdD.textContent = c.detail;
+    if (c.fix) {
+      const fix = el("button", "fix primary");
+      I18N.text(fix, "fix.button");
+      fix.addEventListener("click", () => askFix(c.fix));
+      tdD.appendChild(fix);
+    }
     tr.append(tdS, tdN, tdD);
     body.appendChild(tr);
   }
   const fails = checks.filter((c) => c.status === "fail").length;
   const warns = checks.filter((c) => c.status === "warn").length;
   say("#doctor-status", "doctor.summary", { fails, warns, ok: checks.length - fails - warns });
+}
+
+// A kernel setting's fix: say what it writes (and the risk, for userfaultfd), then run it as
+// root (pkexec asks for the password) and check again.
+let pendingFix = null;
+
+function askFix(plan) {
+  pendingFix = plan;
+  say("#fix-title", "fix.title", { setting: plan.setting });
+  say("#fix-what", "fix.what", { setting: plan.setting, value: plan.value, file: plan.file });
+  $("#fix-risk").hidden = plan.id !== "userfaultfd";
+  plain("#fix-manual", plan.manual);
+  $("#fix-dialog").showModal();
+}
+
+async function applyFix(plan) {
+  say("#doctor-status", "fix.busy", { setting: plan.setting });
+  await invoke("apply_fixes", { fixes: [plan.id] });
+  showChecks(await invoke("run_doctor", { config: readForm() }));
+  say("#doctor-status", "fix.done", { setting: plan.setting, value: plan.value });
+}
+
+// -- the report for the backends' developers ------------------------------------------------
+
+// What "detailed logs" adds to the run's environment: Proton writes steam-*.log (with
+// vkd3d-proton's messages) when PROTON_LOG is set; with Wine, vkd3d-proton and Wine log to the
+// run's output.
+const VERBOSE_ENV = {
+  proton: { PROTON_LOG: "1" },
+  wine: { VKD3D_DEBUG: "warn", WINEDEBUG: "+seh,+loaddll,err+all" },
+};
+
+function verboseOn(cfg) {
+  const env = cfg.env || {};
+  return Object.values(VERBOSE_ENV).some((vars) => Object.entries(vars).every(([k, v]) => env[k] === v));
+}
+
+async function setVerbose(on) {
+  const next = readForm();
+  next.env ??= {};
+  for (const vars of Object.values(VERBOSE_ENV)) for (const [k, v] of Object.entries(vars)) if (next.env[k] === v) delete next.env[k];
+  if (on) Object.assign(next.env, VERBOSE_ENV[next.runner.kind === "wine" ? "wine" : "proton"]);
+  config = next;
+  fillForm();
+  await save();
+  say("#report-status", on ? "report.verboseOn" : "report.verboseOff");
+}
+
+async function exportReport() {
+  const defaultPath = await invoke("report_default_path");
+  const path = await dialog.save({ defaultPath, filters: [{ name: "ZIP", extensions: ["zip"] }] });
+  if (typeof path !== "string") return;
+  say("#report-status", "report.busy");
+  const w = await invoke("export_report", { config: readForm(), path });
+  say("#report-status", "report.done", { path: w.path, n: w.files.length, mb: (w.bytes / 1048576).toFixed(1) });
 }
 
 // -- status (PortWatch VI) --------------------------------------------------------------------
@@ -639,6 +700,7 @@ async function save() {
   config = readForm();
   const path = await invoke("save_config", { config });
   say("#save-status", "save.done", { path });
+  $("#verbose-logs").checked = verboseOn(config);
   return config;
 }
 
@@ -818,6 +880,14 @@ async function init() {
     }),
   );
   $("#log-clear").addEventListener("click", () => $("#log").replaceChildren());
+  $("#fix-dialog").addEventListener("close", () => {
+    const plan = pendingFix;
+    pendingFix = null;
+    if (plan && $("#fix-dialog").returnValue === "apply") guarded($("#doctor"), () => applyFix(plan));
+  });
+  $("#verbose-logs").checked = verboseOn(config);
+  $("#verbose-logs").addEventListener("change", (ev) => guarded(ev.target, () => setVerbose(ev.target.checked)));
+  $("#report-export").addEventListener("click", () => guarded($("#report-export"), exportReport));
   $("#vt-save").addEventListener("click", () =>
     guarded($("#vt-save"), async () => showVtKey(await invoke("virustotal_key", { key: $("#vt-key").value }))),
   );

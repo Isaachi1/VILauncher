@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use crate::backends::{self, MACHINE_X86_64};
 use crate::config::{BackendKind, Config};
+use crate::fixes::{self, Fix};
 use crate::runners::{self, Runner};
 use crate::{gamedir, paths};
 
@@ -27,10 +28,20 @@ pub struct Check {
     pub status: Status,
     pub name: String,
     pub detail: String,
+    /// A fix the window can apply (as root, after asking), for a warning about a kernel setting.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fix: Option<fixes::Plan>,
 }
 
 fn check(status: Status, name: &str, detail: impl Into<String>) -> Check {
-    Check { status, name: name.into(), detail: detail.into() }
+    Check { status, name: name.into(), detail: detail.into(), fix: None }
+}
+
+impl Check {
+    fn fixable(mut self, fix: Fix) -> Check {
+        self.fix = Some(fix.plan());
+        self
+    }
 }
 
 const GIB: u64 = 1 << 30;
@@ -94,6 +105,7 @@ pub fn check_max_map_count(value: Option<&str>) -> Check {
     };
     if n < MAX_MAP_COUNT {
         check(Status::Warn, "vm.max_map_count", format!("{n}; large titles need more mappings: `sudo sysctl -w vm.max_map_count={MAX_MAP_COUNT}`"))
+            .fixable(Fix::MaxMapCount)
     } else {
         check(Status::Ok, "vm.max_map_count", n.to_string())
     }
@@ -106,12 +118,14 @@ pub fn check_userfaultfd(unprivileged: Option<&str>, device_usable: bool) -> Che
     if unprivileged.map(str::trim) == Some("1") || device_usable {
         check(Status::Ok, "userfaultfd", "available to Wine")
     } else {
-        check(
+        let c = check(
             Status::Warn,
             "userfaultfd",
             "not available to unprivileged processes; vkd3d-proton may not see the title's memory writes (XCL #175). \
              Fix: `sudo sysctl -w vm.unprivileged_userfaultfd=1` or give your user access to /dev/userfaultfd",
-        )
+        );
+        // Without the setting (a kernel built without it) there is nothing to switch on.
+        if unprivileged.is_some() { c.fixable(Fix::Userfaultfd) } else { c }
     }
 }
 
@@ -325,6 +339,20 @@ mod tests {
         assert_eq!(check_userfaultfd(Some("0\n"), false).status, Status::Warn);
         assert_eq!(check_userfaultfd(Some("0\n"), true).status, Status::Ok);
         assert_eq!(check_userfaultfd(Some("1\n"), false).status, Status::Ok);
+    }
+
+    #[test]
+    fn kernel_warnings_offer_a_fix() {
+        let fix = |c: Check| c.fix.map(|p| p.id);
+        assert_eq!(fix(check_max_map_count(Some("65530\n"))), Some(Fix::MaxMapCount));
+        assert_eq!(fix(check_max_map_count(Some("1048576\n"))), None);
+        assert_eq!(fix(check_max_map_count(None)), None);
+        assert_eq!(fix(check_userfaultfd(Some("0\n"), false)), Some(Fix::Userfaultfd));
+        assert_eq!(fix(check_userfaultfd(None, false)), None);
+        assert_eq!(fix(check_userfaultfd(Some("1\n"), false)), None);
+        let json = serde_json::to_value(check_max_map_count(Some("65530"))).unwrap();
+        assert_eq!(json["fix"]["file"], "/etc/sysctl.d/80-vilauncher-max-map-count.conf");
+        assert!(serde_json::to_value(check_platform()).unwrap().get("fix").is_none());
     }
 
     #[test]

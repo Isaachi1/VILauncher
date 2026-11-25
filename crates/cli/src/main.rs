@@ -5,8 +5,9 @@ use std::process::ExitCode;
 
 use vilauncher_core::config::{self, BackendKind, Config, Console, RunnerKind};
 use vilauncher_core::doctor::{self, Status};
+use vilauncher_core::fixes::{self, Fix};
 use vilauncher_core::runners::{self, Runner};
-use vilauncher_core::{gamedir, launch, paths, status, update, virustotal};
+use vilauncher_core::{gamedir, launch, paths, report, status, update, virustotal};
 
 const HELP: &str = "\
 vilauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
@@ -27,6 +28,13 @@ Usage:
       --opus-dir DIR              xcl: a folder with opus.dll
       --no-prefix                 only write the configuration
   vilauncher doctor [--config-only]   check the machine and the configuration
+  vilauncher fix [max_map_count|userfaultfd ...] [--print]
+                                  fix the kernel settings the checks warn about (pkexec asks
+                                  for the password; kept in /etc/sysctl.d); without a name,
+                                  every one that warns; --print only shows the commands
+  vilauncher report [FILE.zip]    one .zip for the backends' developers: the checks, the
+                                  configuration, the system, and the logs of the last run,
+                                  Proton (PROTON_LOG=1), vkd3d-proton and the backend
   vilauncher run [--dry-run] [--force] [-- title args]
   vilauncher info [DIR]           what MicrosoftGame.config says about a game folder
   vilauncher protons              the Proton installs found
@@ -379,6 +387,62 @@ fn info(args: &[String]) -> ExitCode {
     ExitCode::SUCCESS
 }
 
+fn fix_cmd(args: &[String]) -> ExitCode {
+    let print = args.iter().any(|a| a == "--print");
+    let mut list = Vec::new();
+    for a in args.iter().filter(|a| *a != "--print") {
+        match Fix::parse(a) {
+            Some(f) => list.push(f),
+            None => return fail(format!("unknown fix {a}; max_map_count or userfaultfd")),
+        }
+    }
+    if list.is_empty() {
+        list = doctor::machine_checks().into_iter().filter_map(|c| c.fix.map(|p| p.id)).collect();
+        if list.is_empty() {
+            println!("nothing to fix: no kernel setting warns");
+            return ExitCode::SUCCESS;
+        }
+    }
+    for f in &list {
+        println!("{} = {}  (kept in {})", f.setting(), f.value(), f.file());
+    }
+    if list.contains(&Fix::Userfaultfd) {
+        println!(
+            "\nnote: unprivileged userfaultfd lets every program use it, and it has helped kernel exploits;\n\
+             that is why many distributions turn it off. Undo: delete the file and reboot."
+        );
+    }
+    if print {
+        println!("\n{}", list.iter().map(|f| f.manual()).collect::<Vec<_>>().join("\n"));
+        return ExitCode::SUCCESS;
+    }
+    match fixes::apply(&list) {
+        Ok(()) => {
+            println!("done; `vilauncher doctor` checks again");
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(e),
+    }
+}
+
+fn report_cmd(args: &[String]) -> ExitCode {
+    let cfg = match load() {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+    let dest = args.first().map(|a| abs(a)).unwrap_or_else(report::default_path);
+    match report::write(&cfg, env!("CARGO_PKG_VERSION"), &dest) {
+        Ok(w) => {
+            for f in &w.files {
+                println!("  {f}");
+            }
+            println!("wrote {} ({:.1} MB); the home folder's path is shown as ~", w.path.display(), w.bytes as f64 / 1e6);
+            ExitCode::SUCCESS
+        }
+        Err(e) => fail(e),
+    }
+}
+
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let rest = args.get(1..).unwrap_or(&[]);
@@ -392,6 +456,8 @@ fn main() -> ExitCode {
             let checks = if rest.iter().any(|a| a == "--config-only") { doctor::config_checks(&cfg) } else { doctor::run_all(&cfg) };
             if print_checks(&checks) > 0 { ExitCode::FAILURE } else { ExitCode::SUCCESS }
         }
+        Some("fix") => fix_cmd(rest),
+        Some("report") => report_cmd(rest),
         Some("run") => run(rest),
         Some("info") => info(rest),
         Some("protons") => {

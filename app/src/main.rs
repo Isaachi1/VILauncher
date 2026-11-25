@@ -19,9 +19,11 @@ use tauri_plugin_updater::UpdaterExt;
 use vilauncher_core::avatars;
 use vilauncher_core::config::{self, Config};
 use vilauncher_core::doctor::{self, Check};
+use vilauncher_core::fixes::{self, Fix};
 use vilauncher_core::gamedir::{self, GameInfo};
 use vilauncher_core::launch;
 use vilauncher_core::paths;
+use vilauncher_core::report;
 use vilauncher_core::runners::{self, ProtonInstall, Runner};
 use vilauncher_core::selfupdate;
 use vilauncher_core::status::{self, Report};
@@ -98,6 +100,29 @@ fn guess_backend(exe: String) -> Option<config::BackendKind> {
 #[tauri::command]
 async fn run_doctor(config: Config) -> Result<Vec<Check>, String> {
     tauri::async_runtime::spawn_blocking(move || doctor::run_all(&config)).await.map_err(err)
+}
+
+/// Applies the kernel-setting fixes the checks offered (by id), as root: pkexec asks for
+/// the password. The window shows what each one writes before calling this, then checks again.
+#[tauri::command]
+async fn apply_fixes(fixes: Vec<String>) -> Result<(), String> {
+    let list: Vec<Fix> = fixes.iter().map(|id| Fix::parse(id).ok_or_else(|| format!("unknown fix {id}"))).collect::<Result<_, _>>()?;
+    tauri::async_runtime::spawn_blocking(move || fixes::apply(&list)).await.map_err(err)?.map_err(err)
+}
+
+/// Where the report goes unless the player picks another place.
+#[tauri::command]
+fn report_default_path() -> String {
+    report::default_path().display().to_string()
+}
+
+/// Writes the .zip for the backends' developers: checks, configuration, system, and the
+/// logs of the launcher, Proton, vkd3d-proton and the backend.
+#[tauri::command]
+async fn export_report(app: AppHandle, config: Config, path: String) -> Result<report::Written, String> {
+    let version = app.package_info().version.to_string();
+    let dest = paths::expand(&PathBuf::from(path));
+    tauri::async_runtime::spawn_blocking(move || report::write(&config, &version, &dest)).await.map_err(err)?.map_err(err)
 }
 
 #[tauri::command]
@@ -407,6 +432,9 @@ fn main() {
             save_config,
             guess_backend,
             run_doctor,
+            apply_fixes,
+            report_default_path,
+            export_report,
             game_info,
             setup_prefix,
             dry_run,

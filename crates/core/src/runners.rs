@@ -289,6 +289,10 @@ impl Runner {
                     .unwrap_or_else(|| p.compat_dir.clone());
                 env.insert("STEAM_COMPAT_DATA_PATH".into(), p.compat_dir.to_string_lossy().into_owned());
                 env.insert("STEAM_COMPAT_CLIENT_INSTALL_PATH".into(), steam.to_string_lossy().into_owned());
+                // With PROTON_LOG=1, Proton writes steam-*.log here, where the report finds it.
+                if !base.get("PROTON_LOG_DIR").is_some_and(|d| !d.is_empty()) {
+                    env.insert("PROTON_LOG_DIR".into(), crate::report::proton_log_dir().to_string_lossy().into_owned());
+                }
             }
         }
         env
