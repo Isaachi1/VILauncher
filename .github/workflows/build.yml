@@ -315,7 +315,9 @@ jobs:
       - name: Smoke test
         run: |
           set -uo pipefail
-          out=$(./target/release/sixlauncher.exe doctor 2>&1); echo "$out"
+          # doctor exits non-zero here (no game is set up on the runner); only its output matters.
+          out=$(./target/release/sixlauncher.exe doctor 2>&1) || true
+          echo "$out"
           echo "$out" | grep -q "Windows x86_64" || { echo "::error::doctor does not see Windows"; exit 1; }
           echo "$out" | grep -q "native" || { echo "::error::doctor does not use the native runner"; exit 1; }
 
