@@ -112,7 +112,7 @@ pub fn verdict(file: &str, sha256: &str, report: Option<&str>) -> Result<Verdict
     Ok(v)
 }
 
-/// The executable kind of `path` from its first bytes, as scripts/virustotal-scan.py
+/// The executable kind of `path` from its first bytes, as vilauncher-builder's virustotal-scan.py
 /// recognises them: Windows PE, ELF (programs, `.so`, AppImage), Debian package,
 /// MSI, Mach-O, or a `#!` script.
 pub fn kind_of(path: &Path) -> Option<&'static str> {

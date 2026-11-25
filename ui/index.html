@@ -134,14 +134,14 @@
       <div class="runtimes">
         <div class="actions">
           <button id="runtimes-check" data-i18n="runtimes.check">Procurar builds novas</button>
-          <span class="status" id="runtimes-info" data-i18n="runtimes.intro">Toda noite o CI deste projeto compila o port mais avançado com código público de cada família (VIctory e XCL), segundo o PortWatch VI, e o verifica no VirusTotal.</span>
+          <span class="status" id="runtimes-info" data-i18n="runtimes.intro">A cada 3 horas o vilauncher-builder compila cada port com código público e nota 59% ou mais no PortWatch VI (famílias VIctory e XCL) e o verifica no VirusTotal.</span>
         </div>
         <div class="actions" id="runtimes-best" hidden>
           <span id="runtimes-best-text"></span>
           <button id="runtimes-best-go" class="primary" data-i18n="runtimes.installUse">Instalar e usar</button>
         </div>
         <details id="runtimes-why" hidden>
-          <summary data-i18n="runtimes.why">Como o CI escolheu</summary>
+          <summary data-i18n="runtimes.why">Como as builds foram escolhidas</summary>
           <ul id="runtimes-candidates"></ul>
         </details>
         <table id="runtimes"><tbody></tbody></table>
@@ -369,7 +369,7 @@
         </div>
         <p class="status" data-i18n="notify.intro">Enquanto estiver aberto, o VILauncher confere a cada hora e avisa pelas notificações do sistema.</p>
         <label class="toggle"><input type="checkbox" id="notify-race" data-notify="race"><span><b data-i18n="notify.race">Ultrapassagens na corrida</b><small data-i18n="notify.raceHint">Quando um projeto passa outro entre os 5 primeiros do PortWatch VI.</small></span></label>
-        <label class="toggle"><input type="checkbox" id="notify-runtimes" data-notify="runtimes"><span><b data-i18n="notify.runtimes">Builds novas do VIctory e do XCL</b><small data-i18n="notify.runtimesHint">Quando o CI publica uma build que você ainda não instalou.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="notify-runtimes" data-notify="runtimes"><span><b data-i18n="notify.runtimes">Builds novas do VIctory e do XCL</b><small data-i18n="notify.runtimesHint">Quando sai uma build nova que você ainda não instalou.</small></span></label>
         <label class="toggle"><input type="checkbox" id="notify-app" data-notify="app"><span><b data-i18n="notify.app">Versões novas do VILauncher</b><small data-i18n="notify.appHint">Quando sai uma release nova do launcher.</small></span></label>
         <span class="status" id="notify-info"></span>
       </div>

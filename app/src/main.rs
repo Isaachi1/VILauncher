@@ -223,11 +223,18 @@ async fn proton_remove(running: State<'_, Running>, name: String, config: Config
     tauri::async_runtime::spawn_blocking(move || protons::remove(&name, &config)).await.map_err(err)?.map_err(err)
 }
 
-/// Downloads, checks and installs the newest build of `backend`. With a VirusTotal
+/// Downloads, checks and installs a build of `backend`: the archive `file` from the list of
+/// published builds, or the best one. With a VirusTotal
 /// key, its binaries are looked up first and a flagged build is not installed
 /// unless `force`. Progress arrives as `runtime-progress` events.
 #[tauri::command]
-async fn install_runtime(app: AppHandle, running: State<'_, Running>, backend: config::BackendKind, force: bool) -> Result<Installed, String> {
+async fn install_runtime(
+    app: AppHandle,
+    running: State<'_, Running>,
+    backend: config::BackendKind,
+    force: bool,
+    file: Option<String>,
+) -> Result<Installed, String> {
     if running.child.lock().unwrap().is_some() {
         return Err("stop the game before updating its runtime".into());
     }
@@ -243,7 +250,7 @@ async fn install_runtime(app: AppHandle, running: State<'_, Running>, backend: c
         let key = virustotal::key();
         let mut verdicts = Vec::new();
         let mut blocked = None;
-        let result = update::install(backend, &mut progress, &mut |dir| {
+        let result = update::install(backend, file.as_deref(), &mut progress, &mut |dir| {
             let Some(key) = &key else { return Ok(()) };
             verdicts = virustotal::check_dir(dir, key)?;
             match virustotal::blocking(&verdicts).filter(|_| !force) {

@@ -54,13 +54,15 @@ Usage:
   vilauncher config               print the configuration
   vilauncher desktop              add a menu entry that runs the game
   vilauncher status               where VIctory, XCL and the others stand (PortWatch VI)
-  vilauncher update [victory|xcl|best] [--force]
-                                  the installed and the newest builds (built by CI from the
-                                  most advanced public VIctory / XCL trees on PortWatch VI and
-                                  scanned on VirusTotal); with a backend, install its newest
-                                  build and use it; `best` is the one ranked higher. A build
-                                  VirusTotal flags is never installed; with a local key the
-                                  files are looked up again (--force skips only that)
+  vilauncher update [victory|xcl|best] [--build NAME] [--force]
+                                  the installed and the published builds (vilauncher-builder
+                                  builds, every 3 hours, each public VIctory / XCL tree scoring
+                                  59% or more on PortWatch VI, scanned on VirusTotal); with a
+                                  backend, install its best build (--build: a project, repository
+                                  or archive from the list) and use it; `best` is the backend
+                                  ranked higher. A build VirusTotal flags is never installed;
+                                  with a local key the files are looked up again (--force skips
+                                  only that)
   vilauncher rollback victory|xcl [ID]
                                   list the builds earlier updates replaced (the last 3 are
                                   kept); with an ID (or `last`), put that build back in place
@@ -153,7 +155,20 @@ fn virustotal_cmd(args: &[String]) -> ExitCode {
 
 fn update_cmd(args: &[String]) -> ExitCode {
     let force = args.iter().any(|a| a == "--force");
-    let args: Vec<String> = args.iter().filter(|a| *a != "--force").cloned().collect();
+    let mut build: Option<String> = None;
+    let mut rest = Vec::new();
+    let mut it = args.iter();
+    while let Some(a) = it.next() {
+        match a.as_str() {
+            "--force" => {}
+            "--build" => match it.next() {
+                Some(b) => build = Some(b.clone()),
+                None => return fail("--build needs a project, repository or archive name"),
+            },
+            _ => rest.push(a.clone()),
+        }
+    }
+    let args = rest;
     let kind = match args.first().map(String::as_str) {
         None => None,
         Some("victory") => Some(BackendKind::Victory),
@@ -176,6 +191,17 @@ fn update_cmd(args: &[String]) -> ExitCode {
                     let flag = if r.update { "  <- update available" } else { "" };
                     let installed = r.installed.as_deref().map_or("-", |c| &c[..c.len().min(12)]);
                     println!("{:<8} installed {installed:<13} newest {latest}{flag}", r.backend.name());
+                    for b in &r.choices {
+                        let a = &b.asset;
+                        let score = b.score.map_or(String::new(), |s| format!("{s:>5.1}%  "));
+                        let vt = a.virustotal.as_ref().map_or("not scanned", |s| s.verdict.as_str());
+                        println!(
+                            "           {score}{:<12} {:<28} {}  VirusTotal: {vt}",
+                            a.effort.as_deref().unwrap_or("-"),
+                            a.repo.as_deref().unwrap_or("?"),
+                            &a.commit[..a.commit.len().min(12)]
+                        );
+                    }
                 }
                 if let Some(best) = rt.recommended {
                     println!("most advanced on PortWatch VI: {} (`vilauncher update best`)", best.name());
@@ -209,7 +235,27 @@ fn update_cmd(args: &[String]) -> ExitCode {
             _ => Ok(()),
         }
     };
-    match update::install(kind, &mut progress, &mut check) {
+    // --build: a project (as PortWatch VI names it), a repository or an archive name.
+    let file = match &build {
+        None => None,
+        Some(want) => {
+            let m = match update::fetch_manifest() {
+                Ok(m) => m,
+                Err(e) => return fail(e),
+            };
+            let want_l = want.to_ascii_lowercase();
+            let found = m.builds_of(kind).into_iter().map(|b| b.asset).find(|a| {
+                a.file == *want
+                    || a.repo.as_deref().is_some_and(|r| r.eq_ignore_ascii_case(want))
+                    || a.effort.as_deref().is_some_and(|e| e.to_ascii_lowercase() == want_l)
+            });
+            match found {
+                Some(a) => Some(a.file),
+                None => return fail(format!("no {} build {want}; `vilauncher update` lists them", kind.name())),
+            }
+        }
+    };
+    match update::install(kind, file.as_deref(), &mut progress, &mut check) {
         Ok(exe) => {
             eprintln!();
             cfg.backend.kind = kind;
