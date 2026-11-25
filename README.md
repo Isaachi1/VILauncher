@@ -271,7 +271,24 @@ com **Rodar mesmo assim**.
 | **Compatibilidade** | `Ctrl+2` | o backend (VIctory ou XCL) e o executável dele; as builds do CI (**Procurar builds novas**, **Instalar e usar**, **Como o CI escolheu**) com o projeto, o commit e o selo do VirusTotal; o Proton ou o Wine; o vkd3d-proton, o DXC e o Opus; a chave do VirusTotal |
 | **Verificação** | `Ctrl+3` | as checagens da máquina e da configuração, e o comando exato que vai rodar |
 | **Log** | `Ctrl+4` | a saída do jogo ao vivo, também gravada em `~/.local/state/vilauncher/last-run.log` |
-| **Status** | `Ctrl+5` | o progresso geral e a corrida dos ports, segundo o PortWatch VI |
+| **Status** | `Ctrl+5` | o progresso geral e a corrida dos ports, segundo o PortWatch VI; as notificações |
+
+### Notificações
+
+Enquanto a janela estiver aberta, o VILauncher confere a cada hora (e meio minuto depois de abrir) se
+algo mudou e avisa pelas notificações do sistema, no idioma da janela:
+
+- **Ultrapassagens na corrida**: um projeto passou outro entre os 5 primeiros do PortWatch VI (só os
+  projetos acompanhados e no ar). Se ele passou a liderar, o aviso diz isso.
+- **Builds novas do VIctory e do XCL**: o CI publicou uma build que você ainda não instalou. Uma build
+  que o VirusTotal marcou nunca é anunciada.
+- **Versões novas do VILauncher**: saiu uma release nova do launcher (uma vez por versão).
+
+Cada tipo se desliga separadamente no fim da aba **Status**, e o botão **Enviar um teste** mostra se o
+sistema está deixando o VILauncher notificar. Na primeira vez o launcher só anota como as coisas
+estão, sem avisar nada; o que ele viu por último fica em `~/.local/state/vilauncher/notifications.json`.
+Um tipo desligado continua sendo anotado, então religá-lo não traz avisos antigos. Sem internet,
+a cópia salva do PortWatch VI não conta como novidade.
 
 O tema segue o do sistema até você escolher claro ou escuro no botão do topo. A escolha fica salva.
 
@@ -342,6 +359,11 @@ path = "/home/eu/.steam/root/compatibilitytools.d/GE-Proton10-1"
 
 [dirs]
 
+[notifications]               # avisos do sistema; todos ligados por padrão
+race = true                   # ultrapassagens na corrida do PortWatch VI
+runtimes = true               # builds novas do VIctory e do XCL
+app = true                    # versões novas do VILauncher
+
 [env]
 VICTORY_LOG = "info"          # qualquer variável extra para a execução
 ```
@@ -358,6 +380,7 @@ VICTORY_LOG = "info"          # qualquer variável extra para a execução
 | cache de shaders e dados convertidos | `~/.cache/vilauncher/<backend>` (`VICTORY_CACHE_DIR`) |
 | última cópia do PortWatch VI e avatares | `~/.cache/vilauncher/portwatch-tracker.json`, `~/.cache/vilauncher/avatars` |
 | saída da última execução | `~/.local/state/vilauncher/last-run.log` |
+| o que as notificações viram por último | `~/.local/state/vilauncher/notifications.json` |
 
 Como o VIctory, o launcher recusa pastas de dados, de cache ou do jogo que fiquem dentro da árvore
 do VIctory (`.victory-root`), para que nada derivado do jogo vá parar num repositório.
@@ -485,7 +508,7 @@ flatpak-builder --user --install --force-clean build-dir packaging/flatpak/io.gi
 
 | Pasta | O quê |
 |---|---|
-| `crates/core` | `vilauncher-core`: configuração, pasta do jogo, Proton/Wine, backends, verificações, execução, PortWatch VI (`status.rs`, `avatars.rs`), builds do CI e builds anteriores (`update.rs`), versões do Proton (`protons.rs`), VirusTotal (`virustotal.rs`), execução no sistema a partir do Flatpak (`host.rs`) |
+| `crates/core` | `vilauncher-core`: configuração, pasta do jogo, Proton/Wine, backends, verificações, execução, PortWatch VI (`status.rs`, `avatars.rs`), builds do CI e builds anteriores (`update.rs`), versões do Proton (`protons.rs`), VirusTotal (`virustotal.rs`), o que vira notificação (`notify.rs`), execução no sistema a partir do Flatpak (`host.rs`) |
 | `crates/cli` | `vilauncher`: a linha de comando |
 | `app` | `vilauncher-app`: a janela Tauri 2 |
 | `ui` | a interface da janela (HTML, CSS e JS sem build; a lógica fica toda no Rust) |

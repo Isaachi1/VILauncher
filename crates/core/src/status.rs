@@ -226,6 +226,8 @@ pub struct Effort {
     pub based_on: Vec<String>,
     /// Where its picture is (see [`crate::avatars`]); the window asks for them separately.
     pub avatar_url: Option<String>,
+    /// Taken offline: still listed, no longer in the race.
+    pub nuked: bool,
 }
 
 /// The headline: how close the leading effort is to the whole game.
@@ -307,10 +309,11 @@ pub fn parse(json: &str) -> Result<Report> {
             let based_on = based_on.iter().map(|id| names.get(id).cloned().unwrap_or_else(|| id.clone())).collect();
             let name = if e.name.is_empty() { e.id.clone() } else { e.name };
             let avatar_url = crate::avatars::url_for(e.avatar.as_deref(), repo.as_deref());
+            let nuked = !matches!(e.nuked, serde_json::Value::Null | serde_json::Value::Bool(false));
             (
                 rank,
                 e.stats.as_ref().map_or(0.0, |s| s.stars),
-                !matches!(e.nuked, serde_json::Value::Null | serde_json::Value::Bool(false)),
+                nuked,
                 Effort {
                     id: e.id,
                     name,
@@ -327,6 +330,7 @@ pub fn parse(json: &str) -> Result<Report> {
                     reached: reached.into(),
                     based_on,
                     avatar_url,
+                    nuked,
                 },
             )
         })
@@ -437,6 +441,8 @@ mod tests {
         assert_eq!(r.efforts[1].backend, Some(BackendKind::Xcl));
         assert_eq!(r.efforts[2].repo, None);
         assert_eq!(r.updated.as_deref(), Some("2026-11-24T21:00:00Z"));
+        assert!(r.efforts.iter().find(|e| e.id == "gone").unwrap().nuked);
+        assert!(!r.efforts[0].nuked);
     }
 
     #[test]

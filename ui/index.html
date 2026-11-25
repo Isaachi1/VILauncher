@@ -292,6 +292,21 @@
         são estimativas do site e muitas são relatadas pelos próprios projetos. O launcher só lê esses
         dados: não baixa nem roda nada dos projetos listados.
       </div>
+
+      <div class="notify">
+        <div class="notify-head">
+          <div>
+            <p class="kicker" data-i18n="notify.kicker">Avisos</p>
+            <h2 data-i18n="notify.title">Notificações</h2>
+          </div>
+          <button id="notify-test" class="ghost" data-i18n="notify.test">Enviar um teste</button>
+        </div>
+        <p class="status" data-i18n="notify.intro">Enquanto estiver aberto, o VILauncher confere a cada hora e avisa pelas notificações do sistema.</p>
+        <label class="toggle"><input type="checkbox" id="notify-race" data-notify="race"><span><b data-i18n="notify.race">Ultrapassagens na corrida</b><small data-i18n="notify.raceHint">Quando um projeto passa outro entre os 5 primeiros do PortWatch VI.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="notify-runtimes" data-notify="runtimes"><span><b data-i18n="notify.runtimes">Builds novas do VIctory e do XCL</b><small data-i18n="notify.runtimesHint">Quando o CI publica uma build que você ainda não instalou.</small></span></label>
+        <label class="toggle"><input type="checkbox" id="notify-app" data-notify="app"><span><b data-i18n="notify.app">Versões novas do VILauncher</b><small data-i18n="notify.appHint">Quando sai uma release nova do launcher.</small></span></label>
+        <span class="status" id="notify-info"></span>
+      </div>
     </section>
   </main>
 
