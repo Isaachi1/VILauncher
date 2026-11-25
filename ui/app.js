@@ -736,6 +736,76 @@ async function checkUpdate() {
   showUpdate(u.latest, { title: `VILauncher ${u.latest} disponível`, sub: `Você usa a ${u.current}. ${manualHint(u)}`, url: u.url });
 }
 
+// -- desktop notifications --------------------------------------------------------------------
+//
+// Every hour, and shortly after start, the core compares the race, the runtime builds and the
+// newest release with what it saw last (crates/core/src/notify.rs). Each event becomes a desktop
+// notification in the player's language. The switches live in config.toml ([notifications]).
+
+const NOTIFY_EVERY_MS = 60 * 60 * 1000;
+const NOTIFY_FIRST_MS = 30 * 1000;
+const notification = window.__TAURI__.notification;
+
+// ["A", "B", "C"] -> "A, B and C", in the player's language.
+function nameList(list) {
+  try {
+    return new Intl.ListFormat(I18N.locale(), { style: "long", type: "conjunction" }).format(list);
+  } catch {
+    return list.join(", ");
+  }
+}
+
+function describe(ev) {
+  if (ev.kind === "overtake") {
+    const vars = { name: ev.name, passed: nameList(ev.passed), score: pct(ev.score) };
+    return ev.leader
+      ? { title: t("notify.leaderTitle", vars), body: t("notify.leaderBody", vars) }
+      : { title: t("notify.overtakeTitle", vars), body: t("notify.overtakeBody", vars) };
+  }
+  if (ev.kind === "runtime") {
+    const vars = { name: BACKEND_NAME[ev.backend] || ev.backend, commit: ev.commit.slice(0, 7), repo: ev.repo || ev.effort || "?" };
+    return { title: t("notify.runtimeTitle", vars), body: t("notify.runtimeBody", vars) };
+  }
+  if (ev.kind === "app") return { title: t("notify.appTitle", { version: ev.version }), body: t("notify.appBody", { current: ev.current }) };
+  return null;
+}
+
+async function notifyAllowed() {
+  if (!notification) return false;
+  if (await notification.isPermissionGranted()) return true;
+  return (await notification.requestPermission()) === "granted";
+}
+
+async function pollNotifications() {
+  let events;
+  try {
+    events = await invoke("notifications_poll");
+  } catch (e) {
+    console.warn("notifications:", e);
+    return;
+  }
+  if (!events.length || !(await notifyAllowed().catch(() => false))) return;
+  for (const ev of events) {
+    const n = describe(ev);
+    if (n) notification.sendNotification(n);
+  }
+}
+
+function showNotifySettings(s = {}) {
+  for (const box of $$("[data-notify]")) box.checked = s[box.dataset.notify] !== false;
+}
+
+async function saveNotifySettings() {
+  const settings = Object.fromEntries($$("[data-notify]").map((b) => [b.dataset.notify, b.checked]));
+  try {
+    config.notifications = await invoke("notifications_set", { settings });
+    say("#notify-info", "notify.saved");
+  } catch (e) {
+    plain("#notify-info", String(e));
+    showNotifySettings(config.notifications);
+  }
+}
+
 async function init() {
   I18N.fillPicker($("#lang"));
   $("#lang").addEventListener("change", (ev) => I18N.set(ev.target.value));
@@ -833,6 +903,15 @@ async function init() {
   $("#runtimes-check").addEventListener("click", () =>
     guarded($("#runtimes-check"), async () => showRuntimes(await invoke("runtime_status"))),
   );
+  showNotifySettings(config.notifications);
+  for (const box of $$("[data-notify]")) box.addEventListener("change", saveNotifySettings);
+  $("#notify-test").addEventListener("click", () =>
+    guarded($("#notify-test"), async () => {
+      if (!(await notifyAllowed())) return say("#notify-info", "notify.denied");
+      notification.sendNotification({ title: t("notify.testTitle"), body: t("notify.testBody") });
+      say("#notify-info", "notify.testSent");
+    }),
+  );
   $("#status-refresh").addEventListener("click", () =>
     guarded($("#status-refresh"), async () => {
       say("#status-info", "status.loading");
@@ -879,6 +958,8 @@ async function init() {
   window.__TAURI__.app.getVersion().then((v) => ($("#app-version").textContent = `VILauncher ${v} ·`)).catch(() => {});
   checkUpdate();
   setInterval(checkUpdate, UPDATE_EVERY_MS);
+  setTimeout(pollNotifications, NOTIFY_FIRST_MS);
+  setInterval(pollNotifications, NOTIFY_EVERY_MS);
 
   await listen("game-log", (ev) => appendLog(ev.payload.line, ev.payload.stream));
   await listen("game-exit", (ev) => {
