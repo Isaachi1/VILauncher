@@ -256,6 +256,23 @@ starts them with `flatpak-spawn --host`. So:
   sandbox;
 - the menu shortcuts it creates call `flatpak run`.
 
+### macOS (Apple Silicon, experimental)
+
+Every release also carries `VILauncher_<version>_aarch64.dmg` (the app) and
+`vilauncher-macos-arm64.tar.gz` (the CLI). On a Mac, GTA VI runs under Wine with Apple's D3DMetal,
+through Rosetta 2, with [VIctory for macOS](https://github.com/romainhedouin/VIctory-macOS) builds:
+
+- **Wine:** install CrossOver (26 or newer) or Apple's Game Porting Toolkit; VILauncher looks for both
+  in their usual places (`/Applications/...`), or point it at the `wine` binary yourself. D3DMetal must
+  be 4.0 or newer. Proton does not exist on macOS.
+- **D3D12:** VILauncher uses Wine's own D3D12 (`WINEDLLOVERRIDES=d3d12,d3d12core,dxgi=b`), which
+  D3DMetal serves; there is no vkd3d-proton.
+- **Builds:** the **Backend** list shows only builds made for macOS; on Linux they do not appear.
+- **Check:** the Linux checks (kernel, Vulkan, GPU, MangoHud, GameMode) do not run on a Mac.
+- **First launch:** the app is not signed or notarized with an Apple Developer ID. Open it with
+  right-click › **Open**, or run `xattr -dr com.apple.quarantine /Applications/VILauncher.app`.
+- Self-update does not cover the Mac yet: download the new release by hand.
+
 ## First run, step by step
 
 1. **Install Proton.** The easiest way is from the window: **Compatibility › Proton versions › Find
@@ -423,7 +440,8 @@ GE-Proton releases) and `VILAUNCHER_VT_API` (another VirusTotal API).
 
 ## Requirements
 
-- x86-64 Linux and a CPU with AVX2.
+- x86-64 Linux and a CPU with AVX2 (or, experimentally, an Apple Silicon Mac: see
+  [Install](#install)).
 - A GPU whose Vulkan driver has `VK_EXT_mesh_shader` (a recent Mesa RADV, or NVIDIA). Both ports need
   shader model 6.6 and mesh shaders, which only vkd3d-proton offers; Wine's own `d3d12` does not.
 - **Proton** (GE-Proton, which the launcher downloads by itself, or Steam's Proton Experimental)
@@ -460,6 +478,7 @@ XCL come from [vilauncher-builder](https://github.com/SixLauncher/vilauncher-bui
 | `launcher` | builds VILauncher on Linux: the CLI, the window, `.deb`, `.rpm` and AppImage |
 | `flatpak` | builds `vilauncher.flatpak` (`packaging/flatpak`) |
 | `bundle` | packs the CLI and the window into a `.tar.gz` |
+| `macos` | builds VILauncher for macOS on Apple Silicon (`macos-15`): `VILauncher.app` in a `.dmg`, and the CLI |
 | `release` | on every merge into `main`: publishes a release with every package |
 
 **Launcher releases.** Every merge into `main` publishes a release without a tag having to be made by
@@ -469,7 +488,8 @@ workspace version in `Cargo.toml`. A `v*` tag pushed by hand also publishes, wit
 On a pull request, the `Release` job only shows what it would publish.
 
 The release holds the `.deb`, the `.rpm`, the AppImage, `vilauncher.flatpak` and
-`vilauncher-linux-x64.tar.gz` (`vilauncher`, `vilauncher-app` and a `BUILD.txt` with the commit), plus
+`vilauncher-linux-x64.tar.gz` (`vilauncher`, `vilauncher-app` and a `BUILD.txt` with the commit), the
+macOS `.dmg` and `vilauncher-macos-arm64.tar.gz`, plus
 `latest.json` for self-update.
 
 **VIctory and XCL builds.** The launcher downloads them from vilauncher-builder's `runtimes` release

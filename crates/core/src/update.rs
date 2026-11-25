@@ -34,7 +34,7 @@ use sha2::{Digest, Sha256};
 
 use crate::backends::{MACHINE_X86_64, pe_machine};
 use crate::config::BackendKind;
-use crate::{Error, Result, net, paths};
+use crate::{Error, Result, net, paths, runners};
 
 pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/vilauncher-builder/releases/download/runtimes/runtimes.json";
 
@@ -73,6 +73,10 @@ pub struct Build {
     /// The effort's score on PortWatch VI when it was built (0-100).
     #[serde(default)]
     pub score: Option<f64>,
+    /// The one host a build is made for (`macos`: VIctory for macOS, under Wine with D3DMetal);
+    /// none for the Windows builds that run under Proton or Wine on Linux.
+    #[serde(default)]
+    pub platform: Option<String>,
     #[serde(flatten)]
     pub asset: Asset,
 }
@@ -142,21 +146,34 @@ impl Manifest {
         }
     }
 
-    /// The builds of `kind`, best first. A manifest without `builds` (the old workflow's)
-    /// offers just its `victory` / `xcl` entry.
+    /// The builds of `kind` for this host, best first. A manifest without `builds` (the old
+    /// workflow's) offers just its `victory` / `xcl` entry.
     pub fn builds_of(&self, kind: BackendKind) -> Vec<Build> {
-        let list: Vec<Build> = self.builds.iter().filter(|b| b.family == kind).cloned().collect();
-        if !list.is_empty() {
-            return list;
-        }
-        self.asset(kind).map(|a| Build { family: kind, score: None, asset: a.clone() }).into_iter().collect()
+        self.builds_for(kind, runners::MACOS)
     }
 
-    /// The build of `kind` in the archive `file`, or the best one when `file` is `None`.
+    /// The builds of `kind` for macOS (`macos`) or for Linux (the others), best first.
+    pub fn builds_for(&self, kind: BackendKind, macos: bool) -> Vec<Build> {
+        let fits = |b: &&Build| match b.platform.as_deref() {
+            Some("macos") => macos,
+            Some(_) => false,
+            None => !macos,
+        };
+        let list: Vec<Build> = self.builds.iter().filter(|b| b.family == kind).filter(fits).cloned().collect();
+        if !list.is_empty() || macos {
+            return list;
+        }
+        self.asset(kind).map(|a| Build { family: kind, score: None, platform: None, asset: a.clone() }).into_iter().collect()
+    }
+
+    /// The build of `kind` in the archive `file`, or the best one for this host when `file` is
+    /// `None`.
     pub fn pick(&self, kind: BackendKind, file: Option<&str>) -> Option<Asset> {
+        let list = self.builds_of(kind);
         match file {
-            None => self.asset(kind).cloned().or_else(|| self.builds_of(kind).into_iter().next().map(|b| b.asset)),
-            Some(f) => self.builds_of(kind).into_iter().map(|b| b.asset).find(|a| a.file == f),
+            None if runners::MACOS => list.into_iter().next().map(|b| b.asset),
+            None => self.asset(kind).cloned().or_else(|| list.into_iter().next().map(|b| b.asset)),
+            Some(f) => list.into_iter().map(|b| b.asset).find(|a| a.file == f),
         }
     }
 }
@@ -698,6 +715,12 @@ mod tests {
         let v = m.builds_of(BackendKind::Victory);
         assert_eq!(v.iter().map(|b| (b.asset.effort.as_deref(), b.score)).collect::<Vec<_>>(), [(Some("ZETTROX"), Some(64.2)), (Some("Uilian"), Some(59.6))]);
         assert!(m.builds_of(BackendKind::Xcl).is_empty());
+        // A build for macOS only shows on a Mac, and a Mac sees only those.
+        let mut mac = m.clone();
+        mac.builds[1].platform = Some("macos".into());
+        assert_eq!(mac.builds_for(BackendKind::Victory, false).len(), 1);
+        assert_eq!(mac.builds_for(BackendKind::Victory, true)[0].asset.commit, "bbb");
+        assert!(m.builds_for(BackendKind::Victory, true).is_empty(), "no macOS build: nothing on a Mac");
         assert_eq!(m.pick(BackendKind::Victory, None).unwrap().commit, "aaa");
         assert_eq!(m.pick(BackendKind::Victory, Some("victory-uiliannn-vitoriabr-bbb.tar.gz")).unwrap().commit, "bbb");
         assert_eq!(m.pick(BackendKind::Xcl, Some("victory-uiliannn-vitoriabr-bbb.tar.gz")), None, "a build of the other family");
