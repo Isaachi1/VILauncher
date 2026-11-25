@@ -187,6 +187,25 @@ pub struct DirsSection {
     pub cache: Option<PathBuf>,
 }
 
+/// Which desktop notifications the window sends (see [`crate::notify`]). All are on until
+/// the player turns one off.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct NotificationsSection {
+    /// An effort passes another in PortWatch VI's race.
+    pub race: bool,
+    /// A new build of VIctory or XCL is published.
+    pub runtimes: bool,
+    /// A new version of VILauncher is released.
+    pub app: bool,
+}
+
+impl Default for NotificationsSection {
+    fn default() -> Self {
+        NotificationsSection { race: true, runtimes: true, app: true }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
@@ -196,6 +215,7 @@ pub struct Config {
     pub dirs: DirsSection,
     pub gpu: GpuSection,
     pub performance: PerformanceSection,
+    pub notifications: NotificationsSection,
     /// Extra environment variables for the run (VICTORY_LOG, DXVK_HUD, ...).
     pub env: BTreeMap<String, String>,
 }
@@ -312,6 +332,7 @@ mod tests {
         cfg.env.insert("VICTORY_LOG".into(), "info".into());
         cfg.gpu = GpuSection { device: "0000:01:00.0".into(), profile: GpuProfile::Nvidia };
         cfg.performance = PerformanceSection { mangohud: true, mangohud_config: None, fps_limit: Some(60), gamemode: true };
+        cfg.notifications.race = false;
         let text = cfg.to_toml().unwrap();
         assert_eq!(Config::from_toml(&text).unwrap(), cfg);
         assert!(text.contains("console = \"series-s\""), "{text}");
@@ -335,6 +356,14 @@ mod tests {
         assert_eq!((cfg.backend.kind, cfg.runner.kind), (BackendKind::Victory, RunnerKind::Proton));
         assert_eq!(cfg.data_dir(), h.home().join(".local/share/vilauncher/victory/data"));
         assert_eq!(cfg.prefix(), h.home().join(".local/share/vilauncher/compatdata"));
+        assert_eq!(cfg.notifications, NotificationsSection { race: true, runtimes: true, app: true });
+    }
+
+    #[test]
+    fn notifications_default_on_and_keep_the_others() {
+        let cfg = Config::from_toml("[notifications]\nruntimes = false\n").unwrap();
+        assert_eq!(cfg.notifications, NotificationsSection { race: true, runtimes: false, app: true });
+        assert!(Config::from_toml("[notifications]\nnews = true\n").is_err());
     }
 
     #[test]

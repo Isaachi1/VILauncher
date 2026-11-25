@@ -21,7 +21,7 @@ use vilauncher_core::config::{self, Config};
 use vilauncher_core::doctor::{self, Check};
 use vilauncher_core::gamedir::{self, GameInfo};
 use vilauncher_core::launch;
-use vilauncher_core::{gpu, perf};
+use vilauncher_core::{gpu, notify, perf};
 use vilauncher_core::paths;
 use vilauncher_core::protons::{self, Release};
 use vilauncher_core::runners::{self, ProtonInstall, Runner};
@@ -277,6 +277,31 @@ async fn virustotal_upload(config: Config, file: String) -> Result<String, Strin
     .map_err(err)?
 }
 
+/// Only one look at a time, so two looks never announce the same news twice.
+#[derive(Default)]
+struct Notifier(tauri::async_runtime::Mutex<()>);
+
+/// What changed since the last look (an effort passed another in the race, a new runtime
+/// build, a new VILauncher), filtered by the switches in `[notifications]`. The window
+/// words each event in the player's language and shows it as a desktop notification.
+#[tauri::command]
+async fn notifications_poll(app: AppHandle, notifier: State<'_, Notifier>) -> Result<Vec<notify::Event>, String> {
+    let _one = notifier.0.lock().await;
+    let current = app.package_info().version.to_string();
+    let settings = config::load().map_err(err)?.notifications;
+    tauri::async_runtime::spawn_blocking(move || notify::poll(&settings, &current)).await.map_err(err)
+}
+
+/// Turns each kind of notification on or off, in the saved configuration (the rest of it
+/// is left as saved).
+#[tauri::command]
+fn notifications_set(settings: config::NotificationsSection) -> Result<config::NotificationsSection, String> {
+    let mut cfg = config::load().map_err(err)?;
+    cfg.notifications = settings;
+    config::save(&cfg).map_err(err)?;
+    Ok(cfg.notifications)
+}
+
 /// The package Tauri's bundler stamped into this binary, if any.
 fn packaged() -> Option<&'static str> {
     use tauri::utils::config::BundleType;
@@ -483,7 +508,9 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .manage(Running::default())
+        .manage(Notifier::default())
         .invoke_handler(tauri::generate_handler![
             get_state,
             save_config,
@@ -508,6 +535,8 @@ fn main() {
             app_update_check,
             app_update_install,
             app_restart,
+            notifications_poll,
+            notifications_set,
             create_desktop_entry,
             launch_game,
             stop_game

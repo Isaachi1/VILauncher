@@ -23,6 +23,7 @@ pub mod gpu;
 pub mod host;
 pub mod launch;
 pub mod net;
+pub mod notify;
 pub mod paths;
 pub mod perf;
 pub mod protons;
