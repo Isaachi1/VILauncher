@@ -14,6 +14,7 @@
 //! It only runs an unpacked folder of a game the user owns. Packaged titles
 //! (XVC / MSIXVC) are refused; nothing is unpacked, decrypted or patched.
 
+pub mod avatars;
 pub mod backends;
 pub mod config;
 pub mod doctor;

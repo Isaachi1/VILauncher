@@ -290,7 +290,7 @@ function drawMarkers(top, leaderId) {
     mk.title = `${it.m.name} · ${pct(it.m.score)}%`;
     mk.append(el("span", "mk-name", `${it.m.name} · ${pct(it.m.score)}%`));
     const face = el("span", "mk-face");
-    face.append(el("span", "mk-initials", it.m.name.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2).toUpperCase() || "?"));
+    face.append(avatarFace(it.m.id, it.m.name, "mk-initials"));
     if (it.m.private) {
       const badge = el("span", "mk-lock");
       badge.append(lockIcon());
@@ -350,9 +350,45 @@ window.addEventListener("resize", () => {
 
 let lastReport = null;
 
+// Pictures by effort id, as data: URLs from the Rust side (it downloads and caches them).
+const avatars = new Map();
+
+function initials(name) {
+  return name.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 2).toUpperCase() || "?";
+}
+
+// The effort's picture when we have it, its initials until then (or for good).
+function avatarFace(id, name, cls) {
+  const face = el("span", cls);
+  face.dataset.avatar = id;
+  face.dataset.initials = initials(name);
+  paintFace(face);
+  return face;
+}
+
+function paintFace(face) {
+  const src = avatars.get(face.dataset.avatar);
+  if (src) {
+    const img = el("img");
+    img.alt = "";
+    img.src = src;
+    face.replaceChildren(img);
+    face.classList.add("has-img");
+  } else face.textContent = face.dataset.initials;
+}
+
+async function loadAvatars(report) {
+  const wanted = report.efforts.filter((e) => e.avatar_url && !avatars.has(e.id)).map((e) => ({ id: e.id, url: e.avatar_url }));
+  if (!wanted.length) return;
+  const got = await invoke("portwatch_avatars", { wanted });
+  for (const [id, src] of Object.entries(got)) avatars.set(id, src);
+  for (const face of $$("[data-avatar]")) paintFace(face);
+}
+
 function showEfforts(report) {
   lastReport = report;
   showOverall(report);
+  loadAvatars(report).catch(() => {});
   const box = $("#efforts");
   box.replaceChildren();
   const when = report.updated ? new Date(report.updated).toLocaleString("pt-BR") : "?";
@@ -367,10 +403,14 @@ function showEfforts(report) {
     const body = el("div", "effort-body");
     const head = el("header");
     const title = el("div", "effort-title");
+    const who = el("div", "who");
+    const names = el("div");
     const h3 = el("h3", null, e.name);
     if (e.private) h3.append(lockIcon());
-    title.append(h3);
-    title.append(el("p", "repo", e.repo ? `github.com/${e.repo}` : e.based_on.length ? `Versão privada baseada em ${e.based_on.join(", ")}` : "Código fechado: ninguém fora do projeto consegue rodar"));
+    names.append(h3);
+    names.append(el("p", "repo", e.repo ? `github.com/${e.repo}` : e.based_on.length ? `Versão privada baseada em ${e.based_on.join(", ")}` : "Código fechado: ninguém fora do projeto consegue rodar"));
+    who.append(avatarFace(e.id, e.name, "e-avatar"), names);
+    title.append(who);
     const chips = el("div", "chips");
     if (e.backend) chips.append(el("span", "pill violet", `backend ${BACKEND_NAME[e.backend]}`));
     if (e.partial) chips.append(el("span", "pill warn", `${e.stage} em parte`));

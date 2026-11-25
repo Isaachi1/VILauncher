@@ -456,6 +456,21 @@ pre#log .stderr { color: #ff8a9e; }
 .effort header { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
 .effort h3 { font-size: 20px; font-weight: 700; }
 .effort .repo { margin: 1px 0 0; color: var(--muted); font-size: 12.5px; }
+.who { display: flex; align-items: center; gap: 12px; }
+.e-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--soft-2);
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.effort.ours .e-avatar { box-shadow: 0 0 0 2px var(--vi-line); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .e-score { text-align: right; flex: none; }
@@ -537,6 +552,8 @@ pre#log .stderr { color: #ff8a9e; }
 .marker.is-private .mk-face { animation: mk-float 3.4s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -1.1s); }
 .marker.is-private .mk-initials { color: #fff; background: linear-gradient(135deg, #7a5cff, #ff2e7e); box-shadow: 0 0 0 2px #7a5cff, 0 4px 14px rgba(122, 92, 255, 0.4); }
 .marker.is-leader .mk-initials { box-shadow: 0 0 0 2px var(--pink), 0 4px 14px rgba(255, 46, 126, 0.35); }
+.mk-initials.has-img, .e-avatar.has-img { overflow: hidden; background: var(--soft-2); }
+.mk-initials img, .e-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .mk-lock { position: absolute; right: -4px; bottom: -2px; display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); }
 .mk-lock .lock { width: 9px; height: 9px; fill: var(--violet); }
 @keyframes mk-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
