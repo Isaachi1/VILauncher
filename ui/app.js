@@ -1131,7 +1131,7 @@ function showUpdate(version, { title, sub = "", url = "", go = false, restart = 
 }
 
 function manualHint(u) {
-  if (u.install === "flatpak") return "Baixe sixlauncher.flatpak da release e rode: flatpak install --user sixlauncher.flatpak";
+  if (u.install === "flatpak") return "Baixe sixlauncher.flatpak da release e rode: flatpak install --reinstall sixlauncher.flatpak (com --user se ele foi instalado com --user).";
   if (u.install === "deb" || u.install === "rpm") return `Baixe o .${u.install} da release e instale por cima do atual.`;
   if (u.install === "appimage") return "Baixe o novo AppImage da release e troque o arquivo atual por ele.";
   if (u.install === "nsis") return "Baixe o instalador (SixLauncher_…_x64-setup.exe) da release e rode-o: ele atualiza a cópia instalada.";
@@ -1152,7 +1152,7 @@ async function installUpdate(u) {
     installedVersion = version;
     showUpdate(version, { title: `SixLauncher ${version} instalado`, sub: "A nova versão abre na próxima vez que o SixLauncher iniciar.", restart: true });
   } catch (e) {
-    showUpdate(u.latest, { title: `Não foi possível atualizar para o ${u.latest}`, sub: `${e}. ${manualHint(u)}`, url: u.url });
+    showUpdate(u.latest, { title: `Não foi possível atualizar para o ${u.latest}`, sub: u.install === "flatpak" ? `${e}` : `${e}. ${manualHint(u)}`, url: u.url }); // the Flatpak's error names the command for its installation
   } finally {
     updateBusy = false;
     $("#update-go").disabled = false;
