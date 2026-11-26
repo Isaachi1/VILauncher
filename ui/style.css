@@ -370,6 +370,43 @@ input:focus, select:focus, textarea:focus {
 .status { color: var(--muted); }
 .hint { margin: -4px 0 14px; font-size: 13px; }
 
+/* -- Jogo: the folder, then its executable --------------------------------------------------- */
+
+.steps { list-style: none; margin: 0 0 18px; padding: 0; display: grid; gap: 4px; }
+.step { position: relative; display: grid; grid-template-columns: 32px 1fr; gap: 14px; padding-bottom: 6px; }
+/* The line joining step 1 to step 2. */
+.step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 15px;
+  top: 36px;
+  bottom: -2px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+.step.done:not(:last-child)::before { background: var(--grad); }
+.step-num {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--vi-fg);
+  background: var(--vi-bg);
+  border: 1px solid var(--vi-line);
+}
+.step.done .step-num { color: #fff; background: var(--grad); border-color: transparent; }
+.step-body { min-width: 0; padding-top: 4px; }
+.step-body .field { margin-bottom: 6px; }
+.step-info { display: block; min-height: 1.2em; margin-bottom: 10px; font-size: 12.5px; overflow-wrap: anywhere; }
+.step-info.missing { color: var(--warn-fg); }
+.step.locked .step-num { color: var(--faint); background: var(--soft); border-color: var(--line-2); }
+.step.locked .field > span { color: var(--faint); }
+
 /* -- on/off options (MangoHud, GameMode) ---------------------------------------------------- */
 
 .toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-bottom: 16px; }

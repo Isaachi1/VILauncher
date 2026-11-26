@@ -136,6 +136,13 @@ fn game_info(dir: String) -> Result<GameInfo, String> {
     gamedir::inspect(&paths::expand(&PathBuf::from(dir))).map_err(err)
 }
 
+/// The .exe files in the game folder, for the Executável step (config's own first).
+#[tauri::command]
+async fn game_executables(dir: String) -> Result<Vec<String>, String> {
+    let dir = paths::expand(&PathBuf::from(dir));
+    tauri::async_runtime::spawn_blocking(move || gamedir::find_executables(&dir)).await.map_err(err)?.map_err(err)
+}
+
 /// The game's executable against the known SHA-256 (integrity.rs); `None` when the
 /// automatic check is off or there is no game folder yet.
 #[tauri::command]
@@ -619,6 +626,7 @@ fn main() {
             report_default_path,
             export_report,
             game_info,
+            game_executables,
             verify_game,
             verify_file,
             setup_prefix,

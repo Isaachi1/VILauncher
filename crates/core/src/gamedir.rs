@@ -112,6 +112,45 @@ pub fn inspect(folder: &Path) -> Result<GameInfo> {
     Ok(info)
 }
 
+/// How deep and how many: enough for a title's own tree, quick on a huge folder.
+const SCAN_DEPTH: usize = 4;
+const SCAN_LIMIT: usize = 200;
+
+/// Every .exe in the game folder, for picking the one to run: relative paths with `/`,
+/// those `MicrosoftGame.config` names first (in its order), then the rest, shallowest first
+/// and by name. Symbolic links are not followed; the walk stops at [`SCAN_DEPTH`] levels and
+/// [`SCAN_LIMIT`] files.
+pub fn find_executables(folder: &Path) -> Result<Vec<String>> {
+    let info = inspect(folder)?;
+    let mut found = Vec::new();
+    let mut dirs = vec![(folder.to_path_buf(), 0usize)];
+    while let Some((dir, depth)) = dirs.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let Ok(kind) = entry.file_type() else { continue };
+            let path = entry.path();
+            if kind.is_dir() && depth + 1 < SCAN_DEPTH {
+                dirs.push((path, depth + 1));
+            } else if kind.is_file()
+                && has_extension(&path, &["exe"])
+                && found.len() < SCAN_LIMIT
+                && let Ok(rel) = path.strip_prefix(folder)
+            {
+                found.push(rel.to_string_lossy().replace('\\', "/"));
+            }
+        }
+    }
+    let named: Vec<String> = info.executables.iter().map(|e| e.replace('\\', "/")).collect();
+    let rank = |e: &String| named.iter().position(|n| n.eq_ignore_ascii_case(e)).unwrap_or(usize::MAX);
+    found.sort_by(|a, b| {
+        rank(a)
+            .cmp(&rank(b))
+            .then(a.matches('/').count().cmp(&b.matches('/').count()))
+            .then(a.to_lowercase().cmp(&b.to_lowercase()))
+    });
+    Ok(found)
+}
+
 /// The title's executable: `override_exe` (relative to the folder or absolute),
 /// else the first `<Executable>` of the config that exists, else the only .exe.
 pub fn resolve_exe(info: &GameInfo, override_exe: Option<&str>) -> Result<PathBuf> {
@@ -149,6 +188,18 @@ pub fn resolve_exe(info: &GameInfo, override_exe: Option<&str>) -> Result<PathBu
 mod tests {
     use super::*;
     use crate::testutil;
+
+    #[test]
+    fn lists_the_executables_config_first() {
+        let t = tempfile::tempdir().unwrap();
+        let game = testutil::fake_game(t.path());
+        testutil::fake_pe(&game.join("Launcher.exe"), 0x8664);
+        testutil::fake_pe(&game.join("tools/a/crash.exe"), 0x8664);
+        testutil::fake_pe(&game.join("a/b/c/d/too-deep.exe"), 0x8664);
+        fs::write(game.join("readme.txt"), "x").unwrap();
+        let exes = find_executables(&game).unwrap();
+        assert_eq!(exes, ["bin/title.exe", "Launcher.exe", "tools/a/crash.exe"]);
+    }
 
     #[test]
     fn config_names_the_executable() {
