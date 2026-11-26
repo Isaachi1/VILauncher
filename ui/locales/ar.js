@@ -61,6 +61,9 @@ I18N.add("ar", {
   "compat.dxcHint": "(مجلد bin/x64 من إصدار DirectXShaderCompiler)",
   "compat.opus": "مجلد يحتوي على opus.dll",
   "compat.opusHint": "(بدونه يبقى صوت Opus صامتًا في Wine)",
+  "compat.tabBuilds": "الإصدارات",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "متقدم",
 
   "runtimes.check": "البحث عن إصدارات جديدة",
   "runtimes.intro": "إصدارات VIctory وXCL لكل مشروع تقييمه 59% أو أكثر على PortWatch VI، مفحوصة مسبقًا على VirusTotal.",

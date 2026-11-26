@@ -632,46 +632,115 @@ function inUseChoice(r) {
   return (r.choices || []).find((c) => (repo && c.repo === repo) || c.commit === r.installed);
 }
 
+// The value ("backend|file", or CUSTOM_BUILD) of the card picked in the Backend grid.
+let buildValue = CUSTOM_BUILD;
+
+function buildCard(value, name, lines, pills, title) {
+  const card = el("button", "build-card");
+  card.type = "button";
+  card.setAttribute("role", "radio");
+  card.dataset.value = value;
+  if (title) card.title = title;
+  card.append(el("span", "build-card-name", name));
+  for (const line of lines.filter(Boolean)) card.append(el("span", "build-card-meta", line));
+  const row = el("span", "build-card-pills");
+  for (const p of pills.filter(Boolean)) row.append(el("span", `pill ${p.cls || ""}`, p.text));
+  if (row.childElementCount) card.append(row);
+  return card;
+}
+
+function markBuild(value) {
+  buildValue = value;
+  const cards = $$("#backend-build .build-card");
+  const current = cards.find((c) => c.dataset.value === value) || cards[cards.length - 1];
+  for (const c of cards) {
+    const on = c === current;
+    c.setAttribute("aria-checked", String(on));
+    c.tabIndex = on ? 0 : -1; // one tab stop for the group; the arrows move inside it
+  }
+}
+
 function showBuilds(rt) {
-  const sel = $("#backend-build");
+  const grid = $("#backend-build");
   const kind = $('[data-path="backend.kind"]').value;
   const exe = $('[data-path="backend.exe"]').value.trim();
-  sel.replaceChildren();
+  grid.replaceChildren();
   let selected = CUSTOM_BUILD;
   const all = [];
   for (const r of rt ? rt.backends : []) for (const c of r.choices || []) all.push({ r, c });
   all.sort((a, b) => (b.c.score ?? -1) - (a.c.score ?? -1));
   for (const { r, c } of all) {
     const mine = r.exe && inUseChoice(r) === c;
-    const tag = mine ? (r.installed === c.commit ? t("runtimes.installedPill") : t("compat.updatePill")) : "";
-    const parts = [c.effort || c.repo || short(c.commit), BACKEND_NAME[r.backend], pctOf(c.score), tag].filter(Boolean);
-    const opt = el("option", null, parts.join(" · "));
-    opt.value = `${r.backend}|${c.file}`;
-    opt.title = sourceLine(c);
-    sel.append(opt);
-    if (mine && r.backend === kind && r.exe === exe) selected = opt.value;
+    const tag = mine
+      ? r.installed === c.commit
+        ? { cls: "ok", text: t("runtimes.installedPill") }
+        : { cls: "gold", text: t("compat.updatePill") }
+      : null;
+    const scan = c.virustotal && c.virustotal.verdict;
+    const vt = scan ? { cls: SCAN_PILL[scan] || "warn", text: SCAN_KEYS.includes(scan) ? t(`scan.${scan}`) : scan } : null;
+    const value = `${r.backend}|${c.file}`;
+    grid.append(
+      buildCard(value, c.effort || c.repo || short(c.commit), [c.repo, short(c.commit)],
+        [{ cls: "violet", text: BACKEND_NAME[r.backend] }, c.score != null && { text: pctOf(c.score) }, tag, vt],
+        sourceLine(c)),
+    );
+    if (mine && r.backend === kind && r.exe === exe) selected = value;
   }
-  if (!all.length) {
-    const none = el("option", null, t(rt ? "compat.noBuilds" : "compat.loadingBuilds"));
-    none.value = "";
-    none.disabled = true;
-    sel.append(none);
-  }
-  const own = el("option", null, t("compat.customBuild", { name: BACKEND_NAME[kind] }));
-  own.value = CUSTOM_BUILD;
-  sel.append(own);
-  sel.value = selected;
+  if (!all.length) grid.append(el("div", "build-empty status", t(rt ? "compat.noBuilds" : "compat.loadingBuilds")));
+  grid.append(buildCard(CUSTOM_BUILD, t("compat.customBuild", { name: BACKEND_NAME[kind] }), [], [], ""));
+  markBuild(selected);
   showBuildDetail(rt);
 }
 
 function picked(rt) {
-  const [backend, file] = $("#backend-build").value.split("|");
+  const [backend, file] = buildValue.split("|");
   const r = rt && file ? rt.backends.find((b) => b.backend === backend) : null;
   const c = r && (r.choices || []).find((x) => x.file === file);
   return r && c ? { r, c } : null;
 }
 
-async function pickBuild(sel) {
+// Picking a card: mark it, then install or switch to it; the whole grid waits meanwhile.
+function chooseBuild(card) {
+  if (!card || card.dataset.value === buildValue) return;
+  markBuild(card.dataset.value);
+  card.focus();
+  const grid = {
+    set disabled(v) {
+      for (const c of $$("#backend-build .build-card")) c.disabled = v;
+    },
+  };
+  return guarded(grid, () =>
+    pickBuild().catch((e) => {
+      showBuilds(lastRuntimes); // back to the build actually in use
+      throw e;
+    }),
+  );
+}
+
+// Compatibilidade's own sub-tabs (Builds, VirusTotal, Avançado).
+function selectSubtab(name, focus = false) {
+  for (const b of $$(".subtabs [role=tab]")) {
+    const on = b.dataset.subtab === name;
+    b.setAttribute("aria-selected", String(on));
+    b.tabIndex = on ? 0 : -1;
+    if (on && focus) b.focus();
+  }
+  for (const p of $$(".subpanel")) p.hidden = p.id !== `compat-${name}`;
+}
+
+// Arrow keys inside a group with one tab stop (the sub-tabs, the build grid).
+function arrowNav(ev, items, current, go) {
+  const i = items.indexOf(current);
+  if (i < 0) return;
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[ev.key];
+  let j = step ? (i + step + items.length) % items.length : ev.key === "Home" ? 0 : ev.key === "End" ? items.length - 1 : -1;
+  if (j < 0) return;
+  if (document.documentElement.dir === "rtl" && (ev.key === "ArrowLeft" || ev.key === "ArrowRight")) j = (i - step + items.length) % items.length;
+  ev.preventDefault();
+  go(items[j]);
+}
+
+async function pickBuild() {
   const p = picked(lastRuntimes);
   if (!p) return showBuildDetail(lastRuntimes);
   const { r, c } = p;
@@ -1291,13 +1360,14 @@ async function init() {
   $("#runtimes-check").addEventListener("click", () =>
     guarded($("#runtimes-check"), async () => showRuntimes(await invoke("runtime_status"))),
   );
-  $("#backend-build").addEventListener("change", (ev) =>
-    guarded(ev.target, () =>
-      pickBuild(ev.target).catch((e) => {
-        showBuilds(lastRuntimes); // back to the build actually in use
-        throw e;
-      }),
-    ),
+  const grid = $("#backend-build");
+  grid.addEventListener("click", (ev) => chooseBuild(ev.target.closest(".build-card")));
+  grid.addEventListener("keydown", (ev) =>
+    arrowNav(ev, $$("#backend-build .build-card").filter((c) => !c.disabled), ev.target, chooseBuild),
+  );
+  for (const b of $$(".subtabs [role=tab]")) b.addEventListener("click", () => selectSubtab(b.dataset.subtab));
+  $(".subtabs").addEventListener("keydown", (ev) =>
+    arrowNav(ev, $$(".subtabs [role=tab]"), ev.target, (b) => selectSubtab(b.dataset.subtab, true)),
   );
   // The Backend list comes from the builder: load it once at start, without blocking.
   showBuilds(null);

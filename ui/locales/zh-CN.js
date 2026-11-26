@@ -61,6 +61,9 @@ I18N.add("zh-CN", {
   "compat.dxcHint": "（DirectXShaderCompiler 发行版的 bin/x64）",
   "compat.opus": "包含 opus.dll 的文件夹",
   "compat.opusHint": "（没有它，Wine 中的 Opus 音频将无声）",
+  "compat.tabBuilds": "构建",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "高级",
 
   "runtimes.check": "查找新版本",
   "runtimes.intro": "PortWatch VI 上评分 59% 及以上的各项目的 VIctory 和 XCL 构建，已在 VirusTotal 上检查。",
