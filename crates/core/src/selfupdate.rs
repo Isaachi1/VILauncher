@@ -217,9 +217,14 @@ pub fn flatpak_installation(info: &str) -> &'static str {
 }
 
 /// The `flatpak install` that puts `bundle` in place of the running copy, run on the host.
+///
+/// Not `--noninteractive`: besides the questions (`-y` answers those) it forbids polkit to ask,
+/// and installing a bundle system-wide always needs the administrator's password, so a
+/// `--system` install would be refused outright ("InstallBundle not allowed for user") instead
+/// of the desktop's password dialog opening.
 pub fn flatpak_install_argv(installation: &str, bundle: &Path) -> Vec<std::ffi::OsString> {
     let mut argv: Vec<std::ffi::OsString> =
-        ["flatpak", "install", installation, "--noninteractive", "-y", "--reinstall", "--bundle"].iter().map(Into::into).collect();
+        ["flatpak", "install", installation, "-y", "--reinstall", "--bundle"].iter().map(Into::into).collect();
     argv.push(bundle.into());
     argv
 }
@@ -275,12 +280,14 @@ pub fn install_flatpak(current: &str, pubkey: &str, progress: &mut dyn FnMut(u64
         .and_then(|data| verify_signature(&data, &entry.signature, pubkey, &version))
         .and_then(|()| {
             let info = fs::read_to_string("/.flatpak-info").unwrap_or_default();
-            let out = host::simple(&flatpak_install_argv(flatpak_installation(&info), &bundle)).output()?;
+            let installation = flatpak_installation(&info);
+            let out = host::simple(&flatpak_install_argv(installation, &bundle)).output()?;
             if out.status.success() {
                 Ok(())
             } else {
                 Err(Error::Config(format!(
-                    "flatpak install failed ({}): {}",
+                    "flatpak install failed ({}): {}. By hand: download sixlauncher.flatpak from the release and run \
+                     `flatpak install {installation} --reinstall sixlauncher.flatpak`",
                     out.status,
                     String::from_utf8_lossy(&out.stderr).trim()
                 )))
@@ -383,8 +390,11 @@ mod tests {
         let argv: Vec<String> = argv.iter().map(|a| a.to_string_lossy().into_owned()).collect();
         assert_eq!(
             argv,
-            ["flatpak", "install", "--user", "--noninteractive", "-y", "--reinstall", "--bundle", "/home/eu/.var/app/x/cache/sixlauncher/downloads/s.flatpak"]
+            ["flatpak", "install", "--user", "-y", "--reinstall", "--bundle", "/home/eu/.var/app/x/cache/sixlauncher/downloads/s.flatpak"]
         );
+        // polkit must be allowed to ask for the password of a system install.
+        let system = flatpak_install_argv("--system", Path::new("/tmp/s.flatpak"));
+        assert!(!system.iter().any(|a| a == "--noninteractive"));
     }
 
     #[test]
