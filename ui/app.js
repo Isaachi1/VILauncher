@@ -124,6 +124,69 @@ async function refreshTitle() {
   }
 }
 
+// -- the Jogo tab's two steps: the folder, then its executable -------------------------------
+
+let exeRun = 0;
+
+// Fills step 2 with the .exe files of the folder of step 1 (MicrosoftGame.config's own
+// first). "Automático" leaves game.exe empty, so the launcher keeps following the config;
+// a pick outside the list (Outro .exe…) is kept as an option too.
+async function refreshExes() {
+  const dir = $('[data-path="game.dir"]').value.trim();
+  const sel = $("#game-exe");
+  const current = sel.value || getPath(config, "game.exe") || "";
+  const run = ++exeRun;
+  const step = $("#step-exe");
+  let exes = [];
+  let info = null;
+  let error = null;
+  if (dir) {
+    try {
+      [info, exes] = await Promise.all([invoke("game_info", { dir }), invoke("game_executables", { dir })]);
+    } catch (e) {
+      error = String(e);
+    }
+  }
+  if (run !== exeRun) return; // the folder changed again meanwhile
+  const ready = Boolean(dir) && !error;
+  step.classList.toggle("locked", !ready);
+  sel.disabled = !ready;
+  $("#game-exe-browse").disabled = !ready;
+  $("#step-dir").classList.toggle("done", ready);
+
+  const dirInfo = $("#game-dir-info");
+  dirInfo.classList.toggle("missing", Boolean(error));
+  if (error) plain("#game-dir-info", error);
+  else if (info) plain("#game-dir-info", [info.display_name, info.identity, info.version].filter(Boolean).join(" · ") || "");
+  else plain("#game-dir-info", "");
+
+  const named = (info && info.executables) || [];
+  const fromConfig = (e) => named.some((n) => n.replace(/\\/g, "/").toLowerCase() === e.toLowerCase());
+  const auto = exes.find(fromConfig) || (named.length === 0 && exes.length === 1 ? exes[0] : null);
+  sel.replaceChildren(new Option(auto ? t("game.exeAuto", { exe: auto }) : t("game.exeAutoNone"), ""));
+  for (const e of exes) sel.append(new Option(fromConfig(e) ? `${e} · MicrosoftGame.config` : e, e));
+  if (current && !exes.includes(current)) sel.append(new Option(current, current));
+  sel.value = current;
+
+  if (!dir) say("#game-exe-info", "game.exeLocked");
+  else if (error) plain("#game-exe-info", "");
+  else if (exes.length) say("#game-exe-info", "game.exeFound", { n: exes.length });
+  else say("#game-exe-info", "game.exeNone");
+}
+
+// Outro .exe…: a file dialog that opens in the game folder; inside it, the path is kept
+// relative (as MicrosoftGame.config writes it), outside it, absolute.
+async function browseExe() {
+  const dir = $('[data-path="game.dir"]').value.trim().replace(/\/+$/, "");
+  const picked = await dialog.open({ multiple: false, defaultPath: dir || undefined, filters: [{ name: "EXE", extensions: ["exe", "EXE"] }] });
+  if (typeof picked !== "string") return;
+  const value = dir && picked.startsWith(`${dir}/`) ? picked.slice(dir.length + 1) : picked;
+  const sel = $("#game-exe");
+  if (![...sel.options].some((o) => o.value === value)) sel.append(new Option(value, value));
+  sel.value = value;
+  sel.dispatchEvent(new Event("change"));
+}
+
 // -- the game's files against the known SHA-256 (integrity.rs) -----------------------------
 
 const short12 = (h) => (h ? h.slice(0, 12) : "");
@@ -1276,8 +1339,16 @@ async function init() {
   for (const b of $$(".tabs button")) b.addEventListener("click", () => selectTab(b.dataset.tab));
   for (const el of $$('select[data-path], input[data-kind="bool"]')) el.addEventListener("change", refreshVisibility);
   loadHardware();
-  $('[data-path="game.dir"]').addEventListener("change", refreshTitle);
+  $('[data-path="game.dir"]').addEventListener("change", () => {
+    // Another folder: an executable picked for the old one would not be there.
+    $("#game-exe").value = "";
+    setPath(config, "game.exe", null);
+    refreshTitle();
+    refreshExes();
+  });
   $('[data-path="game.exe"]').addEventListener("change", verifyGame);
+  $("#game-exe-browse").addEventListener("click", browseExe);
+  refreshExes();
   $('[data-path="game.verify"]').addEventListener("change", verifyGame);
   $("#verify-zip").addEventListener("click", () => guarded($("#verify-zip"), verifyZip));
   $('[data-path="backend.exe"]').addEventListener("change", async (ev) => {
