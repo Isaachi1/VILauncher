@@ -393,7 +393,65 @@ input:focus, select:focus, textarea:focus {
 .toggle-text small.missing { color: var(--warn-fg); }
 .toggle-text small.ok { color: var(--ok-fg); }
 
-/* The build picked in Compatibilidade > Backend. */
+/* Compatibilidade's sub-tabs (Builds, VirusTotal, Avançado): a segmented control. */
+.subtabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  margin: 0 0 18px;
+  border-radius: 14px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+}
+.subtabs button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  box-shadow: none;
+}
+.subtabs button:hover { color: var(--ink); }
+.subtabs button[aria-selected="true"] { background: var(--vi-bg); color: var(--vi-fg); box-shadow: inset 0 0 0 1px var(--vi-line); }
+.subtabs button:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.subpanel > .actions:first-child { margin-top: 0; }
+
+/* Compatibilidade > Builds: one selectable card per published build, plus "your own executable". */
+.build-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.build-card {
+  white-space: normal;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  text-align: start;
+  font: inherit;
+  color: var(--ink-2);
+  background: var(--soft);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.build-card:hover:not(:disabled) { border-color: var(--vi-line); background: var(--soft-2); }
+.build-card[aria-checked="true"] { border-color: var(--violet); background: var(--vi-bg); box-shadow: 0 0 0 3px rgba(122, 92, 255, 0.15); }
+.build-card:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.build-card:disabled { cursor: progress; opacity: 0.6; }
+.build-card-name { font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.build-card-meta { font-size: 12px; color: var(--muted); font-family: var(--mono); overflow-wrap: anywhere; }
+.build-card-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.build-card-pills .pill { padding: 1px 8px; font-size: 11.5px; }
+.build-empty { grid-column: 1 / -1; padding: 4px 2px; }
+
+/* The build picked in Compatibilidade > Builds. */
 .build-detail { display: grid; gap: 8px; margin: 12px 0; padding: 12px 14px; border-radius: 12px; background: var(--soft); }
 .build-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .build-name { font-weight: 600; color: var(--ink); }
@@ -504,9 +562,9 @@ pre#log .stderr { color: #ff8a9e; }
 #runtimes td:last-child { text-align: end; white-space: nowrap; }
 #runtimes .status { font-size: 12px; }
 #runtimes td div + div { margin-top: 2px; }
-#runtimes .previous { margin-top: 6px; font-size: 12.5px; }
-#runtimes .previous summary { cursor: pointer; color: var(--muted); font-weight: 600; }
-#runtimes .previous-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+.build-detail .previous { margin-top: 6px; font-size: 12.5px; }
+.build-detail .previous summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+.build-detail .previous-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
 .protons { margin: 4px 0 14px; }
 .protons > .actions:first-child { margin-top: 0; flex-wrap: wrap; }
 #proton-list td:last-child { text-align: end; white-space: nowrap; }

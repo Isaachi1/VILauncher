@@ -61,6 +61,9 @@ I18N.add("pt-BR", {
   "compat.dxcHint": "(bin/x64 de um release do DirectXShaderCompiler)",
   "compat.opus": "Pasta com opus.dll",
   "compat.opusHint": "(sem ele o áudio Opus fica mudo no Wine)",
+  "compat.tabBuilds": "Builds",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "Avançado",
 
   "runtimes.check": "Procurar builds novas",
   "runtimes.intro": "As builds do VIctory e do XCL de cada projeto com nota 59% ou mais no PortWatch VI, já verificadas no VirusTotal.",

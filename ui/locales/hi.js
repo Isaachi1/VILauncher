@@ -61,6 +61,9 @@ I18N.add("hi", {
   "compat.dxcHint": "(DirectXShaderCompiler रिलीज़ का bin/x64)",
   "compat.opus": "opus.dll वाला फ़ोल्डर",
   "compat.opusHint": "(इसके बिना Wine में Opus ऑडियो नहीं बजता)",
+  "compat.tabBuilds": "बिल्ड",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "उन्नत",
 
   "runtimes.check": "नए बिल्ड खोजें",
   "runtimes.intro": "PortWatch VI पर 59% या अधिक स्कोर वाले हर प्रोजेक्ट के VIctory और XCL बिल्ड, VirusTotal पर पहले से जाँचे हुए।",

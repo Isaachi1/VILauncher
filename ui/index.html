@@ -124,37 +124,40 @@
 
     <section id="tab-compat" class="panel" hidden>
       <p class="kicker" data-i18n="compat.kicker">Backend</p>
-      <h2 data-i18n="compat.title">Camada de compatibilidade</h2>
-      <div class="grid">
-        <label class="field">
-          <span><span data-i18n="compat.backend">Backend</span></span>
-          <!-- The builds SixLauncher Builder published (runtimes.json), filled by showBuilds(). -->
-          <select id="backend-build">
-            <option value="" data-i18n="compat.loadingBuilds">Carregando as builds…</option>
-          </select>
-          <select data-path="backend.kind" hidden>
-            <option value="victory">VIctory</option>
-            <option value="xcl">XCL</option>
-          </select>
-        </label>
-        <label class="field only-victory">
-          <span><span data-i18n="compat.console">Console simulado</span></span>
-          <select data-path="backend.console">
-            <option value="series-x">Xbox Series X</option>
-            <option value="series-s">Xbox Series S</option>
-          </select>
-        </label>
+      <h2 id="compat-title" data-i18n="compat.title">Camada de compatibilidade</h2>
+      <!-- Sub-tabs of this card: the build to run, its VirusTotal check, and the advanced options. -->
+      <div class="subtabs" role="tablist" aria-labelledby="compat-title">
+        <button type="button" role="tab" id="subtab-builds" data-subtab="builds" aria-controls="compat-builds" aria-selected="true" data-i18n="compat.tabBuilds">Builds</button>
+        <button type="button" role="tab" id="subtab-vt" data-subtab="vt" aria-controls="compat-vt" aria-selected="false" tabindex="-1" data-i18n="compat.tabVt">VirusTotal</button>
+        <button type="button" role="tab" id="subtab-advanced" data-subtab="advanced" aria-controls="compat-advanced" aria-selected="false" tabindex="-1" data-i18n="compat.tabAdvanced">Avançado</button>
       </div>
-      <div class="runtimes">
+
+      <div class="subpanel" id="compat-builds" role="tabpanel" aria-labelledby="subtab-builds">
         <div class="actions">
           <button id="runtimes-check" data-i18n="runtimes.check">Procurar builds novas</button>
           <span class="status" id="runtimes-info" data-i18n="runtimes.intro">As builds do VIctory e do XCL de cada projeto com nota 59% ou mais no PortWatch VI, já verificadas no VirusTotal.</span>
         </div>
+        <div class="field">
+          <span id="backend-build-label"><span data-i18n="compat.backend">Backend</span></span>
+          <!-- The builds SixLauncher Builder published (runtimes.json), one card each, filled by showBuilds(). -->
+          <div id="backend-build" class="build-grid" role="radiogroup" aria-labelledby="backend-build-label"></div>
+          <select data-path="backend.kind" hidden>
+            <option value="victory">VIctory</option>
+            <option value="xcl">XCL</option>
+          </select>
+        </div>
+        <div id="build-detail" class="build-detail" hidden></div>
         <details id="runtimes-why" hidden>
           <summary data-i18n="runtimes.why">Como as builds foram escolhidas</summary>
           <ul id="runtimes-candidates"></ul>
         </details>
-        <div id="build-detail" class="build-detail" hidden></div>
+        <label class="field">
+          <span><span data-i18n="compat.exe">Executável do backend</span> <em data-i18n="compat.exeHint">(build Windows: victory.exe ou xcl.exe)</em></span>
+          <div class="row"><input data-path="backend.exe" placeholder="/home/voce/builds/victory.exe" data-i18n-attr="placeholder:compat.exePh"><button data-browse="file" data-target="backend.exe" data-i18n="browse">Escolher…</button></div>
+        </label>
+      </div>
+
+      <div class="subpanel" id="compat-vt" role="tabpanel" aria-labelledby="subtab-vt" hidden>
         <div class="actions vt">
           <input id="vt-key" type="password" autocomplete="off" placeholder="Chave da API do VirusTotal" data-i18n-attr="placeholder:vt.keyPh">
           <button id="vt-save" class="ghost" data-i18n="vt.save">Salvar chave</button>
@@ -163,25 +166,33 @@
         <span class="status" id="vt-info"></span>
         <table id="vt"><tbody></tbody></table>
       </div>
-      <label class="field">
-        <span><span data-i18n="compat.exe">Executável do backend</span> <em data-i18n="compat.exeHint">(build Windows: victory.exe ou xcl.exe)</em></span>
-        <div class="row"><input data-path="backend.exe" placeholder="/home/voce/builds/victory.exe" data-i18n-attr="placeholder:compat.exePh"><button data-browse="file" data-target="backend.exe" data-i18n="browse">Escolher…</button></div>
-      </label>
-      <label class="field only-victory">
-        <span><span data-i18n="compat.unimpl">Funções não implementadas</span></span>
-        <select data-path="backend.unimplemented">
-          <option value="trap" data-i18n="compat.unimplTrap">trap: para e mostra qual foi (recomendado)</option>
-          <option value="zero" data-i18n="compat.unimplZero">zero: devolve 0 e segue</option>
-        </select>
-      </label>
-      <label class="field only-xcl">
-        <span><span data-i18n="compat.dxc">DXC</span> <em data-i18n="compat.dxcHint">(bin/x64 de um release do DirectXShaderCompiler)</em></span>
-        <div class="row"><input data-path="backend.dxc_dir"><button data-browse="dir" data-target="backend.dxc_dir" data-i18n="browse">Escolher…</button></div>
-      </label>
-      <label class="field only-xcl">
-        <span><span data-i18n="compat.opus">Pasta com opus.dll</span> <em data-i18n="compat.opusHint">(sem ele o áudio Opus fica mudo no Wine)</em></span>
-        <div class="row"><input data-path="backend.opus_dir"><button data-browse="dir" data-target="backend.opus_dir" data-i18n="browse">Escolher…</button></div>
-      </label>
+
+      <div class="subpanel" id="compat-advanced" role="tabpanel" aria-labelledby="subtab-advanced" hidden>
+        <div class="grid">
+          <label class="field only-victory">
+            <span><span data-i18n="compat.console">Console simulado</span></span>
+            <select data-path="backend.console">
+              <option value="series-x">Xbox Series X</option>
+              <option value="series-s">Xbox Series S</option>
+            </select>
+          </label>
+          <label class="field only-victory">
+            <span><span data-i18n="compat.unimpl">Funções não implementadas</span></span>
+            <select data-path="backend.unimplemented">
+              <option value="trap" data-i18n="compat.unimplTrap">trap: para e mostra qual foi (recomendado)</option>
+              <option value="zero" data-i18n="compat.unimplZero">zero: devolve 0 e segue</option>
+            </select>
+          </label>
+        </div>
+        <label class="field only-xcl">
+          <span><span data-i18n="compat.dxc">DXC</span> <em data-i18n="compat.dxcHint">(bin/x64 de um release do DirectXShaderCompiler)</em></span>
+          <div class="row"><input data-path="backend.dxc_dir"><button data-browse="dir" data-target="backend.dxc_dir" data-i18n="browse">Escolher…</button></div>
+        </label>
+        <label class="field only-xcl">
+          <span><span data-i18n="compat.opus">Pasta com opus.dll</span> <em data-i18n="compat.opusHint">(sem ele o áudio Opus fica mudo no Wine)</em></span>
+          <div class="row"><input data-path="backend.opus_dir"><button data-browse="dir" data-target="backend.opus_dir" data-i18n="browse">Escolher…</button></div>
+        </label>
+      </div>
 
       <p class="kicker" data-i18n="run.kicker">Execução</p>
       <h2 id="runner-title">Wine / Proton</h2>

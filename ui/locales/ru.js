@@ -61,6 +61,9 @@ I18N.add("ru", {
   "compat.dxcHint": "(bin/x64 из релиза DirectXShaderCompiler)",
   "compat.opus": "Папка с opus.dll",
   "compat.opusHint": "(без неё звук Opus в Wine не воспроизводится)",
+  "compat.tabBuilds": "Сборки",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "Дополнительно",
 
   "runtimes.check": "Искать новые сборки",
   "runtimes.intro": "Сборки VIctory и XCL всех проектов с оценкой от 59% на PortWatch VI, уже проверенные на VirusTotal.",

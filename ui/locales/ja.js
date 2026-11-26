@@ -61,6 +61,9 @@ I18N.add("ja", {
   "compat.dxcHint": "（DirectXShaderCompiler リリースの bin/x64）",
   "compat.opus": "opus.dll のあるフォルダー",
   "compat.opusHint": "（ないと Wine で Opus 音声が鳴りません）",
+  "compat.tabBuilds": "ビルド",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "詳細設定",
 
   "runtimes.check": "新しいビルドを探す",
   "runtimes.intro": "PortWatch VI で 59% 以上の各プロジェクトの VIctory・XCL ビルド（VirusTotal で確認済み）。",

@@ -61,6 +61,9 @@ I18N.add("tr", {
   "compat.dxcHint": "(bir DirectXShaderCompiler sürümünün bin/x64 klasörü)",
   "compat.opus": "opus.dll içeren klasör",
   "compat.opusHint": "(o olmadan Wine'da Opus sesi çıkmaz)",
+  "compat.tabBuilds": "Derlemeler",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "Gelişmiş",
 
   "runtimes.check": "Yeni derlemeleri ara",
   "runtimes.intro": "PortWatch VI'da %59 veya üzeri puanı olan her projenin VIctory ve XCL derlemeleri, VirusTotal'da kontrol edilmiş olarak.",

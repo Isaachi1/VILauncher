@@ -61,6 +61,9 @@ I18N.add("ko", {
   "compat.dxcHint": "(DirectXShaderCompiler 릴리스의 bin/x64)",
   "compat.opus": "opus.dll이 있는 폴더",
   "compat.opusHint": "(없으면 Wine에서 Opus 오디오가 나오지 않습니다)",
+  "compat.tabBuilds": "빌드",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "고급",
 
   "runtimes.check": "새 빌드 찾기",
   "runtimes.intro": "PortWatch VI에서 59% 이상인 각 프로젝트의 VIctory·XCL 빌드(VirusTotal 검사 완료).",

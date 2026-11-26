@@ -61,6 +61,9 @@ I18N.add("ur", {
   "compat.dxcHint": "(DirectXShaderCompiler ریلیز کا bin/x64)",
   "compat.opus": "opus.dll والا فولڈر",
   "compat.opusHint": "(اس کے بغیر Wine میں Opus آڈیو خاموش رہتا ہے)",
+  "compat.tabBuilds": "بلڈز",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "ایڈوانسڈ",
 
   "runtimes.check": "نئے بلڈ تلاش کریں",
   "runtimes.intro": "پورٹ واچ VI پر 59% یا زیادہ اسکور والے ہر پروجیکٹ کے VIctory اور XCL بلڈز، VirusTotal پر پہلے سے جانچے ہوئے۔",

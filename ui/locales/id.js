@@ -61,6 +61,9 @@ I18N.add("id", {
   "compat.dxcHint": "(bin/x64 dari rilis DirectXShaderCompiler)",
   "compat.opus": "Folder berisi opus.dll",
   "compat.opusHint": "(tanpanya, audio Opus tidak bersuara di Wine)",
+  "compat.tabBuilds": "Build",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "Lanjutan",
 
   "runtimes.check": "Cari build baru",
   "runtimes.intro": "Build VIctory dan XCL dari setiap proyek dengan skor 59% atau lebih di PortWatch VI, sudah diperiksa di VirusTotal.",

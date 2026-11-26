@@ -61,6 +61,9 @@ I18N.add("de", {
   "compat.dxcHint": "(bin/x64 eines DirectXShaderCompiler-Releases)",
   "compat.opus": "Ordner mit opus.dll",
   "compat.opusHint": "(ohne sie bleibt Opus-Audio unter Wine stumm)",
+  "compat.tabBuilds": "Builds",
+  "compat.tabVt": "VirusTotal",
+  "compat.tabAdvanced": "Erweitert",
 
   "runtimes.check": "Nach neuen Builds suchen",
   "runtimes.intro": "VIctory- und XCL-Builds aller Projekte mit mindestens 59 % auf PortWatch VI, bereits auf VirusTotal geprüft.",
