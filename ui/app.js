@@ -1780,7 +1780,7 @@ async function init() {
   await listen("app-update-progress", (ev) => {
     const { done, total } = ev.payload;
     const mb = (n) => (n / 1048576).toFixed(1);
-    $("#update-sub").textContent = total ? `${Math.floor((done * 100) / total)}% de ${mb(total)} MB` : `${mb(done)} MB`;
+    $("#update-sub").textContent = total ? t("update.progress", { pct: Math.floor((done * 100) / total), mb: mb(total) }) : `${mb(done)} MB`;
   });
   $("#update-go").addEventListener("click", () => pendingUpdate && installUpdate(pendingUpdate));
   $("#update-restart").addEventListener("click", async () => {
