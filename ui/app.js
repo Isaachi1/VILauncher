@@ -334,7 +334,11 @@ function showChecks(checks) {
     tdS.appendChild(pill);
     const tdN = document.createElement("td");
     tdN.className = "name";
-    tdN.textContent = c.name;
+    // doctor.rs names its checks by id; the window shows a name for the ones that have one
+    // (CPU, Vulkan, vm.max_map_count… are names already).
+    const nameKey = `check.name.${c.name}`;
+    const label = I18N.t(nameKey);
+    tdN.textContent = label === nameKey ? c.name : label;
     const tdD = document.createElement("td");
     tdD.textContent = c.detail;
     if (c.fix) {
@@ -1369,18 +1373,19 @@ function showUpdate(version, { title, sub = "", url = "", go = false, restart = 
 }
 
 function manualHint(u) {
-  if (u.install === "flatpak") return "Baixe sixlauncher.flatpak da release e rode: flatpak install --reinstall sixlauncher.flatpak (com --user se ele foi instalado com --user).";
-  if (u.install === "deb" || u.install === "rpm") return `Baixe o .${u.install} da release e instale por cima do atual.`;
-  if (u.install === "appimage") return "Baixe o novo AppImage da release e troque o arquivo atual por ele.";
-  if (u.install === "nsis") return "Baixe o instalador (SixLauncher_…_x64-setup.exe) da release e rode-o: ele atualiza a cópia instalada.";
-  return "Baixe o novo pacote da release (.deb, .rpm, AppImage, Flatpak, .tar.gz, ou no Windows o instalador .exe).";
+  if (u.install === "flatpak") return t("update.hintFlatpak");
+  if (u.install === "deb" || u.install === "rpm") return t("update.hintPackage", { ext: u.install });
+  if (u.install === "appimage") return t("update.hintAppimage");
+  if (u.install === "nsis") return t("update.hintNsis");
+  return t("update.hintOther");
 }
 
 async function installUpdate(u) {
   if (updateBusy) return;
   updateBusy = true;
   $("#update-go").disabled = true;
-  showUpdate(u.latest, { title: `Baixando o SixLauncher ${u.latest}…`, sub: u.install === "appimage" ? "" : u.install === "flatpak" ? "O Flatpak novo é instalado pelo flatpak do sistema; numa instalação do sistema ele pode pedir sua senha." : u.install === "nsis" ? "O instalador abre em seguida e o SixLauncher fecha enquanto ele atualiza." : "O sistema vai pedir sua senha para instalar o pacote." });
+  const sub = { appimage: "", flatpak: t("update.subFlatpak"), nsis: t("update.subNsis") }[u.install] ?? t("update.subPackage");
+  showUpdate(u.latest, { title: t("update.downloading", { version: u.latest }), sub });
   try {
     const version = await invoke("app_update_install");
     if (!version) {
@@ -1388,9 +1393,9 @@ async function installUpdate(u) {
       return;
     }
     installedVersion = version;
-    showUpdate(version, { title: `SixLauncher ${version} instalado`, sub: "A nova versão abre na próxima vez que o SixLauncher iniciar.", restart: true });
+    showUpdate(version, { title: t("update.installed", { version }), sub: t("update.installedSub"), restart: true });
   } catch (e) {
-    showUpdate(u.latest, { title: `Não foi possível atualizar para o ${u.latest}`, sub: u.install === "flatpak" ? `${e}` : `${e}. ${manualHint(u)}`, url: u.url }); // the Flatpak's error names the command for its installation
+    showUpdate(u.latest, { title: t("update.failed", { version: u.latest }), sub: u.install === "flatpak" ? `${e}` : `${e}. ${manualHint(u)}`, url: u.url }); // the Flatpak's error names the command for its installation
   } finally {
     updateBusy = false;
     $("#update-go").disabled = false;
@@ -1410,9 +1415,9 @@ async function checkUpdate() {
   if (u.automatic && u.install === "appimage") return installUpdate(u);
   if (u.automatic) {
     pendingUpdate = u;
-    return showUpdate(u.latest, { title: `SixLauncher ${u.latest} disponível`, sub: `Você usa a ${u.current}.`, go: true });
+    return showUpdate(u.latest, { title: t("update.available", { version: u.latest }), sub: t("update.youUse", { version: u.current }), go: true });
   }
-  showUpdate(u.latest, { title: `SixLauncher ${u.latest} disponível`, sub: `Você usa a ${u.current}. ${manualHint(u)}`, url: u.url });
+  showUpdate(u.latest, { title: t("update.available", { version: u.latest }), sub: `${t("update.youUse", { version: u.current })} ${manualHint(u)}`, url: u.url });
 }
 
 // -- desktop notifications --------------------------------------------------------------------
