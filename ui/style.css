@@ -206,7 +206,7 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; margin: 0; }
 .hero.compact h1 { font-size: 22px; letter-spacing: -0.02em; line-height: 1.15; }
 .hero.compact .sub { display: none; }
 .hero.compact .hero-actions { display: flex; flex-direction: row-reverse; align-items: center; gap: 14px; }
-.hero.compact .hero-note { max-width: 18ch; text-align: end; font-size: 12px; }
+.hero.compact .hero-note { max-width: 26ch; text-align: end; font-size: 12px; }
 .hero.compact button.big { padding: 10px 22px; font-size: 15px; }
 .hero.compact button.big svg { width: 16px; height: 16px; }
 .hero-chips { margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
