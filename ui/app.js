@@ -246,6 +246,7 @@ async function verifyZip() {
 
 function showBanner(text, canForce) {
   $("#banner-text").textContent = text;
+  $("#banner-checks").hidden = true;
   $("#banner-force").hidden = !canForce;
   pendingForce = canForce;
   $("#banner").hidden = false;
@@ -336,11 +337,9 @@ function showChecks(checks) {
     tdN.className = "name";
     // doctor.rs names its checks by id; the window shows a name for the ones that have one
     // (CPU, Vulkan, vm.max_map_count… are names already).
-    const nameKey = `check.name.${c.name}`;
-    const label = I18N.t(nameKey);
-    tdN.textContent = label === nameKey ? c.name : label;
+    tdN.textContent = checkName(c);
     const tdD = document.createElement("td");
-    tdD.textContent = c.detail;
+    tdD.textContent = checkDetail(c);
     if (c.fix) {
       const fix = el("button", "fix primary");
       I18N.text(fix, "fix.button");
@@ -360,6 +359,57 @@ function showChecks(checks) {
   const warns = checks.filter((c) => c.status === "warn").length;
   say("#doctor-status", "doctor.summary", { fails, warns, ok: checks.length - fails - warns });
   showReadiness();
+}
+
+// A check's name and detail in the window's language: doctor.rs gives an id for its name and, for
+// the messages a player meets, a code with values (its `detail` is the English fallback).
+function checkName(c) {
+  const key = `check.name.${c.name}`;
+  const label = I18N.t(key);
+  return label === key ? c.name : label;
+}
+function checkDetail(c) {
+  if (!c.code) return c.detail;
+  const key = `check.detail.${c.code}`;
+  const text = I18N.t(key, c.args || {});
+  return text === key ? c.detail : text;
+}
+
+// Play refused because checks fail: the banner lists them as Verificação does, translated and
+// with their action, instead of the launcher's raw English list. Those are the configuration
+// checks whose name heads a line of the refusal.
+async function showRefusal(error) {
+  let checks = lastChecks;
+  try {
+    checks = await invoke("run_doctor", { config: readForm() });
+    showChecks(checks);
+  } catch {
+    /* the last checks will do */
+  }
+  const refused = new Set(String(error).split("\n").map((l) => l.split(":")[0].trim()));
+  const fails = (checks || []).filter((c) => c.status === "fail" && refused.has(c.name));
+  if (!fails.length) return showBanner(`${t("play.cannot")}\n${error}`, true);
+  showBanner(t("play.cannot"), true);
+  const list = $("#banner-checks");
+  list.replaceChildren();
+  for (const c of fails) {
+    const li = el("li");
+    li.append(el("b", null, checkName(c)), " ", el("span", null, checkDetail(c)));
+    const a = CHECK_ACTION[c.name];
+    if (a) {
+      const b = el("button", "ghost");
+      I18N.text(b, a.key);
+      b.addEventListener("click", () =>
+        guarded(b, async () => {
+          hideBanner();
+          await a.go();
+        }),
+      );
+      li.append(" ", b);
+    }
+    list.append(li);
+  }
+  list.hidden = false;
 }
 
 // Opens a tab at the part of it a check is about.
@@ -1344,7 +1394,8 @@ async function play(force) {
     setRunning(true);
     selectTab("log");
   } catch (e) {
-    showBanner(`${t("play.cannot")}\n${e}`, !force);
+    if (force) showBanner(`${t("play.cannot")}\n${e}`, false);
+    else await showRefusal(e);
   }
 }
 
