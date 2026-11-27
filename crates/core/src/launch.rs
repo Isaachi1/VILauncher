@@ -117,6 +117,29 @@ pub fn shell_quote(s: &str) -> String {
     }
 }
 
+/// With PROTON_LOG=1 Proton sends the program's own output to steam-<SteamAppId>.log instead of
+/// the run's output, so an error message (`Error: ...`) never reaches the Log tab. After a run
+/// that failed: the last `max` lines of that file that are not Wine's or Proton's own
+/// (`0024:...` thread traces, `12.345:...` timestamps, the header).
+pub fn proton_log_tail(env: &BTreeMap<String, String>, max: usize) -> Vec<String> {
+    let (Some(dir), Some(on)) = (env.get("PROTON_LOG_DIR"), env.get("PROTON_LOG")) else { return Vec::new() };
+    if on.is_empty() || on == "0" {
+        return Vec::new();
+    }
+    let id = env.get("SteamAppId").map_or("0", String::as_str);
+    let Ok(bytes) = fs::read(Path::new(dir).join(format!("steam-{id}.log"))) else { return Vec::new() };
+    let start = bytes.len().saturating_sub(1 << 20);
+    let text = String::from_utf8_lossy(&bytes[start..]);
+    let noise = |l: &str| {
+        let head: String = l.chars().take_while(|c| *c != ':').collect();
+        let traced = !head.is_empty() && head.len() <= 12 && head.chars().all(|c| c.is_ascii_hexdigit() || c == '.');
+        traced || l.starts_with("======") || l.starts_with("Proton:") || l.starts_with("Options:") || l.starts_with("SteamGameId:")
+            || l.starts_with("Command:") || l.starts_with("System WINE") || l.starts_with("pid ") || l.trim().is_empty()
+    };
+    let mine: Vec<String> = text.lines().filter(|l| !noise(l)).map(str::to_owned).collect();
+    mine[mine.len().saturating_sub(max)..].to_vec()
+}
+
 /// Where a run started from the menu writes its output.
 pub fn log_file() -> PathBuf {
     paths::state_dir().join("last-run.log")
@@ -299,6 +322,23 @@ mod tests {
         base.insert("SteamAppId".to_string(), "123".to_string());
         let kept = Runner::from_config(&cfg).unwrap().env(&base);
         assert!(!kept.contains_key("SteamAppId"), "an id already set is kept");
+    }
+
+    #[test]
+    fn the_programs_own_lines_come_back_from_protons_log() {
+        let t = tempfile::tempdir().unwrap();
+        fs::write(
+            t.path().join("steam-0.log"),
+            "======================\nProton: 11.0\nSteamGameId: 0\nCommand: ['x']\nOptions: {}\n\
+             0024:fixme:ntdll:x stub\n12.345:0024:err:module:y\nError: reading Z:\\g\\MicrosoftGame.config\n\
+             Caused by: not found\npid 42 != 41, skipping destruction (fork without exec?)\n",
+        )
+        .unwrap();
+        let mut env = BTreeMap::from([("PROTON_LOG_DIR".to_string(), t.path().display().to_string()), ("PROTON_LOG".to_string(), "1".to_string())]);
+        assert_eq!(proton_log_tail(&env, 10), ["Error: reading Z:\\g\\MicrosoftGame.config", "Caused by: not found"]);
+        assert_eq!(proton_log_tail(&env, 1), ["Caused by: not found"]);
+        env.insert("PROTON_LOG".into(), "0".into());
+        assert!(proton_log_tail(&env, 10).is_empty());
     }
 
     #[test]

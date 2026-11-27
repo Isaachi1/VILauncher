@@ -553,7 +553,14 @@ fn launch_game(app: AppHandle, running: State<Running>, config: Config, force: b
     if let Some(line) = scarlett::before_run(&config) {
         let _ = app.emit("game-log", LogLine { stream: "cmd", line });
     }
-    start(app, &running, l, runner, Arc::new(|_: &AppHandle, _: &str| {}), Box::new(|app: &AppHandle, code: Option<i32>| {
+    let env = l.env.clone();
+    start(app, &running, l, runner, Arc::new(|_: &AppHandle, _: &str| {}), Box::new(move |app: &AppHandle, code: Option<i32>| {
+        // A failed run's own error went to Proton's log (PROTON_LOG=1): bring it back.
+        if code != Some(0) {
+            for line in launch::proton_log_tail(&env, 30) {
+                let _ = app.emit("game-log", LogLine { stream: "stderr", line });
+            }
+        }
         let _ = app.emit("game-exit", code);
     }))
 }
