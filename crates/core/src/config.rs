@@ -147,7 +147,40 @@ pub enum ScarlettPreset {
     Custom,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+/// When the keyboard and mouse prompts replace the pad's.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum KbmHints {
+    Off,
+    #[default]
+    Auto,
+    Always,
+}
+
+/// Who scales the picture to the window: the runtime's default, the title's own upscaler, a
+/// plain stretch, or AMD FSR (needs a FidelityFX DLL).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Upscaler {
+    #[default]
+    Default,
+    Title,
+    Stretch,
+    Fsr,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FsrQuality {
+    Native,
+    #[default]
+    Quality,
+    Balanced,
+    Performance,
+    Ultra,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ScarlettSection {
     pub preset: ScarlettPreset,
@@ -155,6 +188,51 @@ pub struct ScarlettSection {
     pub raytracing: bool,
     /// Custom: the stand-in light used where the title's lighting is missing.
     pub fallback_light: bool,
+    // The runtime's features (ScarlettPort's Settings > Features), for every preset. At their
+    // defaults they set nothing, so Stable stays play.ps1's environment.
+    /// Every texture level loaded up front (SCARLETT_TEXTURES=full).
+    pub full_textures: bool,
+    pub hdr: bool,
+    /// PlayStation button prompts and pad (SCARLETT_PAD_PS).
+    pub pad_ps: bool,
+    pub rumble: bool,
+    pub rumble_strength: f32,
+    pub kbm_hints: KbmHints,
+    /// 0: the runtime's own pacing; else 30 or 60.
+    pub frame_cap: u32,
+    pub upscaler: Upscaler,
+    pub fsr_quality: FsrQuality,
+    pub fsr_sharpness: f32,
+    pub framegen: bool,
+    /// fps, frame time and the longest frame on the picture (F3 shows and hides it).
+    pub overlay: bool,
+    /// The mouse turns the camera while the game window has focus.
+    pub mouse_look: bool,
+    pub mouse_sensitivity: f32,
+}
+
+impl Default for ScarlettSection {
+    fn default() -> Self {
+        ScarlettSection {
+            preset: ScarlettPreset::default(),
+            raytracing: false,
+            fallback_light: false,
+            full_textures: false,
+            hdr: false,
+            pad_ps: false,
+            rumble: true,
+            rumble_strength: 1.0,
+            kbm_hints: KbmHints::default(),
+            frame_cap: 0,
+            upscaler: Upscaler::default(),
+            fsr_quality: FsrQuality::default(),
+            fsr_sharpness: 0.2,
+            framegen: false,
+            overlay: false,
+            mouse_look: true,
+            mouse_sensitivity: 1.0,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

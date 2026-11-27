@@ -243,6 +243,91 @@
               <span class="toggle-text"><b data-i18n="scarlett.fallbackLight">Luz substituta</b> <span data-i18n="scarlett.fallbackLightHint">ilumina onde a luz do jogo ainda não aparece; precisa de uma build que a tenha</span></span>
             </label>
           </div>
+          <!-- The runtime's features (ScarlettPort's Settings > Features), for every preset. -->
+          <details class="more" id="scarlett-features">
+            <summary data-i18n="feat.title">Recursos do ScarlettPort</summary>
+            <div class="toggles">
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.full_textures" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="feat.fullTextures">Texturas completas</b> <span data-i18n="feat.fullTexturesHint">carrega todos os níveis de textura de uma vez; usa mais memória de vídeo</span></span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.hdr" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="feat.hdr">HDR</b> <span data-i18n="feat.hdrHint">imagem em HDR, num monitor que tenha</span></span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.pad_ps" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="feat.padPs">Controle PlayStation</b> <span data-i18n="feat.padPsHint">botões e controle no estilo PlayStation</span></span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.rumble" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="feat.rumble">Vibração</b> <span data-i18n="feat.rumbleHint">vibração do controle</span></span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.overlay" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="feat.overlay">Painel de desempenho</b> <span data-i18n="feat.overlayHint">FPS e tempo de quadro sobre a imagem (F3 mostra e esconde)</span></span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.mouse_look" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="feat.mouseLook">Mouse move a câmera</b> <span data-i18n="feat.mouseLookHint">o mouse gira a câmera enquanto a janela do jogo está em foco</span></span>
+              </label>
+            </div>
+            <div class="grid">
+              <label class="field">
+                <span data-i18n="feat.rumbleStrength">Força da vibração</span>
+                <input type="number" min="0" max="2" step="0.1" data-path="scarlett.rumble_strength" data-kind="float">
+              </label>
+              <label class="field">
+                <span data-i18n="feat.mouseSensitivity">Sensibilidade do mouse</span>
+                <input type="number" min="0.1" max="5" step="0.1" data-path="scarlett.mouse_sensitivity" data-kind="float">
+              </label>
+              <label class="field">
+                <span data-i18n="feat.kbmHints">Dicas de teclado e mouse</span>
+                <select data-path="scarlett.kbm_hints">
+                  <option value="auto" data-i18n="feat.kbmAuto">Ao usar teclado e mouse</option>
+                  <option value="always" data-i18n="feat.kbmAlways">Sempre</option>
+                  <option value="off" data-i18n="feat.kbmOff">Nunca</option>
+                </select>
+              </label>
+              <label class="field">
+                <span data-i18n="feat.frameCap">Limite de FPS</span>
+                <select data-path="scarlett.frame_cap" data-kind="int">
+                  <option value="0" data-i18n="feat.capNone">Sem limite (ritmo do runtime)</option>
+                  <option value="30">30 FPS</option>
+                  <option value="60">60 FPS</option>
+                </select>
+              </label>
+              <label class="field">
+                <span data-i18n="feat.upscaler">Escala da imagem</span>
+                <select data-path="scarlett.upscaler">
+                  <option value="default" data-i18n="feat.upDefault">Padrão do runtime</option>
+                  <option value="title" data-i18n="feat.upTitle">Upscaler do próprio jogo</option>
+                  <option value="stretch" data-i18n="feat.upStretch">Esticar</option>
+                  <option value="fsr">AMD FSR</option>
+                </select>
+              </label>
+              <label class="field" data-scarlett-upscaler="fsr">
+                <span data-i18n="feat.fsrQuality">Qualidade do FSR</span>
+                <select data-path="scarlett.fsr_quality">
+                  <option value="native" data-i18n="feat.qNative">Nativa</option>
+                  <option value="quality" data-i18n="feat.qQuality">Qualidade</option>
+                  <option value="balanced" data-i18n="feat.qBalanced">Equilibrada</option>
+                  <option value="performance" data-i18n="feat.qPerformance">Desempenho</option>
+                  <option value="ultra" data-i18n="feat.qUltra">Ultra desempenho</option>
+                </select>
+              </label>
+              <label class="field" data-scarlett-upscaler="fsr">
+                <span data-i18n="feat.fsrSharpness">Nitidez do FSR</span>
+                <input type="number" min="0" max="1" step="0.05" data-path="scarlett.fsr_sharpness" data-kind="float">
+              </label>
+            </div>
+            <div class="toggles" data-scarlett-upscaler="fsr">
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.framegen" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="feat.framegen">Geração de quadros</b> <span data-i18n="feat.framegenHint">o FSR cria quadros intermediários; mais fluido, com um pouco mais de atraso</span></span>
+              </label>
+            </div>
+          </details>
           <!-- `scarlett prepare` for the chosen preset: progress from its prep-line events. -->
           <div class="prep" id="prep">
             <div class="actions">
