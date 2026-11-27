@@ -178,10 +178,10 @@ pub fn resolve_exe(info: &GameInfo, override_exe: Option<&str>) -> Result<PathBu
         // In the Flatpak a file chosen in the dialog arrives through the document portal as
         // /run/user/<uid>/doc/<id>/<name>, alone in its folder; the backends read the title's
         // DLLs and MicrosoftGame.config beside the executable, so that copy cannot run.
-        if !p.starts_with(&info.folder) {
-            if let Some(own) = p.file_name().and_then(|n| same_name_in(&info.folder, &n.to_string_lossy())) {
-                return Ok(own);
-            }
+        if !p.starts_with(&info.folder)
+            && let Some(own) = p.file_name().and_then(|n| same_name_in(&info.folder, &n.to_string_lossy()))
+        {
+            return Ok(own);
         }
         return if p.is_file() {
             Ok(p)
