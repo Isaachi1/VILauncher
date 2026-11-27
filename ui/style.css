@@ -302,6 +302,24 @@ button.danger { border: 0; color: #fff; background: var(--red); }
 button.danger:hover { filter: brightness(1.08); }
 button.ghost { background: transparent; }
 button.ghost:hover { background: var(--soft); }
+/* Jogar while a check fails: still the hero's button, without the brand's push. */
+#play.not-ready { background: rgba(255, 255, 255, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28); }
+#play.not-ready:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* -- Jogo: what is left before Jogar ----------------------------------------------------- */
+.readiness { margin: 22px 0 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.readiness h3 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
+.ready-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.ready-row { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.ready-row i { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--faint); }
+.ready-row.ok i { background: var(--green); }
+.ready-row.warn i { background: var(--gold); }
+.ready-row.fail i { background: var(--red); }
+.ready-name { flex: 1; font-weight: 600; }
+.ready-row.fail .ready-name { color: var(--no-fg); }
+.ready-ok { color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.ready-row button { padding: 5px 14px; font-size: 13px; }
+
 button.big {
   display: inline-flex;
   align-items: center;

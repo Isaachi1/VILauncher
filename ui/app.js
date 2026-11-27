@@ -305,6 +305,47 @@ function showReadiness() {
   live.className = `live ${state}`;
   const key = { on: "live.running", checking: "live.checking", fail: "live.notReady", warn: "live.readyWarn", ok: "live.ready" }[state];
   say("#live-text", key);
+  // Jogar stays clickable (a refusal lists what to fix), but it stops shouting while a check fails.
+  $("#play").classList.toggle("not-ready", !gameRunning && fails > 0);
+  showReadyList();
+}
+
+// The parts of a run, in the order a player sets them up, and the checks (doctor.rs names)
+// each one sums up; "system" is every other check (CPU, Vulkan, the kernel settings…).
+const READY_PARTS = [
+  { key: "ready.game", checks: ["game", "game-sha256"] },
+  { key: "ready.build", checks: ["backend", "DXC", "Opus"] },
+  { key: "ready.runner", checks: ["runner", "vkd3d-proton", "d3d12"] },
+  { key: "ready.prefix", checks: ["prefix"] },
+  { key: "ready.system", checks: null },
+];
+
+// The Jogo tab's checklist: one row per part, its worst status, and the action of its first
+// failing (or warning) check, or "Ver na Verificação" for the system's.
+function showReadyList() {
+  const list = $("#ready-list");
+  if (!list) return;
+  list.replaceChildren();
+  const named = new Set(READY_PARTS.flatMap((p) => p.checks || []));
+  const rank = { fail: 2, warn: 1, ok: 0 };
+  for (const part of READY_PARTS) {
+    const mine = (lastChecks || []).filter((c) => (part.checks ? part.checks.includes(c.name) : !named.has(c.name)));
+    const worst = mine.reduce((w, c) => (rank[c.status] > rank[w] ? c.status : w), "ok");
+    const state = !lastChecks ? "checking" : worst;
+    const li = el("li", `ready-row ${state}`);
+    li.append(el("i", null), el("span", "ready-name", t(part.key)));
+    const bad = mine.find((c) => c.status === worst && worst !== "ok");
+    if (bad) {
+      const action = bad.fix ? { key: "fix.button", go: async () => askFix(bad.fix) } : CHECK_ACTION[bad.name];
+      const b = el("button", "ghost");
+      I18N.text(b, action ? action.key : "ready.seeChecks");
+      b.addEventListener("click", () => guarded(b, action ? action.go : async () => selectTab("doctor")));
+      li.append(b);
+    } else if (lastChecks) {
+      li.append(el("span", "ready-ok", t("check.ok")));
+    }
+    list.append(li);
+  }
 }
 
 // The checks behind the chip, without touching the Verificação tab's own run. Later runs win.
