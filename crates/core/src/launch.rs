@@ -268,6 +268,21 @@ mod tests {
     }
 
     #[test]
+    fn proton_launch_gives_protonfixes_a_game_id() {
+        // protonfixes reads SteamAppId / SteamGameId, else the last number of
+        // STEAM_COMPAT_DATA_PATH; ".../compatdata" has none, so GE-Proton stopped with IndexError.
+        let h = TempHome::new();
+        let (cfg, ..) = victory_config(&h);
+        let env = build(&cfg).unwrap().env;
+        assert_eq!(env.get("SteamAppId").map(String::as_str), Some("0"));
+        assert_eq!(env.get("SteamGameId").map(String::as_str), Some("0"));
+        let mut base = BTreeMap::new();
+        base.insert("SteamAppId".to_string(), "123".to_string());
+        let kept = Runner::from_config(&cfg).unwrap().env(&base);
+        assert!(!kept.contains_key("SteamAppId"), "an id already set is kept");
+    }
+
+    #[test]
     fn proton_launch_runs_the_backend() {
         let h = TempHome::new();
         let (cfg, game, exe, proton) = victory_config(&h);

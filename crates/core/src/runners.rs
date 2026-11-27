@@ -366,6 +366,15 @@ impl Runner {
                     .unwrap_or_else(|| p.compat_dir.clone());
                 env.insert("STEAM_COMPAT_DATA_PATH".into(), p.compat_dir.to_string_lossy().into_owned());
                 env.insert("STEAM_COMPAT_CLIENT_INSTALL_PATH".into(), steam.to_string_lossy().into_owned());
+                // The game is not a Steam app: say so with the id non-Steam runs use (0). Without
+                // any id, protonfixes (GE-Proton, Proton-CachyOS) falls back to the last number in
+                // STEAM_COMPAT_DATA_PATH, finds none in ".../compatdata" and stops the run with
+                // IndexError. An id already in the environment is kept.
+                for var in ["SteamAppId", "SteamGameId"] {
+                    if !base.get(var).is_some_and(|v| !v.is_empty()) {
+                        env.insert(var.into(), "0".into());
+                    }
+                }
                 // With PROTON_LOG=1, Proton writes steam-*.log here, where the report finds it.
                 if !base.get("PROTON_LOG_DIR").is_some_and(|d| !d.is_empty()) {
                     env.insert("PROTON_LOG_DIR".into(), crate::report::proton_log_dir().to_string_lossy().into_owned());
