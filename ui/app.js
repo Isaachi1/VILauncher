@@ -188,6 +188,7 @@ async function refreshExes() {
   else if (error) plain("#game-exe-info", "");
   else if (exes.length) say("#game-exe-info", "game.exeFound", { n: exes.length });
   else say("#game-exe-info", "game.exeNone");
+  showStepsSummary(ready, info);
 }
 
 // Outro .exe…: a file dialog that opens in the game folder; inside it, the path is kept
@@ -320,6 +321,24 @@ const READY_PARTS = [
   { key: "ready.system", checks: null },
 ];
 
+// The two steps as one line once the folder is valid: the game, its version and the executable.
+// They fold the first time the folder is found valid (at start, or after choosing one); the
+// player can open them again with Alterar.
+let stepsFolded = false;
+function showStepsSummary(ready, info) {
+  const steps = $("#game-steps");
+  const exe = $("#game-exe").value || t("game.exeDefault");
+  const what = info ? [info.display_name, info.version].filter(Boolean).join(" ") : "";
+  plain("#game-steps-summary", ready ? [what, exe].filter(Boolean).join(" · ") : t("game.stepsTodo"));
+  if (!ready) {
+    steps.open = true;
+    stepsFolded = false;
+  } else if (!stepsFolded) {
+    steps.open = false;
+    stepsFolded = true;
+  }
+}
+
 // The Jogo tab's checklist: one row per part, its worst status, and the action of its first
 // failing (or warning) check, or "Ver na Verificação" for the system's.
 function showReadyList() {
@@ -327,6 +346,7 @@ function showReadyList() {
   if (!list) return;
   list.replaceChildren();
   const named = new Set(READY_PARTS.flatMap((p) => p.checks || []));
+  let blocker = null; // the first part that fails, shown under Jogar
   const rank = { fail: 2, warn: 1, ok: 0 };
   for (const part of READY_PARTS) {
     const mine = (lastChecks || []).filter((c) => (part.checks ? part.checks.includes(c.name) : !named.has(c.name)));
@@ -335,6 +355,7 @@ function showReadyList() {
     const li = el("li", `ready-row ${state}`);
     li.append(el("i", null), el("span", "ready-name", t(part.key)));
     const bad = mine.find((c) => c.status === worst && worst !== "ok");
+    if (worst === "fail" && !blocker) blocker = { part, bad };
     if (bad) {
       const action = bad.fix ? { key: "fix.button", go: async () => askFix(bad.fix) } : CHECK_ACTION[bad.name];
       const b = el("button", "ghost");
@@ -345,6 +366,25 @@ function showReadyList() {
       li.append(el("span", "ready-ok", t("check.ok")));
     }
     list.append(li);
+  }
+  showBlocker(blocker);
+}
+
+// Under Jogar: what blocks it and that part's action, so a 1280x800 screen shows why Jogar is
+// quiet without scrolling to the checklist.
+function showBlocker(blocker) {
+  const line = $("#play-blocker");
+  line.replaceChildren();
+  line.hidden = !blocker || gameRunning;
+  if (line.hidden) return;
+  const { part, bad } = blocker;
+  line.append(el("span", null, t("play.missing", { what: t(part.key) })));
+  const action = bad.fix ? { key: "fix.button", go: async () => askFix(bad.fix) } : CHECK_ACTION[bad.name];
+  if (action) {
+    const b = el("button", "ghost");
+    I18N.text(b, action.key);
+    b.addEventListener("click", () => guarded(b, action.go));
+    line.append(" ", b);
   }
 }
 

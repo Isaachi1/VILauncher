@@ -65,6 +65,7 @@
       <div class="hero-actions">
         <button id="play" class="primary big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.6v12.8c0 .8.9 1.3 1.6.8l10-6.4c.6-.4.6-1.2 0-1.6l-10-6.4C8.9 4.3 8 4.8 8 5.6Z"/></svg><span data-i18n="play">Jogar</span></button>
         <button id="stop" class="danger big" hidden data-i18n="stop">Parar</button>
+        <p class="hero-blocker" id="play-blocker" role="status" hidden></p>
         <p class="hero-note" data-i18n="hero.notPlayable">Ainda não é jogável no PC (segundo o PortWatch VI)</p>
       </div>
     </section>
@@ -97,7 +98,10 @@
     <section id="tab-game" class="panel" role="tabpanel" aria-labelledby="tabbtn-game">
       <p class="kicker" data-i18n="game.kicker">Biblioteca</p>
       <h2 data-i18n="game.title">Jogo</h2>
-      <!-- Two steps: the folder first, then the executable among the .exe files found in it. -->
+      <!-- Two steps: the folder first, then the executable among the .exe files found in it.
+           Once the folder is valid they fold into one line, so "Antes de jogar" comes up. -->
+      <details class="game-steps" id="game-steps" open>
+        <summary><span id="game-steps-summary"></span> <span class="summary-edit" data-i18n="game.change">Alterar</span></summary>
       <ol class="steps">
         <li class="step" id="step-dir">
           <span class="step-num" aria-hidden="true">1</span>
@@ -120,27 +124,31 @@
           </div>
         </li>
       </ol>
+      </details>
       <!-- What is left before Jogar: each part of the run, from the last checks, with its action. -->
       <section class="readiness" aria-labelledby="ready-title">
         <h3 id="ready-title" data-i18n="ready.title">Antes de jogar</h3>
         <ul id="ready-list" class="ready-list"></ul>
         <p class="status ready-status" id="ready-status" role="status"></p>
       </section>
-      <label class="field">
-        <span><span data-i18n="game.args">Argumentos do jogo</span> <em data-i18n="game.argsHint">(um por linha)</em></span>
-        <textarea data-path="game.args" data-kind="lines" rows="3"></textarea>
-      </label>
       <div class="toggles">
         <label class="toggle">
           <input type="checkbox" data-path="game.verify" data-kind="bool">
           <span class="toggle-text"><b data-i18n="game.verify">Verificar o executável do jogo</b> <span data-i18n="game.verifyHint">compara o SHA-256 com o do executável conhecido quando a pasta muda e antes de jogar</span><small class="status" id="game-verify"></small></span>
         </label>
       </div>
+      <details class="more">
+        <summary data-i18n="game.more">Mais opções</summary>
+      <label class="field">
+        <span><span data-i18n="game.args">Argumentos do jogo</span> <em data-i18n="game.argsHint">(um por linha)</em></span>
+        <textarea data-path="game.args" data-kind="lines" rows="3"></textarea>
+      </label>
       <div class="actions">
         <button id="desktop" class="ghost" data-i18n="desktop">Criar atalho no menu</button>
         <button id="verify-zip" class="ghost" data-i18n="game.verifyZip">Verificar um .zip…</button>
         <span class="status" id="zip-verify" role="status"></span>
       </div>
+      </details>
       <div class="note" data-i18n="game.note">
         O SixLauncher só roda arquivos de um jogo que você possui, já desempacotados. Ele não desempacota,
         não descriptografa e não contorna DRM ou licenças; uma pasta com um pacote XVC / MSIXVC é recusada.

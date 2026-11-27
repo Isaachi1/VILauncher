@@ -307,6 +307,15 @@ button.ghost:hover { background: var(--soft); }
 #play.not-ready:hover { background: rgba(255, 255, 255, 0.2); }
 
 /* -- Jogo: what is left before Jogar ----------------------------------------------------- */
+/* The two steps, folded into one line once the folder is valid. */
+details.game-steps > summary { cursor: pointer; list-style: none; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 6px 0 10px; font-weight: 600; }
+details.game-steps > summary::-webkit-details-marker { display: none; }
+details.game-steps[open] > summary { display: none; }
+details.game-steps .summary-edit { color: var(--vi-fg); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+/* What blocks Jogar, under it, on the hero's dark ground. */
+.hero-blocker { margin: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 8px; color: #ffd2da; font-size: 13px; font-weight: 600; }
+.hero-blocker button { padding: 4px 12px; font-size: 12.5px; color: #fff; background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.35); }
+.hero.compact .hero-blocker { justify-content: flex-end; }
 .readiness { margin: 22px 0 22px; padding-top: 18px; border-top: 1px solid var(--line); }
 .readiness h3 { margin: 0 0 10px; font-size: 15px; font-weight: 700; }
 .ready-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
