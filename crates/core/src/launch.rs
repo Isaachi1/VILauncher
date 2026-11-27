@@ -60,12 +60,16 @@ pub fn blocking_failures(cfg: &Config) -> Vec<Check> {
 }
 
 impl Launch {
-    /// The command, with its data, cache and prefix folders created.
+    /// The command, with its data, cache and prefix folders created, and Proton's log folder
+    /// (PROTON_LOG_DIR), which Proton writes steam-*.log into without creating it.
     pub fn command(&self) -> Result<Command> {
         fs::create_dir_all(&self.cwd)?;
         fs::create_dir_all(&self.cache)?;
         if let Some(prefix) = &self.prefix {
             fs::create_dir_all(prefix)?;
+            if let Some(logs) = self.env.get("PROTON_LOG_DIR").filter(|d| !d.is_empty()) {
+                fs::create_dir_all(logs)?;
+            }
         }
         let argv: Vec<std::ffi::OsString> = self.argv.iter().map(Into::into).collect();
         Ok(crate::host::command(&argv, &self.env, Some(&self.cwd)))
@@ -235,6 +239,19 @@ mod tests {
         assert!(!compat.exists());
         build(&cfg).unwrap().command().unwrap();
         assert!(compat.is_dir(), "{} was not created", compat.display());
+    }
+
+    #[test]
+    fn proton_launch_creates_the_log_folder() {
+        // With "Logs detalhados", Proton writes steam-*.log into PROTON_LOG_DIR, which nothing
+        // created: the log never appeared.
+        let h = TempHome::new();
+        let (mut cfg, ..) = victory_config(&h);
+        cfg.env.insert("PROTON_LOG".into(), "1".into());
+        let logs = crate::report::proton_log_dir();
+        assert!(!logs.exists());
+        build(&cfg).unwrap().command().unwrap();
+        assert!(logs.is_dir(), "{} was not created", logs.display());
     }
 
     #[test]
