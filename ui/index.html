@@ -32,7 +32,7 @@
           <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#bm)"/>
           <path d="M12.5 9.8v12.4c0 .8.9 1.3 1.6.9l9.6-6.2c.6-.4.6-1.3 0-1.7l-9.6-6.2c-.7-.5-1.6 0-1.6.8Z" fill="#fff"/>
         </svg>
-        <span><b>VI</b>Launcher</span>
+        <span><b>Six</b>Launcher</span>
       </span>
       <nav class="tabs nav-links" role="tablist" data-i18n-attr="aria-label:nav.sections" aria-label="Seções">
         <button role="tab" id="tabbtn-game" aria-controls="tab-game" data-tab="game" aria-selected="true" data-i18n="tab.game">Jogo</button>
@@ -77,9 +77,9 @@
       <code id="update-url" hidden></code>
     </div>
     <div class="update-actions">
-      <button id="update-go" class="primary" hidden>Atualizar</button>
-      <button id="update-restart" class="primary" hidden>Reiniciar agora</button>
-      <button id="update-close" class="ghost">Depois</button>
+      <button id="update-go" class="primary" hidden data-i18n="update.go">Atualizar</button>
+      <button id="update-restart" class="primary" hidden data-i18n="update.restart">Reiniciar agora</button>
+      <button id="update-close" class="ghost" data-i18n="update.later">Depois</button>
     </div>
   </div>
 
@@ -158,7 +158,7 @@
           <span class="status" id="runtimes-info" role="status" data-i18n="runtimes.intro">As builds do VIctory e do XCL de cada projeto com nota 59% ou mais no PortWatch VI, já verificadas no VirusTotal.</span>
         </div>
         <div class="field">
-          <span id="backend-build-label"><span data-i18n="compat.backend">Backend</span></span>
+          <span id="backend-build-label"><span data-i18n="compat.backend">Backend</span> <em data-i18n="compat.backendHint">(o port que roda o jogo de console no PC)</em></span>
           <!-- The builds SixLauncher Builder published (runtimes.json), one card each, filled by showBuilds(). -->
           <div id="backend-build" class="build-grid" role="radiogroup" aria-labelledby="backend-build-label"></div>
           <select data-path="backend.kind" hidden>
@@ -256,7 +256,7 @@
         <datalist id="protons"></datalist>
       </label>
       <label class="field not-native">
-        <span><span data-i18n="run.prefix">Prefixo</span> <em data-i18n="run.prefixHint">(opcional)</em></span>
+        <span><span data-i18n="run.prefix">Prefixo</span> <em data-i18n="run.prefixHint">(opcional: a pasta com o Windows simulado onde o jogo roda)</em></span>
         <div class="row"><input data-path="runner.prefix" placeholder="~/.local/share/sixlauncher/…"><button data-browse="dir" data-target="runner.prefix" data-i18n="browse">Escolher…</button><button id="setup" type="button" data-i18n="setup">Preparar prefixo</button></div>
       </label>
       <label class="field">
@@ -279,7 +279,7 @@
           </select>
         </label>
         <label class="field">
-          <span><span data-i18n="gpu.profile">Perfil de variáveis</span></span>
+          <span><span data-i18n="gpu.profile">Perfil de variáveis</span> <em data-i18n="gpu.profileHint">(variáveis de ambiente de cada fabricante de GPU)</em></span>
           <select data-path="gpu.profile">
             <option value="auto" data-i18n="gpu.profileAuto">Automático (o da GPU escolhida)</option>
             <option value="nvidia">NVIDIA</option>
