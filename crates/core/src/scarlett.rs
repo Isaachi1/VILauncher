@@ -191,12 +191,22 @@ pub fn features_env(s: &ScarlettSection, fsr: bool) -> Vec<(&'static str, String
     if s.overlay {
         v.push(("SCARLETT_PANEL", "1".to_string()));
     }
+    let name = player_name(&s.player_name);
+    if !name.is_empty() {
+        v.push(("SCARLETT_GAMERTAG", name));
+    }
     if !s.mouse_look {
         v.push(("SCARLETT_MOUSE_LOOK", "0".to_string()));
     } else if (s.mouse_sensitivity - d.mouse_sensitivity).abs() > 0.001 {
         v.push(("SCARLETT_MOUSE_LOOK", num(s.mouse_sensitivity)));
     }
     v
+}
+
+/// The name shown as the console player: printable, trimmed, at most 15 characters (a
+/// gamertag's length).
+pub fn player_name(s: &str) -> String {
+    s.chars().filter(|c| !c.is_control()).collect::<String>().trim().chars().take(15).collect()
 }
 
 /// FidelityFX DLLs the runtime loads for FSR (the loader, or an API DLL).
@@ -313,6 +323,15 @@ mod tests {
         let mut custom = s.clone();
         custom.preset = ScarlettPreset::Custom;
         once(&run_env(&custom, "g", "c", true));
+    }
+
+    #[test]
+    fn player_name_is_a_gamertag() {
+        assert_eq!(player_name("  Pla\tyer  "), "Player");
+        assert_eq!(player_name("a very long player name"), "a very long pla");
+        let e = features_env(&ScarlettSection { player_name: " Six ".into(), ..Default::default() }, true);
+        assert_eq!(get(&e, "SCARLETT_GAMERTAG"), Some("Six"));
+        assert!(features_env(&ScarlettSection { player_name: "  ".into(), ..Default::default() }, true).is_empty());
     }
 
     #[test]

@@ -111,6 +111,12 @@
               <div class="row"><input data-path="game.dir" placeholder="/home/voce/Jogos/titulo" data-i18n-attr="placeholder:game.dirPh"><button class="primary" data-browse="dir" data-target="game.dir" data-i18n="browse">Escolher…</button></div>
             </label>
             <small class="status step-info" id="game-dir-info"></small>
+            <!-- Looking for game folders (MicrosoftGame.config) in the home folder and on mounted disks. -->
+            <div class="actions find-games">
+              <button id="find-games" class="ghost" data-i18n="find.button">Procurar no computador</button>
+              <span class="status" id="find-info" role="status"></span>
+            </div>
+            <ul class="found-games" id="found-games" hidden></ul>
           </div>
         </li>
         <li class="step" id="step-exe">
@@ -249,6 +255,10 @@
               <span class="toggle-text"><b data-i18n="saves.backup">Backup dos saves</b> <span data-i18n="saves.backupHint">antes de cada partida, copia os saves para save-backups, ao lado da pasta de dados; ficam os 10 mais recentes</span></span>
             </label>
           </div>
+          <label class="field">
+            <span><span data-i18n="scarlett.playerName">Nome do jogador</span> <em data-i18n="scarlett.playerNameHint">(até 15 caracteres; vazio: o padrão do runtime)</em></span>
+            <input data-path="scarlett.player_name" maxlength="15" autocomplete="off">
+          </label>
           <!-- The runtime's features (ScarlettPort's Settings > Features), for every preset. -->
           <details class="more" id="scarlett-features">
             <summary data-i18n="feat.title">Recursos do ScarlettPort</summary>

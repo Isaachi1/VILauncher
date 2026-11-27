@@ -330,6 +330,34 @@ const READY_PARTS = [
   { key: "ready.system", checks: null },
 ];
 
+// "Procurar no computador": the game folders found (find_games, up to 25 s); picking one fills
+// the folder as Escolher… does.
+async function findGames() {
+  const list = $("#found-games");
+  list.replaceChildren();
+  list.hidden = true;
+  say("#find-info", "find.searching");
+  const found = await invoke("find_games");
+  if (!found.length) return say("#find-info", "find.none");
+  say("#find-info", "find.count", { n: found.length });
+  for (const g of found) {
+    const b = el("button", "found-game");
+    b.type = "button";
+    b.append(el("b", null, [g.display_name, g.version].filter(Boolean).join(" ") || g.folder), el("small", null, g.folder));
+    b.addEventListener("click", () => {
+      const input = $('[data-path="game.dir"]');
+      input.value = g.folder;
+      input.dispatchEvent(new Event("change"));
+      list.hidden = true;
+      plain("#find-info", "");
+    });
+    const li = el("li", null);
+    li.append(b);
+    list.append(li);
+  }
+  list.hidden = false;
+}
+
 // The two steps as one line once the folder is valid: the game, its version and the executable.
 // They fold the first time the folder is found valid (at start, or after choosing one); the
 // player can open them again with Alterar.
@@ -1812,6 +1840,7 @@ async function init() {
     refreshExes();
   });
   $('[data-path="game.exe"]').addEventListener("change", verifyGame);
+  $("#find-games").addEventListener("click", () => guarded($("#find-games"), findGames));
   $("#game-exe-browse").addEventListener("click", browseExe);
   refreshExes();
   $('[data-path="game.verify"]').addEventListener("change", verifyGame);

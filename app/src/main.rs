@@ -137,6 +137,14 @@ fn game_info(dir: String) -> Result<GameInfo, String> {
     gamedir::inspect(&paths::expand(&PathBuf::from(dir))).map_err(err)
 }
 
+/// Game folders found in the home folder and on mounted disks (up to 25 s), each with what
+/// its MicrosoftGame.config says.
+#[tauri::command]
+async fn find_games() -> Vec<GameInfo> {
+    let found = gamedir::search(&gamedir::search_starts(&paths::home()), std::time::Instant::now() + gamedir::SEARCH_LIMIT);
+    found.iter().filter_map(|d| gamedir::inspect(d).ok()).collect()
+}
+
 /// The .exe files in the game folder, for the Executável step (config's own first).
 #[tauri::command]
 async fn game_executables(dir: String) -> Result<Vec<String>, String> {
@@ -683,6 +691,7 @@ fn main() {
             export_report,
             game_info,
             game_executables,
+            find_games,
             verify_game,
             verify_file,
             setup_prefix,
