@@ -36,7 +36,10 @@ use crate::backends::{MACHINE_X86_64, pe_machine};
 use crate::config::BackendKind;
 use crate::{Error, Result, net, paths, runners};
 
-pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/builder/releases/download/runtimes/runtimes.json";
+pub const MANIFEST_URL: &str = "https://github.com/SixLauncher/builder/releases/download/runtimes/runtimes-v2.json";
+/// The manifest launchers before ScarlettPort read (VIctory and XCL only): read when the builder
+/// has not published runtimes-v2.json yet.
+pub const LEGACY_MANIFEST_URL: &str = "https://github.com/SixLauncher/builder/releases/download/runtimes/runtimes.json";
 
 /// No runtime archive is this large; a bigger download is refused.
 const MAX_ARCHIVE: u64 = 2 << 30;
@@ -209,6 +212,15 @@ fn commit_file(kind: BackendKind) -> &'static str {
 
 pub fn manifest_url() -> String {
     std::env::var("SIXLAUNCHER_RUNTIMES_URL").ok().filter(|u| !u.is_empty()).unwrap_or_else(|| MANIFEST_URL.into())
+}
+
+/// Where to look, in order: SIXLAUNCHER_RUNTIMES_URL alone when it is set, else
+/// runtimes-v2.json and then the legacy runtimes.json.
+fn manifest_urls() -> Vec<String> {
+    match std::env::var("SIXLAUNCHER_RUNTIMES_URL").ok().filter(|u| !u.is_empty()) {
+        Some(u) => vec![u],
+        None => vec![MANIFEST_URL.into(), LEGACY_MANIFEST_URL.into()],
+    }
 }
 
 pub fn runtimes_dir() -> PathBuf {
@@ -459,8 +471,22 @@ fn fetch_manifest_from(url: &str) -> Result<Manifest> {
     }
 }
 
+/// The first manifest found at `urls`, with its address (archives sit beside it). When none is
+/// there, the last answer (marked `missing`).
+fn fetch_first(urls: &[String], fetch: impl Fn(&str) -> Result<Manifest>) -> Result<(String, Manifest)> {
+    let mut last = None;
+    for url in urls {
+        let m = fetch(url)?;
+        if !m.missing {
+            return Ok((url.clone(), m));
+        }
+        last = Some((url.clone(), m));
+    }
+    last.ok_or_else(|| Error::Config("no runtimes manifest address".into()))
+}
+
 pub fn fetch_manifest() -> Result<Manifest> {
-    fetch_manifest_from(&manifest_url())
+    fetch_first(&manifest_urls(), fetch_manifest_from).map(|(_, m)| m)
 }
 
 /// What is installed and what the newest builds are.
@@ -582,8 +608,7 @@ pub fn install(
     progress: &mut dyn FnMut(u64, u64),
     check: &mut dyn FnMut(&Path) -> Result<()>,
 ) -> Result<PathBuf> {
-    let url = manifest_url();
-    let m = fetch_manifest_from(&url)?;
+    let (url, m) = fetch_first(&manifest_urls(), fetch_manifest_from)?;
     let asset = m.pick(kind, file).ok_or_else(|| match file {
         Some(f) => Error::Config(format!("runtimes.json has no {} build {f}", kind.name())),
         None => Error::Config(format!("runtimes.json has no {} build", kind.name())),
@@ -641,6 +666,19 @@ mod tests {
         assert!(parse_manifest(&MANIFEST.replace("xcl-abc.tar.gz", "a/b.tar.gz")).is_err());
         assert!(parse_manifest(&MANIFEST.replace("\"0000", "\"zz00")).is_err());
         assert!(parse_manifest(&MANIFEST.replace("\"schema\": 1", "\"schema\": 2")).is_err());
+    }
+
+    #[test]
+    fn the_legacy_manifest_answers_until_v2_is_published() {
+        let urls = [MANIFEST_URL.to_string(), LEGACY_MANIFEST_URL.to_string()];
+        let missing = || Manifest { schema: 1, missing: true, ..Manifest::default() };
+        let (url, m) = fetch_first(&urls, |u| Ok(if u == MANIFEST_URL { missing() } else { parse_manifest(MANIFEST).unwrap() })).unwrap();
+        assert_eq!((url.as_str(), m.missing), (LEGACY_MANIFEST_URL, false));
+        let (url, _) = fetch_first(&urls, |_| Ok(parse_manifest(MANIFEST).unwrap())).unwrap();
+        assert_eq!(url, MANIFEST_URL, "v2 first");
+        let (url, m) = fetch_first(&urls, |_| Ok(missing())).unwrap();
+        assert_eq!((url.as_str(), m.missing), (LEGACY_MANIFEST_URL, true));
+        assert!(fetch_first(&urls, |_| Err(Error::Config("offline".into()))).is_err());
     }
 
     #[test]

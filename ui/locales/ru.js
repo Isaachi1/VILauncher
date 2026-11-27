@@ -177,7 +177,7 @@ I18N.add("ru", {
   "compat.tabAdvanced": "Дополнительно",
 
   "runtimes.check": "Искать новые сборки",
-  "runtimes.intro": "Сборки VIctory и XCL каждого проекта с оценкой 59% и выше на PortWatch VI, проверенные сборщиком на VirusTotal (один уровень защиты, а не гарантия).",
+  "runtimes.intro": "Сборка ScarlettPort (по умолчанию) и сборки VIctory и XCL каждого проекта с оценкой 59% и выше на PortWatch VI, проверенные сборщиком на VirusTotal (уровень защиты, а не гарантия).",
   "runtimes.why": "Как выбирались сборки",
   "runtimes.installed": "Установлена: {build}",
   "runtimes.update": "Обновить",
@@ -411,7 +411,7 @@ I18N.add("ru", {
   "notify.intro": "Пока SixLauncher открыт, он проверяет новости каждый час и сообщает через системные уведомления.",
   "notify.race": "Обгоны в гонке",
   "notify.raceHint": "Когда проект обгоняет другой в первой пятёрке PortWatch VI.",
-  "notify.runtimes": "Новые сборки VIctory и XCL",
+  "notify.runtimes": "Новые сборки ScarlettPort, VIctory и XCL",
   "notify.runtimesHint": "Когда выходит новая сборка, которую вы ещё не установили.",
   "notify.app": "Новые версии SixLauncher",
   "notify.appHint": "Когда выходит новый релиз лаунчера.",

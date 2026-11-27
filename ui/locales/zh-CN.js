@@ -177,7 +177,7 @@ I18N.add("zh-CN", {
   "compat.tabAdvanced": "高级",
 
   "runtimes.check": "查找新版本",
-  "runtimes.intro": "PortWatch VI 评分 59% 及以上的各项目的 VIctory 和 XCL 构建，已由构建器在 VirusTotal 上检查（一层防护，而非保证）。",
+  "runtimes.intro": "ScarlettPort 构建（默认）以及 PortWatch VI 评分 59% 及以上各项目的 VIctory 与 XCL 构建，均由 builder 在 VirusTotal 上检查（一层保护，并非保证）。",
   "runtimes.why": "构建是如何选出的",
   "runtimes.installed": "已安装：{build}",
   "runtimes.update": "更新",
@@ -411,7 +411,7 @@ I18N.add("zh-CN", {
   "notify.intro": "SixLauncher 打开期间每小时检查一次，并通过系统通知提醒你。",
   "notify.race": "竞赛中的超越",
   "notify.raceHint": "当某个项目在 PortWatch VI 前 5 名中超过另一个项目时。",
-  "notify.runtimes": "VIctory 和 XCL 的新构建",
+  "notify.runtimes": "ScarlettPort、VIctory 和 XCL 的新构建",
   "notify.runtimesHint": "发布了你尚未安装的新构建时。",
   "notify.app": "SixLauncher 新版本",
   "notify.appHint": "当启动器发布新版本时。",

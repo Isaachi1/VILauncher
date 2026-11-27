@@ -177,7 +177,7 @@ I18N.add("id", {
   "compat.tabAdvanced": "Lanjutan",
 
   "runtimes.check": "Cari build baru",
-  "runtimes.intro": "Build VIctory dan XCL dari tiap proyek dengan skor 59% atau lebih di PortWatch VI, diperiksa builder di VirusTotal (satu lapisan keamanan, bukan jaminan).",
+  "runtimes.intro": "Build ScarlettPort (bawaan) serta build VIctory dan XCL dari tiap proyek dengan skor 59% atau lebih di PortWatch VI, diperiksa builder di VirusTotal (satu lapis keamanan, bukan jaminan).",
   "runtimes.why": "Cara build dipilih",
   "runtimes.installed": "Terpasang: {build}",
   "runtimes.update": "Perbarui",
@@ -411,7 +411,7 @@ I18N.add("id", {
   "notify.intro": "Selama terbuka, SixLauncher memeriksa setiap jam dan memberi tahu lewat notifikasi sistem.",
   "notify.race": "Salip-menyalip di balapan",
   "notify.raceHint": "Saat sebuah proyek menyalip proyek lain di 5 besar PortWatch VI.",
-  "notify.runtimes": "Build baru VIctory dan XCL",
+  "notify.runtimes": "Build baru ScarlettPort, VIctory, dan XCL",
   "notify.runtimesHint": "Saat build baru yang belum Anda pasang diterbitkan.",
   "notify.app": "Versi baru SixLauncher",
   "notify.appHint": "Saat rilis baru launcher keluar.",

@@ -177,7 +177,7 @@ I18N.add("ko", {
   "compat.tabAdvanced": "고급",
 
   "runtimes.check": "새 빌드 찾기",
-  "runtimes.intro": "PortWatch VI에서 59% 이상인 각 프로젝트의 VIctory·XCL 빌드로, 빌더가 VirusTotal에서 확인했습니다(보안의 한 겹일 뿐 보장은 아닙니다).",
+  "runtimes.intro": "ScarlettPort 빌드(기본값)와 PortWatch VI에서 59% 이상인 각 프로젝트의 VIctory·XCL 빌드. builder가 VirusTotal에서 확인했습니다(안전장치의 한 겹일 뿐 보증은 아닙니다).",
   "runtimes.why": "빌드를 고른 방법",
   "runtimes.installed": "설치됨: {build}",
   "runtimes.update": "업데이트",
@@ -411,7 +411,7 @@ I18N.add("ko", {
   "notify.intro": "SixLauncher가 열려 있는 동안 매시간 확인하고 시스템 알림으로 알려 줍니다.",
   "notify.race": "레이스 추월",
   "notify.raceHint": "PortWatch VI 상위 5위 안에서 한 프로젝트가 다른 프로젝트를 추월할 때.",
-  "notify.runtimes": "VIctory와 XCL의 새 빌드",
+  "notify.runtimes": "ScarlettPort, VIctory, XCL 새 빌드",
   "notify.runtimesHint": "아직 설치하지 않은 새 빌드가 게시되면.",
   "notify.app": "SixLauncher 새 버전",
   "notify.appHint": "런처의 새 릴리스가 나올 때.",

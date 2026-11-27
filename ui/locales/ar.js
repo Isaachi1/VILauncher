@@ -177,7 +177,7 @@ I18N.add("ar", {
   "compat.tabAdvanced": "متقدم",
 
   "runtimes.check": "البحث عن إصدارات جديدة",
-  "runtimes.intro": "إصدارات VIctory وXCL لكل مشروع بنتيجة 59% أو أكثر على PortWatch VI، فحصها الـ builder على VirusTotal (طبقة أمان، لا ضمان).",
+  "runtimes.intro": "إصدار ScarlettPort (الافتراضي) وإصدارات VIctory وXCL لكل مشروع حصل على 59% أو أكثر في PortWatch VI، وقد فحصها الـbuilder على VirusTotal (طبقة أمان، لا ضمان).",
   "runtimes.why": "كيف اختيرت الإصدارات",
   "runtimes.installed": "المثبّت: {build}",
   "runtimes.update": "تحديث",
@@ -411,7 +411,7 @@ I18N.add("ar", {
   "notify.intro": "ما دام SixLauncher مفتوحًا، فإنه يتحقق كل ساعة ويخبرك عبر إشعارات النظام.",
   "notify.race": "التجاوزات في السباق",
   "notify.raceHint": "عندما يتجاوز مشروع مشروعًا آخر بين أول 5 في PortWatch VI.",
-  "notify.runtimes": "إصدارات بناء جديدة من VIctory وXCL",
+  "notify.runtimes": "إصدارات جديدة من ScarlettPort وVIctory وXCL",
   "notify.runtimesHint": "عند نشر إصدار جديد لم تثبّته بعد.",
   "notify.app": "إصدارات جديدة من SixLauncher",
   "notify.appHint": "عندما يصدر إصدار جديد من المشغّل.",

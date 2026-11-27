@@ -177,7 +177,7 @@ I18N.add("ur", {
   "compat.tabAdvanced": "ایڈوانسڈ",
 
   "runtimes.check": "نئے بلڈ تلاش کریں",
-  "runtimes.intro": "PortWatch VI پر 59% یا زیادہ اسکور والے ہر پروجیکٹ کے VIctory اور XCL بلڈ، جنہیں بلڈر نے VirusTotal پر جانچا (حفاظت کی ایک تہہ، ضمانت نہیں)۔",
+  "runtimes.intro": "ScarlettPort بلڈ (ڈیفالٹ) اور PortWatch VI پر 59% یا زیادہ والے ہر پروجیکٹ کے VIctory اور XCL بلڈ، builder نے VirusTotal پر جانچے (حفاظت کی ایک تہہ، ضمانت نہیں)۔",
   "runtimes.why": "بلڈز کیسے چنے گئے",
   "runtimes.installed": "انسٹال شدہ: {build}",
   "runtimes.update": "اپ ڈیٹ کریں",
@@ -411,7 +411,7 @@ I18N.add("ur", {
   "notify.intro": "کھلا رہنے تک SixLauncher ہر گھنٹے دیکھتا ہے اور سسٹم کی اطلاعات کے ذریعے بتاتا ہے۔",
   "notify.race": "ریس میں آگے نکلنا",
   "notify.raceHint": "جب PortWatch VI کے پہلے 5 میں کوئی پروجیکٹ دوسرے سے آگے نکل جائے۔",
-  "notify.runtimes": "VIctory اور XCL کے نئے بلڈ",
+  "notify.runtimes": "ScarlettPort، VIctory اور XCL کے نئے بلڈ",
   "notify.runtimesHint": "جب کوئی نیا بلڈ شائع ہو جو آپ نے ابھی انسٹال نہیں کیا۔",
   "notify.app": "SixLauncher کے نئے ورژن",
   "notify.appHint": "جب لانچر کی نئی ریلیز آئے۔",

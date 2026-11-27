@@ -177,7 +177,7 @@ I18N.add("tr", {
   "compat.tabAdvanced": "Gelişmiş",
 
   "runtimes.check": "Yeni derlemeleri ara",
-  "runtimes.intro": "PortWatch VI'da %59 ve üzeri puan alan her projenin VIctory ve XCL sürümleri, derleyici tarafından VirusTotal'da denetlenmiştir (bir güvenlik katmanı, garanti değil).",
+  "runtimes.intro": "ScarlettPort sürümü (varsayılan) ile PortWatch VI'da %59 veya üzeri puan alan her projenin VIctory ve XCL sürümleri; builder tarafından VirusTotal'da denetlenir (bir güvenlik katmanı, garanti değil).",
   "runtimes.why": "Derlemeler nasıl seçildi",
   "runtimes.installed": "Kurulu: {build}",
   "runtimes.update": "Güncelle",
@@ -411,7 +411,7 @@ I18N.add("tr", {
   "notify.intro": "SixLauncher açık olduğu sürece her saat kontrol eder ve sistem bildirimleriyle haber verir.",
   "notify.race": "Yarıştaki sollamalar",
   "notify.raceHint": "PortWatch VI'ın ilk 5'inde bir proje diğerini geçtiğinde.",
-  "notify.runtimes": "Yeni VIctory ve XCL derlemeleri",
+  "notify.runtimes": "Yeni ScarlettPort, VIctory ve XCL sürümleri",
   "notify.runtimesHint": "Henüz kurmadığınız yeni bir derleme yayımlandığında.",
   "notify.app": "Yeni SixLauncher sürümleri",
   "notify.appHint": "Başlatıcının yeni bir sürümü çıktığında.",
