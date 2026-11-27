@@ -242,6 +242,7 @@ function hideBanner() {
 function selectTab(name) {
   for (const b of $$(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
   for (const p of $$(".panel")) p.hidden = p.id !== `tab-${name}`;
+  if (name === "compat" && (!lastRuntimes || lastRuntimes.offline)) loadRuntimes();
   if (name === "status" && !statusLoaded) {
     statusLoaded = true;
     $("#status-refresh").click();
@@ -856,15 +857,36 @@ function showBuildDetail(rt) {
   if (r.previous && r.previous.length) box.append(previousBuilds(r));
 }
 
+// The published builds could not be read: say so with the reason (address, network error),
+// which is what tells a passing network blip from a blocked address.
+function offlineRuntimes(why) {
+  console.warn("runtimes:", why);
+  say("#runtimes-info", "runtimes.offline");
+  $("#runtimes-info").append(el("span", "detail", ` (${why})`));
+}
+
+// Reads the builds; also when the Compatibilidade tab opens after a failed read, since the
+// read at start can fail only because the network was not up yet.
+let runtimesLoading = false;
+async function loadRuntimes() {
+  if (runtimesLoading) return;
+  runtimesLoading = true;
+  try {
+    showRuntimes(await invoke("runtime_status"));
+  } catch (e) {
+    if (!lastRuntimes) showBuilds({ backends: [] });
+    offlineRuntimes(String(e));
+  } finally {
+    runtimesLoading = false;
+  }
+}
+
 function showRuntimes(rt) {
   lastRuntimes = rt;
   showBuilds(rt);
-  if (rt.offline) {
-    console.warn("runtimes:", rt.offline); // the detail (address, network error) is for debugging
-    say("#runtimes-info", "runtimes.offline");
-  } else if (rt.unpublished) {
-    say("#runtimes-info", "runtimes.unpublished", { url: rt.unpublished });
-  }
+  if (rt.offline) offlineRuntimes(rt.offline);
+  else if (rt.unpublished) say("#runtimes-info", "runtimes.unpublished", { url: rt.unpublished });
+  else if ($("#runtimes-info .detail")) say("#runtimes-info", "runtimes.intro"); // a retry worked
   const cands = $("#runtimes-candidates");
   cands.replaceChildren();
   for (const c of rt.candidates) cands.append(el("li", null, `${c.name} (${c.repo}): ${c.result}`));
@@ -1444,13 +1466,7 @@ async function init() {
   );
   // The Backend list comes from the builder: load it once at start, without blocking.
   showBuilds(null);
-  invoke("runtime_status")
-    .then(showRuntimes)
-    .catch((e) => {
-      showBuilds({ backends: [] });
-      console.warn("runtimes:", e);
-      say("#runtimes-info", "runtimes.offline");
-    });
+  loadRuntimes();
   showNotifySettings(config.notifications);
   for (const box of $$("[data-notify]")) box.addEventListener("change", saveNotifySettings);
   $("#notify-test").addEventListener("click", () =>
