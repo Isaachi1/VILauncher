@@ -438,6 +438,29 @@ pub fn free_mb() -> Option<u64> {
     Some(kb / 1024)
 }
 
+/// Translated shaders in the preset's cache (`<cache>/shaders/xx/<rest of hash>`; temporary
+/// `.`-files not counted), as ScarlettPort's launcher counted them.
+pub fn cached_shaders(cfg: &crate::config::Config) -> u64 {
+    let Ok(top) = std::fs::read_dir(prep_cache(cfg).join("shaders")) else { return 0 };
+    let mut n = 0;
+    for d in top.flatten() {
+        if d.file_name().len() != 2 || !d.file_type().is_ok_and(|t| t.is_dir()) {
+            continue;
+        }
+        if let Ok(files) = std::fs::read_dir(d.path()) {
+            n += files.flatten().filter(|f| !f.file_name().to_string_lossy().starts_with('.')).count() as u64;
+        }
+    }
+    n
+}
+
+/// After `scarlett prepare` ended without error but its end line did not reach the launcher
+/// (output in a Wine console window, or in Proton's log): the cache holds the title's shaders
+/// (95% of them or more; some do not translate yet).
+pub fn cache_complete(cfg: &crate::config::Config) -> bool {
+    cached_shaders(cfg) >= SHADERS_TOTAL * 95 / 100
+}
+
 /// The file in the preset's cache that records what it was prepared for.
 pub const STAMP: &str = "prepared.txt";
 
@@ -514,6 +537,18 @@ mod prep_tests {
         cfg.scarlett.preset = ScarlettPreset::Stable;
         std::fs::write(&exe, "MZ new build").unwrap();
         assert!(!prepared(&cfg), "another runtime build");
+        assert!(!cache_complete(&cfg));
+        let shaders = prep_cache(&cfg).join("shaders");
+        for i in 0..SHADERS_TOTAL * 95 / 100 {
+            let d = shaders.join(format!("{:02x}", i % 256));
+            if i < 256 {
+                std::fs::create_dir_all(&d).unwrap();
+            }
+            std::fs::write(d.join(format!("{i}")), "").unwrap();
+        }
+        std::fs::write(shaders.join("00/.tmp-x"), "").unwrap();
+        assert_eq!(cached_shaders(&cfg), SHADERS_TOTAL * 95 / 100);
+        assert!(cache_complete(&cfg));
     }
 }
 

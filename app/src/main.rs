@@ -608,6 +608,8 @@ fn prepare_shaders(app: AppHandle, running: State<Running>, config: Config) -> R
                     let _ = app.emit("game-log", LogLine { stream: "stderr", line });
                 }
             }
+            // Or, when the end line never reached the launcher, the cache holding the shaders.
+            let done = done || (code == Some(0) && scarlett::cache_complete(&config));
             let prepared = code == Some(0) && done && scarlett::mark_prepared(&config).is_ok();
             let _ = app.emit("prep-exit", PrepExit { code, prepared });
         }),
