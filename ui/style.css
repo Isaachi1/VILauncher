@@ -957,3 +957,13 @@ kbd + kbd { margin-inline-start: 2px; }
 [dir="rtl"] .mega, [dir="rtl"] .e-bar, [dir="rtl"] .ov-history,
 [dir="rtl"] input, [dir="rtl"] textarea, [dir="rtl"] pre, [dir="rtl"] code { direction: ltr; }
 [dir="rtl"] input, [dir="rtl"] textarea { text-align: left; }
+
+/* -- one primary look ------------------------------------------------------------------------ */
+/* The brand gradient is Jogar's alone. Other primary buttons take one solid brand color (5.4:1
+   with white text) and no glow, so the gradient still marks the one action that matters. */
+button.primary { background: #6a4cf0; box-shadow: none; }
+button.primary:hover { filter: brightness(1.1); }
+#play:not(.not-ready) { background: var(--grad-text, var(--grad)); box-shadow: 0 8px 24px rgba(212, 21, 95, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.2); }
+
+/* The outcome of a run, as the head of the report card. */
+.report .run-outcome { flex: 1 1 100%; margin: 0 0 4px; padding: 0 0 14px; background: none; border: 0; border-bottom: 1px solid var(--vi-line); border-radius: 0; }

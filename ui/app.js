@@ -1417,10 +1417,8 @@ function showOutcome(code) {
   const retry = $("#run-retry");
   say("#run-retry", retryFirst ? "run.retryVerbose" : "run.retry");
   retry.className = retryFirst ? "primary" : "ghost";
-  // The report box right below already offers the export; the card repeats it only when the
-  // export is the next step (detailed logs were on, or there are none to turn on).
-  $("#run-export").hidden = retryFirst;
-  $("#run-export").className = "primary";
+  // One primary action in the card: the detailed run when it is the next step, else the export.
+  $("#report-export").className = retryFirst ? "ghost" : "primary";
   box.hidden = false;
 }
 
@@ -1435,6 +1433,7 @@ async function retryRun() {
 async function play(force) {
   hideBanner();
   $("#run-outcome").hidden = true;
+  $("#report-export").className = "primary";
   stopRequested = false;
   await save();
   try {
@@ -1670,7 +1669,6 @@ async function init() {
     invoke("stop_game");
   });
   $("#run-retry").addEventListener("click", () => guarded($("#run-retry"), retryRun));
-  $("#run-export").addEventListener("click", () => $("#report-export").click());
   // Every field saves when it changes (a path picked, a box ticked, a field left), so no
   // Salvar button: build and Proton choices already applied at once, and now the rest does too.
   let saveTimer = null;
