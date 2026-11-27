@@ -475,7 +475,9 @@ function lockIcon() {
 function countUp(node, to) {
   const start = performance.now();
   const step = (now) => {
-    const t = Math.min(1, (now - start) / 900);
+    // A frame's timestamp can be a little earlier than start: clamp, or the first frame shows
+    // a negative number ("-2%").
+    const t = Math.min(1, Math.max(0, (now - start) / 900));
     const v = to * (1 - Math.pow(1 - t, 3));
     node.textContent = t < 1 ? String(Math.round(v)) : pct(to);
     if (t < 1) requestAnimationFrame(step);
