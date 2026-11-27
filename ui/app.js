@@ -88,8 +88,25 @@ function refreshVisibility() {
   // GPU offload, MangoHud, GameMode and Proton's detailed logs are Linux's.
   for (const el of $$(".not-windows")) el.hidden = PLATFORM === "windows";
   say("#runner-path-label", runner === "wine" ? "run.winePath" : "run.protonPath");
-  const layer = runner === "native" ? t("run.nativeLabel") : runner === "wine" ? "Wine + vkd3d-proton" : "Proton";
-  $("#backend-label").textContent = `${backend === "xcl" ? "XCL" : "VIctory"} · ${layer}`;
+  showRunLabel();
+}
+
+// The hero's second chip: the backend with the build in use (its project on the tracker), and
+// how it runs, with the Proton chosen. What Jogar is about to run, without opening a tab.
+function showRunLabel() {
+  const backend = $('[data-path="backend.kind"]').value;
+  const runner = $('[data-path="runner.kind"]').value;
+  const exe = $('[data-path="backend.exe"]').value.trim();
+  const r = lastRuntimes && lastRuntimes.backends.find((b) => b.backend === backend);
+  const build = r && r.exe && r.exe === exe ? inUseChoice(r) : null;
+  const what = [BACKEND_NAME[backend] || backend, build && (build.effort || build.repo)].filter(Boolean).join(" ");
+  let layer = runner === "native" ? t("run.nativeLabel") : runner === "wine" ? "Wine + vkd3d-proton" : "Proton";
+  if (runner === "proton") {
+    const path = $('[data-path="runner.path"]').value.trim();
+    const p = (protonList || []).find((x) => x.path === path);
+    if (p) layer = p.name;
+  }
+  $("#backend-label").textContent = `${what} · ${layer}`;
 }
 
 // The host the window runs on (`linux`, `macos`, `windows`), from get_state.
@@ -262,11 +279,37 @@ function appendLog(line, stream) {
   if (atBottom) log.scrollTop = log.scrollHeight;
 }
 
+let gameRunning = false;
+
 function setRunning(running) {
+  gameRunning = running;
   $("#play").hidden = running;
   $("#stop").hidden = !running;
-  $("#live").classList.toggle("on", running);
-  say("#live-text", running ? "live.running" : "live.ready");
+  showReadiness();
+}
+
+// The hero's status chip: running, or what the last checks found (they run at start and after
+// each save), so a failing check shows on every tab, not only in Verificação.
+function showReadiness() {
+  const live = $("#live");
+  const fails = lastChecks ? lastChecks.filter((c) => c.status === "fail").length : 0;
+  const warns = lastChecks ? lastChecks.filter((c) => c.status === "warn").length : 0;
+  const state = gameRunning ? "on" : !lastChecks ? "checking" : fails ? "fail" : warns ? "warn" : "ok";
+  live.className = `live ${state}`;
+  const key = { on: "live.running", checking: "live.checking", fail: "live.notReady", warn: "live.readyWarn", ok: "live.ready" }[state];
+  say("#live-text", key);
+}
+
+// The checks behind the chip, without touching the Verificação tab's own run. Later runs win.
+let readinessRun = 0;
+async function checkReadiness() {
+  const run = ++readinessRun;
+  try {
+    const checks = await invoke("run_doctor", { config: readForm() });
+    if (run === readinessRun) showChecks(checks);
+  } catch (e) {
+    console.warn("readiness:", e);
+  }
 }
 
 const STATUS_KEY = { ok: "check.ok", warn: "check.warn", fail: "check.fail" };
@@ -293,6 +336,12 @@ function showChecks(checks) {
       I18N.text(fix, "fix.button");
       fix.addEventListener("click", () => askFix(c.fix));
       tdD.appendChild(fix);
+    } else if (c.status !== "ok" && CHECK_ACTION[c.name]) {
+      const a = CHECK_ACTION[c.name];
+      const b = el("button", "fix");
+      I18N.text(b, a.key);
+      b.addEventListener("click", () => guarded(b, a.go));
+      tdD.appendChild(b);
     }
     tr.append(tdS, tdN, tdD);
     body.appendChild(tr);
@@ -300,7 +349,37 @@ function showChecks(checks) {
   const fails = checks.filter((c) => c.status === "fail").length;
   const warns = checks.filter((c) => c.status === "warn").length;
   say("#doctor-status", "doctor.summary", { fails, warns, ok: checks.length - fails - warns });
+  showReadiness();
 }
+
+// Opens a tab at the part of it a check is about.
+function goTo(tab, sel) {
+  selectTab(tab);
+  const target = sel && $(sel);
+  if (target) {
+    target.scrollIntoView({ block: "center" });
+    (target.querySelector("input, select, button, [tabindex]") || target).focus({ preventScroll: true });
+  }
+}
+
+// What a failing or warning check (doctor.rs names) can do right there, besides the kernel
+// fixes, which carry their own plan.
+const CHECK_ACTION = {
+  prefix: {
+    key: "check.doSetup",
+    go: async () => {
+      await save();
+      const lines = await invoke("setup_prefix", { config });
+      for (const l of lines) appendLog(l, "stdout");
+      await $("#doctor").click();
+    },
+  },
+  backend: { key: "check.doBuild", go: () => goTo("compat", "#backend-build") },
+  game: { key: "check.doGame", go: () => goTo("game", "#step-dir") },
+  "game-sha256": { key: "check.doGame", go: () => goTo("game", "#step-dir") },
+  runner: { key: "check.doRunner", go: () => goTo("compat", '[data-path="runner.kind"]') },
+  "vkd3d-proton": { key: "check.doRunner", go: () => goTo("compat", '[data-path="runner.vkd3d_dir"]') },
+};
 
 // A kernel setting's fix: say what it writes (and the risk, for userfaultfd), then run it as
 // root (pkexec asks for the password) and check again.
@@ -888,6 +967,7 @@ async function loadRuntimes() {
 function showRuntimes(rt) {
   lastRuntimes = rt;
   showBuilds(rt);
+  showRunLabel();
   if (rt.offline) offlineRuntimes(rt.offline);
   else if (rt.unpublished) say("#runtimes-info", "runtimes.unpublished", { url: rt.unpublished });
   else if ($("#runtimes-info .detail")) say("#runtimes-info", "runtimes.intro"); // a retry worked
@@ -955,6 +1035,7 @@ let protonReleases = null;
 
 function showProtons(list) {
   protonList = list;
+  showRunLabel();
   const datalist = $("#protons");
   datalist.replaceChildren();
   for (const p of list) {
@@ -1185,6 +1266,7 @@ async function save() {
   const path = await invoke("save_config", { config });
   say("#save-status", "save.done", { path });
   $("#verbose-logs").checked = verboseOn(config);
+  checkReadiness();
   return config;
 }
 
@@ -1413,6 +1495,7 @@ async function init() {
   say("#config-path", "config.path", { path: state.config_path });
   say("#log-path", "log.path", { path: state.log_file });
   showProtons(state.protons);
+  checkReadiness();
   $('[data-path="runner.path"]').addEventListener("change", () => showProtons(protonList));
   $("#proton-check").addEventListener("click", () =>
     guarded($("#proton-check"), async () => {
@@ -1424,6 +1507,7 @@ async function init() {
   $("#proton-get").addEventListener("click", () => guarded($("#proton-get"), installProton));
 
   for (const b of $$(".tabs button")) b.addEventListener("click", () => selectTab(b.dataset.tab));
+  $("#live").addEventListener("click", () => selectTab("doctor"));
   for (const el of $$('select[data-path], input[data-kind="bool"]')) el.addEventListener("change", refreshVisibility);
   loadHardware();
   $('[data-path="game.dir"]').addEventListener("change", () => {
