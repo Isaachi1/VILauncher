@@ -157,6 +157,8 @@ let exeRun = 0;
 // Fills step 2 with the .exe files of the folder of step 1 (MicrosoftGame.config's own
 // first). The select starts empty: game.exe stays unset, so the launcher keeps following the
 // config, until one is picked; a pick outside the list (Outro .exe…) is kept as an option too.
+const TITLE_EXE = /(^|\/)(gta6|game_scarlett_master)\.exe$/i;
+
 async function refreshExes() {
   const dir = $('[data-path="game.dir"]').value.trim();
   const sel = $("#game-exe");
@@ -177,7 +179,6 @@ async function refreshExes() {
   const ready = Boolean(dir) && !error;
   step.classList.toggle("locked", !ready);
   sel.disabled = !ready;
-  $("#game-exe-browse").disabled = !ready;
   $("#step-dir").classList.toggle("done", ready);
 
   const dirInfo = $("#game-dir-info");
@@ -190,31 +191,19 @@ async function refreshExes() {
   const fromConfig = (e) => named.some((n) => n.replace(/\\/g, "/").toLowerCase() === e.toLowerCase());
   sel.replaceChildren(new Option("", ""));
   for (const e of exes) sel.append(new Option(fromConfig(e) ? `${e} · MicrosoftGame.config` : e, e));
-  if (current && !exes.includes(current)) sel.append(new Option(current, current));
-  sel.value = current;
+  // The executable is one of the folder's: one outside it (a document-portal copy from the
+  // old Outro .exe… dialog) is dropped, and with none chosen the title's own is taken by name
+  // (gta6.exe; gamedir::TITLE_EXES), the scan having found it inside the game folder.
+  let value = exes.includes(current) ? current : "";
+  if (!value && ready) value = exes.find((e) => TITLE_EXE.test(e)) || "";
+  sel.value = value;
+  if (ready && value !== current) sel.dispatchEvent(new Event("change"));
 
   if (!dir) say("#game-exe-info", "game.exeLocked");
   else if (error) plain("#game-exe-info", "");
   else if (exes.length) say("#game-exe-info", "game.exeFound", { n: exes.length });
   else say("#game-exe-info", "game.exeNone");
   showStepsSummary(ready, info);
-}
-
-// Outro .exe…: a file dialog that opens in the game folder; inside it, the path is kept
-// relative (as MicrosoftGame.config writes it), outside it, absolute.
-async function browseExe() {
-  const dir = $('[data-path="game.dir"]').value.trim().replace(/\/+$/, "");
-  const picked = await dialog.open({ multiple: false, defaultPath: dir || undefined, filters: [{ name: "EXE", extensions: ["exe", "EXE"] }] });
-  if (typeof picked !== "string") return;
-  const sel = $("#game-exe");
-  // In the Flatpak the dialog hands back a document-portal copy (/run/user/<uid>/doc/<id>/name),
-  // alone in its folder: an executable the game folder also lists is kept by its name there.
-  const base = picked.split("/").pop();
-  const listed = [...sel.options].find((o) => o.value && o.value.toLowerCase() === base.toLowerCase());
-  const value = dir && picked.startsWith(`${dir}/`) ? picked.slice(dir.length + 1) : listed ? listed.value : picked;
-  if (![...sel.options].some((o) => o.value === value)) sel.append(new Option(value, value));
-  sel.value = value;
-  sel.dispatchEvent(new Event("change"));
 }
 
 // -- the game's files against the known SHA-256 (integrity.rs) -----------------------------
@@ -1865,7 +1854,6 @@ async function init() {
   });
   $('[data-path="game.exe"]').addEventListener("change", verifyGame);
   $("#find-games").addEventListener("click", () => guarded($("#find-games"), findGames));
-  $("#game-exe-browse").addEventListener("click", browseExe);
   refreshExes();
   $('[data-path="game.verify"]').addEventListener("change", verifyGame);
   $("#verify-zip").addEventListener("click", () => guarded($("#verify-zip"), verifyZip));

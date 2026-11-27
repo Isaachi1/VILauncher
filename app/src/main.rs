@@ -583,6 +583,7 @@ fn prepare_shaders(app: AppHandle, running: State<Running>, config: Config) -> R
     }
     let l = launch::prepare_shaders(&config).map_err(err)?;
     let runner = Runner::from_config(&config).map_err(err)?;
+    let env = l.env.clone();
     let finished = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let seen = finished.clone();
     start(
@@ -599,7 +600,15 @@ fn prepare_shaders(app: AppHandle, running: State<Running>, config: Config) -> R
             }
         }),
         Box::new(move |app: &AppHandle, code: Option<i32>| {
-            let prepared = code == Some(0) && finished.load(std::sync::atomic::Ordering::SeqCst) && scarlett::mark_prepared(&config).is_ok();
+            // With PROTON_LOG=1 the end line may sit in Proton's log rather than the output.
+            let done = finished.load(std::sync::atomic::Ordering::SeqCst)
+                || launch::proton_log_tail(&env, 50).iter().any(|l| matches!(scarlett::parse_prep(l), Some(scarlett::PrepLine::Done { .. })));
+            if !done {
+                for line in launch::proton_log_tail(&env, 30) {
+                    let _ = app.emit("game-log", LogLine { stream: "stderr", line });
+                }
+            }
+            let prepared = code == Some(0) && done && scarlett::mark_prepared(&config).is_ok();
             let _ = app.emit("prep-exit", PrepExit { code, prepared });
         }),
     )

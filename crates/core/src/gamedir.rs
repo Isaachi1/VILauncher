@@ -120,6 +120,11 @@ const SCAN_LIMIT: usize = 200;
 /// those `MicrosoftGame.config` names first (in its order), then the rest, shallowest first
 /// and by name. Symbolic links are not followed; the walk stops at [`SCAN_DEPTH`] levels and
 /// [`SCAN_LIMIT`] files.
+/// The title's own executable names, in the dumps SixLauncher has seen: they lead the list after
+/// the ones MicrosoftGame.config names (gta6.exe in the CYBERLEEK dump, game_scarlett_master.exe
+/// in the master build).
+pub const TITLE_EXES: [&str; 2] = ["gta6.exe", "game_scarlett_master.exe"];
+
 pub fn find_executables(folder: &Path) -> Result<Vec<String>> {
     let info = inspect(folder)?;
     let mut found = Vec::new();
@@ -141,7 +146,11 @@ pub fn find_executables(folder: &Path) -> Result<Vec<String>> {
         }
     }
     let named: Vec<String> = info.executables.iter().map(|e| e.replace('\\', "/")).collect();
-    let rank = |e: &String| named.iter().position(|n| n.eq_ignore_ascii_case(e)).unwrap_or(usize::MAX);
+    let title = |e: &String| {
+        let name = e.rsplit('/').next().unwrap_or(e);
+        TITLE_EXES.iter().position(|t| t.eq_ignore_ascii_case(name)).map_or(usize::MAX, |i| named.len() + i)
+    };
+    let rank = |e: &String| named.iter().position(|n| n.eq_ignore_ascii_case(e)).unwrap_or_else(|| title(e));
     found.sort_by(|a, b| {
         rank(a)
             .cmp(&rank(b))
@@ -169,10 +178,10 @@ pub fn resolve_exe(info: &GameInfo, override_exe: Option<&str>) -> Result<PathBu
         // In the Flatpak a file chosen in the dialog arrives through the document portal as
         // /run/user/<uid>/doc/<id>/<name>, alone in its folder; the backends read the title's
         // DLLs and MicrosoftGame.config beside the executable, so that copy cannot run.
-        if !p.starts_with(&info.folder) {
-            if let Some(own) = p.file_name().and_then(|n| same_name_in(&info.folder, &n.to_string_lossy())) {
-                return Ok(own);
-            }
+        if !p.starts_with(&info.folder)
+            && let Some(own) = p.file_name().and_then(|n| same_name_in(&info.folder, &n.to_string_lossy()))
+        {
+            return Ok(own);
         }
         return if p.is_file() {
             Ok(p)
@@ -272,6 +281,17 @@ pub fn search(starts: &[(PathBuf, u32)], deadline: std::time::Instant) -> Vec<Pa
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_titles_own_executable_comes_right_after_the_configs() {
+        let t = tempfile::tempdir().unwrap();
+        let game = crate::testutil::fake_game(t.path());
+        for name in ["aaa.exe", "GTA6.exe", "tools/zz.exe"] {
+            fs::create_dir_all(game.join(name).parent().unwrap()).unwrap();
+            fs::write(game.join(name), "MZ").unwrap();
+        }
+        assert_eq!(find_executables(&game).unwrap(), ["bin/title.exe", "GTA6.exe", "aaa.exe", "tools/zz.exe"]);
+    }
+
     #[test]
     fn an_executable_picked_through_the_portal_runs_from_the_game_folder() {
         let t = tempfile::tempdir().unwrap();
