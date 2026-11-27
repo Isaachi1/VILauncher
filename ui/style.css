@@ -200,6 +200,15 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; margin: 0; }
   -webkit-mask: linear-gradient(180deg, transparent 10%, #000 100%);
   mask: linear-gradient(180deg, transparent 10%, #000 100%);
 }
+/* Outside Jogo: the same hero as a slim bar (status, what runs, the title, Jogar). */
+.hero.compact { margin: 16px 0 18px; padding: 14px 18px 14px 24px; align-items: center; }
+.hero.compact .hero-chips { margin: 0 0 6px; gap: 8px; }
+.hero.compact h1 { font-size: 22px; letter-spacing: -0.02em; line-height: 1.15; }
+.hero.compact .sub { display: none; }
+.hero.compact .hero-actions { display: flex; flex-direction: row-reverse; align-items: center; gap: 14px; }
+.hero.compact .hero-note { max-width: 18ch; text-align: end; font-size: 12px; }
+.hero.compact button.big { padding: 10px 22px; font-size: 15px; }
+.hero.compact button.big svg { width: 16px; height: 16px; }
 .hero-chips { margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .live {
   display: inline-flex;
@@ -236,15 +245,6 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; margin: 0; }
   letter-spacing: -0.035em;
 }
 .hero .sub { margin: 10px 0 0; color: rgba(255, 255, 255, 0.72); font-size: 15px; }
-/* Outside Jogo: the same hero as a slim bar (status, what runs, the title, Jogar). */
-.hero.compact { margin: 16px 0 18px; padding: 14px 18px 14px 24px; align-items: center; }
-.hero.compact .hero-chips { margin: 0 0 6px; gap: 8px; }
-.hero.compact h1 { font-size: 22px; letter-spacing: -0.02em; line-height: 1.15; }
-.hero.compact .sub { display: none; }
-.hero.compact .hero-actions { display: flex; flex-direction: row-reverse; align-items: center; gap: 14px; }
-.hero.compact .hero-note { max-width: 18ch; text-align: end; font-size: 12px; }
-.hero.compact button.big { padding: 10px 22px; font-size: 15px; }
-.hero.compact button.big svg { width: 16px; height: 16px; }
 .hero-actions { flex: none; }
 
 /* -- buttons ------------------------------------------------------------------------------ */
