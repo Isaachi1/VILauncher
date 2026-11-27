@@ -240,7 +240,10 @@ function hideBanner() {
 }
 
 function selectTab(name) {
-  for (const b of $$(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
+  for (const b of $$(".tabs button")) {
+    b.setAttribute("aria-selected", String(b.dataset.tab === name));
+    b.tabIndex = b.dataset.tab === name ? 0 : -1;
+  }
   for (const p of $$(".panel")) p.hidden = p.id !== `tab-${name}`;
   if (name === "compat" && (!lastRuntimes || lastRuntimes.offline)) loadRuntimes();
   // Opening Verificação runs the checks (not again while they run).
@@ -1366,6 +1369,12 @@ async function init() {
   );
   $("#proton-get").addEventListener("click", () => guarded($("#proton-get"), installProton));
 
+  $(".tabs").addEventListener("keydown", (ev) =>
+    arrowNav(ev, $$(".tabs button"), ev.target, (b) => {
+      selectTab(b.dataset.tab);
+      b.focus();
+    }),
+  );
   for (const b of $$(".tabs button")) b.addEventListener("click", () => selectTab(b.dataset.tab));
   for (const el of $$('select[data-path], input[data-kind="bool"]')) el.addEventListener("change", refreshVisibility);
   loadHardware();

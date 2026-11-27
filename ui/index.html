@@ -35,11 +35,11 @@
         <span><b>VI</b>Launcher</span>
       </span>
       <nav class="tabs nav-links" role="tablist" data-i18n-attr="aria-label:nav.sections" aria-label="Seções">
-        <button role="tab" data-tab="game" aria-selected="true" data-i18n="tab.game">Jogo</button>
-        <button role="tab" data-tab="compat" data-i18n="tab.compat">Compatibilidade</button>
-        <button role="tab" data-tab="doctor" data-i18n="tab.doctor">Verificação</button>
-        <button role="tab" data-tab="log" data-i18n="tab.log">Log</button>
-        <button role="tab" data-tab="status" data-i18n="tab.status">Status</button>
+        <button role="tab" id="tabbtn-game" aria-controls="tab-game" data-tab="game" aria-selected="true" data-i18n="tab.game">Jogo</button>
+        <button role="tab" id="tabbtn-compat" aria-controls="tab-compat" tabindex="-1" data-tab="compat" data-i18n="tab.compat">Compatibilidade</button>
+        <button role="tab" id="tabbtn-doctor" aria-controls="tab-doctor" tabindex="-1" data-tab="doctor" data-i18n="tab.doctor">Verificação</button>
+        <button role="tab" id="tabbtn-log" aria-controls="tab-log" tabindex="-1" data-tab="log" data-i18n="tab.log">Log</button>
+        <button role="tab" id="tabbtn-status" aria-controls="tab-status" tabindex="-1" data-tab="status" data-i18n="tab.status">Status</button>
       </nav>
       <div class="nav-tools">
       <select id="lang" class="lang-select" data-i18n-attr="aria-label:lang.label;title:lang.label" aria-label="Idioma" title="Idioma"></select>
@@ -82,7 +82,7 @@
     </div>
   </div>
 
-  <div id="banner" class="banner wrap" hidden>
+  <div id="banner" class="banner wrap" role="alert" hidden>
     <pre id="banner-text"></pre>
     <div class="banner-actions">
       <button id="banner-force" class="ghost" hidden data-i18n="banner.force">Rodar mesmo assim</button>
@@ -91,7 +91,7 @@
   </div>
 
   <main class="wrap">
-    <section id="tab-game" class="panel">
+    <section id="tab-game" class="panel" role="tabpanel" aria-labelledby="tabbtn-game">
       <p class="kicker" data-i18n="game.kicker">Biblioteca</p>
       <h2 data-i18n="game.title">Jogo</h2>
       <!-- Two steps: the folder first, then the executable among the .exe files found in it. -->
@@ -129,7 +129,7 @@
       </div>
       <div class="actions">
         <button id="verify-zip" class="ghost" data-i18n="game.verifyZip">Verificar um .zip…</button>
-        <span class="status" id="zip-verify"></span>
+        <span class="status" id="zip-verify" role="status"></span>
       </div>
       <div class="note" data-i18n="game.note">
         O SixLauncher só roda arquivos de um jogo que você possui, já desempacotados. Ele não desempacota,
@@ -139,7 +139,7 @@
 
     <!-- One card per part of the run: the backend, how it runs, the GPU and overlay; the
          buttons that act on all of them in a bar of their own. -->
-    <section id="tab-compat" class="panel bare stack" hidden>
+    <section id="tab-compat" class="panel bare stack" role="tabpanel" aria-labelledby="tabbtn-compat" hidden>
      <section class="card" aria-labelledby="compat-title">
       <p class="kicker" data-i18n="compat.kicker">Backend</p>
       <h2 id="compat-title" data-i18n="compat.title">Camada de compatibilidade</h2>
@@ -153,7 +153,7 @@
       <div class="subpanel" id="compat-builds" role="tabpanel" aria-labelledby="subtab-builds">
         <div class="actions">
           <button id="runtimes-check" data-i18n="runtimes.check">Procurar builds novas</button>
-          <span class="status" id="runtimes-info" data-i18n="runtimes.intro">As builds do VIctory e do XCL de cada projeto com nota 59% ou mais no PortWatch VI, já verificadas no VirusTotal.</span>
+          <span class="status" id="runtimes-info" role="status" data-i18n="runtimes.intro">As builds do VIctory e do XCL de cada projeto com nota 59% ou mais no PortWatch VI, já verificadas no VirusTotal.</span>
         </div>
         <div class="field">
           <span id="backend-build-label"><span data-i18n="compat.backend">Backend</span></span>
@@ -181,7 +181,7 @@
           <button id="vt-save" class="ghost" data-i18n="vt.save">Salvar chave</button>
           <button id="vt-check" data-i18n="vt.check">Verificar build atual no VirusTotal</button>
         </div>
-        <span class="status" id="vt-info"></span>
+        <span class="status" id="vt-info" role="status"></span>
         <table id="vt"><tbody></tbody></table>
       </div>
 
@@ -236,7 +236,7 @@
       <div class="protons only-proton">
         <div class="actions">
           <b data-i18n="proton.title">Versões do Proton</b>
-          <span class="status" id="proton-info" data-i18n="proton.intro">Baixe o GE-Proton direto do GitHub, sem a Steam (tamanho e SHA-512 conferidos). O Proton Experimental aparece aqui se a Steam já o tiver instalado.</span>
+          <span class="status" id="proton-info" role="status" data-i18n="proton.intro">Baixe o GE-Proton direto do GitHub, sem a Steam (tamanho e SHA-512 conferidos). O Proton Experimental aparece aqui se a Steam já o tiver instalado.</span>
         </div>
         <table id="proton-list"><tbody></tbody></table>
         <div class="actions">
@@ -312,12 +312,12 @@
      </div>
     </section>
 
-    <section id="tab-doctor" class="panel" hidden>
+    <section id="tab-doctor" class="panel" role="tabpanel" aria-labelledby="tabbtn-doctor" hidden>
       <p class="kicker" data-i18n="doctor.kicker">Antes de jogar</p>
       <h2 data-i18n="doctor.title">Verificação</h2>
       <div class="actions">
         <button id="doctor" class="primary" data-i18n="doctor.run">Verificar</button>
-        <span class="status" id="doctor-status"></span>
+        <span class="status" id="doctor-status" role="status"></span>
       </div>
       <table id="checks"><tbody></tbody></table>
     </section>
@@ -337,7 +337,7 @@
       </form>
     </dialog>
 
-    <section id="tab-log" class="panel" hidden>
+    <section id="tab-log" class="panel" role="tabpanel" aria-labelledby="tabbtn-log" hidden>
       <p class="kicker" data-i18n="log.kicker">Saída do jogo</p>
       <h2 data-i18n="log.title">Log</h2>
       <div class="actions">
@@ -349,14 +349,14 @@
           <b data-i18n="report.title">Relatório para os desenvolvedores</b>
           <span data-i18n="report.sub">Um .zip com a verificação, a configuração, o sistema e os logs do launcher, do Proton, do vkd3d-proton e do backend. O caminho da sua pasta pessoal aparece como ~.</span>
           <label class="toggle not-windows"><input type="checkbox" id="verbose-logs"> <span data-i18n="report.verbose">Logs detalhados na próxima vez que jogar (Proton e vkd3d-proton)</span></label>
-          <span class="status" id="report-status"></span>
+          <span class="status" id="report-status" role="status"></span>
         </div>
         <button id="report-export" class="primary" data-i18n="report.export">Exportar .zip</button>
       </div>
       <pre id="log"></pre>
     </section>
 
-    <section id="tab-status" class="panel bare" hidden>
+    <section id="tab-status" class="panel bare" role="tabpanel" aria-labelledby="tabbtn-status" hidden>
       <div class="overall">
         <div class="ov-head">
           <div class="ov-main">
@@ -395,7 +395,7 @@
           <h2 data-i18n="race.title">A corrida</h2>
         </div>
         <div class="actions">
-          <span class="status" id="status-info"></span>
+          <span class="status" id="status-info" role="status"></span>
           <button id="status-refresh" data-i18n="status.refresh">Atualizar</button>
         </div>
       </div>
