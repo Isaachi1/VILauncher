@@ -92,6 +92,7 @@ I18N.add("zh-CN", {
   "compat.noBuilds": "没有已发布的构建（请检查网络连接）",
   "compat.customBuild": "自己的可执行文件（{name}，见下方）",
   "compat.updatePill": "有更新",
+  "compat.defaultPill": "默认",
   "compat.console": "模拟的主机",
   "compat.exe": "后端可执行文件",
   "compat.exeHint": "（Windows 版本：victory.exe, xcl.exe 或 scarlett.exe）",
@@ -153,6 +154,7 @@ I18N.add("zh-CN", {
   "feat.fsrSharpness": "FSR 锐度",
   "check.detail.fsr.missing": "运行时旁或游戏文件夹中没有 FidelityFX DLL：FSR 和帧生成保持关闭",
   "prep.button": "准备着色器",
+  "prep.title": "ScarlettPort 着色器",
   "prep.stop": "停止",
   "prep.intro": "在游戏前翻译所有着色器并构建管线，避免游戏卡顿。需要几分钟；停止后会从中断处继续。",
   "prep.starting": "正在启动 ScarlettPort…",
@@ -334,6 +336,7 @@ I18N.add("zh-CN", {
   "check.fail": "失败",
   "check.doSetup": "准备前缀",
   "check.doBuild": "选择构建",
+  "check.doInstallDefault": "安装 ScarlettPort",
   "check.doGame": "选择文件夹",
   "check.doRunner": "打开运行设置",
 

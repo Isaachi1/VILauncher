@@ -92,6 +92,7 @@ I18N.add("ru", {
   "compat.noBuilds": "Нет опубликованных сборок (проверьте подключение)",
   "compat.customBuild": "Свой исполняемый файл ({name}, ниже)",
   "compat.updatePill": "есть обновление",
+  "compat.defaultPill": "по умолчанию",
   "compat.console": "Эмулируемая консоль",
   "compat.exe": "Исполняемый файл бэкенда",
   "compat.exeHint": "(сборка для Windows: victory.exe, xcl.exe или scarlett.exe)",
@@ -153,6 +154,7 @@ I18N.add("ru", {
   "feat.fsrSharpness": "Резкость FSR",
   "check.detail.fsr.missing": "нет DLL FidelityFX рядом с рантаймом или в папке игры: FSR и генерация кадров остаются выключенными",
   "prep.button": "Подготовить шейдеры",
+  "prep.title": "Шейдеры ScarlettPort",
   "prep.stop": "Остановить",
   "prep.intro": "Транслирует все шейдеры и собирает конвейеры до игры, чтобы игра не подтормаживала. Занимает несколько минут; после остановки продолжает с того же места.",
   "prep.starting": "Запуск ScarlettPort…",
@@ -334,6 +336,7 @@ I18N.add("ru", {
   "check.fail": "ОШИБКА",
   "check.doSetup": "Подготовить префикс",
   "check.doBuild": "Выбрать сборку",
+  "check.doInstallDefault": "Установить ScarlettPort",
   "check.doGame": "Выбрать папку",
   "check.doRunner": "Открыть запуск",
 

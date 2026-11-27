@@ -6,6 +6,10 @@ use std::path::{Path, PathBuf};
 
 use crate::config::{FsrQuality, KbmHints, ScarlettPreset, ScarlettSection, Upscaler};
 
+/// The repository of the default build: SixLauncher's fork, which the builder builds on every
+/// run (its PINNED list) and the window offers first.
+pub const DEFAULT_REPO: &str = "SixLauncher/ScarlettPort";
+
 /// C1, promoted 2026-11-25: the precompiled graphics pipelines and the verified speed switches.
 pub const C1: [&str; 9] = [
     "SCARLETT_PRECOMPILED_GRAPHICS",

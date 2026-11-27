@@ -558,7 +558,17 @@ const CHECK_ACTION = {
       tell("setup.done");
     },
   },
-  backend: { key: "check.doBuild", go: () => goTo("compat", "#backend-build") },
+  // With no build chosen yet and the default one published: install it here, in one click.
+  backend: {
+    get key() {
+      return defaultBuild() && !config.backend.exe ? "check.doInstallDefault" : "check.doBuild";
+    },
+    go: async () => {
+      const d = defaultBuild();
+      if (d && !config.backend.exe) return installRuntime(d.r.backend, null, false, d.c.file);
+      goTo("compat", "#backend-build");
+    },
+  },
   game: { key: "check.doGame", go: () => goTo("game", "#step-dir") },
   "game-sha256": { key: "check.doGame", go: () => goTo("game", "#step-dir") },
   runner: { key: "check.doRunner", go: () => goTo("compat", '[data-path="runner.kind"]') },
@@ -566,9 +576,7 @@ const CHECK_ACTION = {
   shaders: {
     key: "prep.button",
     go: async () => {
-      selectTab("compat");
-      selectSubtab("advanced");
-      goTo("compat", "#prep");
+      goTo("game", "#prep");
       await startPrepare();
     },
   },
@@ -703,6 +711,17 @@ async function exportReport() {
 // -- status (PortWatch VI) --------------------------------------------------------------------
 
 const BACKEND_NAME = { victory: "VIctory", xcl: "XCL", scarlett: "ScarlettPort" };
+// The default build: ScarlettPort from SixLauncher's fork (scarlett::DEFAULT_REPO), which the
+// builder builds on every run. It leads the build list, marked Padrão.
+const DEFAULT_REPO = "sixlauncher/scarlettport";
+const isDefault = (r, c) => r.backend === "scarlett" && (c.repo || "").toLowerCase() === DEFAULT_REPO;
+function defaultBuild() {
+  for (const r of lastRuntimes ? lastRuntimes.backends : []) {
+    const c = (r.choices || []).find((x) => isDefault(r, x));
+    if (c) return { r, c };
+  }
+  return null;
+}
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -1080,7 +1099,7 @@ function showBuilds(rt) {
   let selected = CUSTOM_BUILD;
   const all = [];
   for (const r of rt ? rt.backends : []) for (const c of r.choices || []) all.push({ r, c });
-  all.sort((a, b) => (b.c.score ?? -1) - (a.c.score ?? -1));
+  all.sort((a, b) => isDefault(b.r, b.c) - isDefault(a.r, a.c) || (b.c.score ?? -1) - (a.c.score ?? -1));
   for (const { r, c } of all) {
     const mine = r.exe && inUseChoice(r) === c;
     const tag = mine
@@ -1093,7 +1112,8 @@ function showBuilds(rt) {
     const value = `${r.backend}|${c.file}`;
     grid.append(
       buildCard(value, c.effort || c.repo || short(c.commit), [c.repo, short(c.commit)],
-        [{ cls: "violet", text: BACKEND_NAME[r.backend] }, c.score != null && { text: pctOf(c.score) }, tag, vt],
+        [{ cls: "violet", text: BACKEND_NAME[r.backend] }, isDefault(r, c) && { cls: "ok", text: t("compat.defaultPill") },
+          c.score != null && { text: pctOf(c.score) }, tag, vt],
         sourceLine(c)),
     );
     if (mine && r.backend === kind && r.exe === exe) selected = value;

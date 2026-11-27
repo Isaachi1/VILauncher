@@ -143,6 +143,7 @@ mod tests {
         let game = testutil::fake_game(h.path());
         let mut cfg = Config::default();
         cfg.game.dir = Some(game.clone());
+        cfg.backend.kind = BackendKind::Victory;
         cfg.backend.exe = Some(h.path().join("b/victory.exe"));
         (cfg, game)
     }

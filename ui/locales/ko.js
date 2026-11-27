@@ -92,6 +92,7 @@ I18N.add("ko", {
   "compat.noBuilds": "게시된 빌드 없음 (연결을 확인하세요)",
   "compat.customBuild": "직접 지정한 실행 파일 ({name}, 아래)",
   "compat.updatePill": "업데이트 있음",
+  "compat.defaultPill": "기본값",
   "compat.console": "시뮬레이션 콘솔",
   "compat.exe": "백엔드 실행 파일",
   "compat.exeHint": "(Windows 빌드: victory.exe, xcl.exe 또는 scarlett.exe)",
@@ -153,6 +154,7 @@ I18N.add("ko", {
   "feat.fsrSharpness": "FSR 선명도",
   "check.detail.fsr.missing": "런타임 옆이나 게임 폴더에 FidelityFX DLL이 없습니다: FSR과 프레임 생성은 꺼진 상태로 유지됩니다",
   "prep.button": "셰이더 준비",
+  "prep.title": "ScarlettPort 셰이더",
   "prep.stop": "중지",
   "prep.intro": "플레이 전에 모든 셰이더를 변환하고 파이프라인을 만들어 게임이 끊기지 않게 합니다. 몇 분 걸리며, 중지해도 이어서 진행합니다.",
   "prep.starting": "ScarlettPort 시작 중…",
@@ -334,6 +336,7 @@ I18N.add("ko", {
   "check.fail": "실패",
   "check.doSetup": "프리픽스 준비",
   "check.doBuild": "빌드 선택",
+  "check.doInstallDefault": "ScarlettPort 설치",
   "check.doGame": "폴더 선택",
   "check.doRunner": "실행 설정 열기",
 
