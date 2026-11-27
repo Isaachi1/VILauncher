@@ -328,7 +328,10 @@
         <button id="doctor" class="primary" data-i18n="doctor.run">Verificar</button>
         <span class="status" id="doctor-status" role="status"></span>
       </div>
-      <table id="checks"><tbody></tbody></table>
+      <table id="checks">
+        <thead class="sr-only"><tr><th scope="col" data-i18n="checks.colStatus">Estado</th><th scope="col" data-i18n="checks.colName">Checagem</th><th scope="col" data-i18n="checks.colDetail">Detalhe</th></tr></thead>
+        <tbody></tbody>
+      </table>
     </section>
 
     <dialog id="fix-dialog" class="fix-dialog">
