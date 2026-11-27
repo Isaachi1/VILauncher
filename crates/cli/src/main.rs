@@ -66,9 +66,9 @@ Usage:
   sixlauncher desktop              add a menu entry that runs the game
   sixlauncher status               where VIctory, XCL and the others stand (PortWatch VI)
   sixlauncher update [victory|xcl|scarlett|best] [--build NAME] [--force]
-                                  the installed and the published builds (each public VIctory /
-                                  XCL tree scoring 59% or more on PortWatch VI, scanned on
-                                  VirusTotal); with a backend, install its best build (--build:
+                                  the installed and the published builds (ScarlettPort, the
+                                  default, and each public VIctory / XCL tree scoring 59% or
+                                  more on PortWatch VI, scanned on VirusTotal); with a backend, install its best build (--build:
                                   a project, repository or archive from the list) and use it;
                                   `best` is the backend ranked higher. A build VirusTotal flags is never installed;
                                   with a local key the files are looked up again (--force skips

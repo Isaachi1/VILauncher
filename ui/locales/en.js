@@ -177,7 +177,7 @@ I18N.add("en", {
   "compat.tabAdvanced": "Advanced",
 
   "runtimes.check": "Look for new builds",
-  "runtimes.intro": "The VIctory and XCL builds of each project scoring 59% or more on PortWatch VI, checked by the builder on VirusTotal (one layer of safety, not a guarantee).",
+  "runtimes.intro": "The ScarlettPort build (the default) and the VIctory and XCL builds of each project scoring 59% or more on PortWatch VI, checked by the builder on VirusTotal (one layer of safety, not a guarantee).",
   "runtimes.why": "How the builds were chosen",
   "runtimes.installed": "Installed: {build}",
   "runtimes.update": "Update",
@@ -411,7 +411,7 @@ I18N.add("en", {
   "notify.intro": "While it is open, SixLauncher checks every hour and tells you through the system's notifications.",
   "notify.race": "Overtakes in the race",
   "notify.raceHint": "When a project passes another among PortWatch VI's top 5.",
-  "notify.runtimes": "New VIctory and XCL builds",
+  "notify.runtimes": "New ScarlettPort, VIctory and XCL builds",
   "notify.runtimesHint": "When a new build is published that you have not installed yet.",
   "notify.app": "New SixLauncher versions",
   "notify.appHint": "When a new release of the launcher comes out.",

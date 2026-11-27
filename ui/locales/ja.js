@@ -177,7 +177,7 @@ I18N.add("ja", {
   "compat.tabAdvanced": "詳細設定",
 
   "runtimes.check": "新しいビルドを探す",
-  "runtimes.intro": "PortWatch VI で 59% 以上の各プロジェクトの VIctory と XCL のビルド。ビルダーが VirusTotal で確認済み（安全対策の一層であり、保証ではありません）。",
+  "runtimes.intro": "ScarlettPort のビルド（既定）と、PortWatch VI で 59% 以上の各プロジェクトの VIctory・XCL ビルド。builder が VirusTotal で確認済み（安全の一層であり、保証ではありません）。",
   "runtimes.why": "ビルドの選び方",
   "runtimes.installed": "インストール済み: {build}",
   "runtimes.update": "更新",
@@ -411,7 +411,7 @@ I18N.add("ja", {
   "notify.intro": "SixLauncher は開いている間、1 時間ごとに確認し、システムの通知でお知らせします。",
   "notify.race": "レースでの追い抜き",
   "notify.raceHint": "PortWatch VI の上位 5 位以内で、あるプロジェクトが別のプロジェクトを追い抜いたとき。",
-  "notify.runtimes": "VIctory と XCL の新しいビルド",
+  "notify.runtimes": "ScarlettPort・VIctory・XCL の新しいビルド",
   "notify.runtimesHint": "まだインストールしていない新しいビルドが公開されたとき。",
   "notify.app": "SixLauncher の新しいバージョン",
   "notify.appHint": "ランチャーの新しいリリースが出たとき。",

@@ -177,7 +177,7 @@ I18N.add("hi", {
   "compat.tabAdvanced": "उन्नत",
 
   "runtimes.check": "नए बिल्ड खोजें",
-  "runtimes.intro": "PortWatch VI पर 59% या उससे ज़्यादा स्कोर वाले हर प्रोजेक्ट के VIctory और XCL बिल्ड, जिन्हें बिल्डर ने VirusTotal पर जाँचा है (सुरक्षा की एक परत, गारंटी नहीं)।",
+  "runtimes.intro": "ScarlettPort बिल्ड (डिफ़ॉल्ट) और PortWatch VI पर 59% या अधिक अंक वाले हर प्रोजेक्ट के VIctory व XCL बिल्ड, builder द्वारा VirusTotal पर जाँचे गए (सुरक्षा की एक परत, गारंटी नहीं)।",
   "runtimes.why": "बिल्ड कैसे चुने गए",
   "runtimes.installed": "इंस्टॉल किया हुआ: {build}",
   "runtimes.update": "अपडेट करें",
@@ -411,7 +411,7 @@ I18N.add("hi", {
   "notify.intro": "खुला रहने तक SixLauncher हर घंटे जाँच करता है और सिस्टम नोटिफ़िकेशन से बताता है।",
   "notify.race": "रेस में आगे निकलना",
   "notify.raceHint": "जब PortWatch VI के शीर्ष 5 में कोई प्रोजेक्ट दूसरे से आगे निकल जाए।",
-  "notify.runtimes": "VIctory और XCL के नए बिल्ड",
+  "notify.runtimes": "ScarlettPort, VIctory और XCL के नए बिल्ड",
   "notify.runtimesHint": "जब कोई नया बिल्ड प्रकाशित हो जिसे आपने अभी इंस्टॉल नहीं किया है।",
   "notify.app": "SixLauncher के नए संस्करण",
   "notify.appHint": "जब लॉन्चर की नई रिलीज़ आए।",
