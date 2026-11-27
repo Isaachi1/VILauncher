@@ -255,6 +255,22 @@ button {
 }
 button:hover { background: var(--soft); border-color: var(--faint); }
 button:disabled { opacity: 0.5; cursor: default; }
+/* A button whose action is running (guarded() in app.js): a spinner before its label. */
+button[aria-busy="true"] { opacity: 0.85; cursor: progress; }
+button[aria-busy="true"]::before {
+  content: "";
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-inline-end: 8px;
+  vertical-align: -0.15em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { button[aria-busy="true"]::before { animation-duration: 2.4s; } }
 button.primary {
   border: 0;
   color: #fff;

@@ -1142,14 +1142,18 @@ async function save() {
   return config;
 }
 
+// Runs a button's action: the button shows it is busy (a spinner, aria-busy) and takes no
+// second click until the action ends; an error goes to the banner.
 async function guarded(button, fn) {
   button.disabled = true;
+  button.setAttribute("aria-busy", "true");
   try {
     await fn();
   } catch (e) {
     showBanner(String(e), false);
   } finally {
     button.disabled = false;
+    button.removeAttribute("aria-busy");
   }
 }
 
