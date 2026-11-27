@@ -319,6 +319,7 @@ button.ghost:hover { background: var(--soft); }
 .ready-row.fail .ready-name { color: var(--no-fg); }
 .ready-ok { color: var(--muted); font-size: 12.5px; font-weight: 600; }
 .ready-row button { padding: 5px 14px; font-size: 13px; }
+.ready-status { margin: 8px 0 0; min-height: 1.4em; }
 
 button.big {
   display: inline-flex;

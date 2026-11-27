@@ -178,7 +178,7 @@ I18N.add("zh-CN", {
   "save": "保存",
   "save.done": "已保存到 {path}",
   "setup": "准备前缀",
-  "setup.busy": "正在准备前缀…",
+  "setup.busy": "正在准备前缀…（可能需要一分钟）",
   "setup.done": "前缀已就绪",
   "desktop": "创建菜单快捷方式",
   "desktop.done": "快捷方式已创建：{path}",

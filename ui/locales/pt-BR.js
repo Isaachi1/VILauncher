@@ -178,7 +178,7 @@ I18N.add("pt-BR", {
   "save": "Salvar",
   "save.done": "Salvo em {path}",
   "setup": "Preparar prefixo",
-  "setup.busy": "Preparando o prefixo…",
+  "setup.busy": "Preparando o prefixo… (pode levar um minuto)",
   "setup.done": "Prefixo pronto",
   "desktop": "Criar atalho no menu",
   "desktop.done": "Atalho criado em {path}",

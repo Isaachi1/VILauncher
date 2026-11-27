@@ -178,7 +178,7 @@ I18N.add("es", {
   "save": "Guardar",
   "save.done": "Guardado en {path}",
   "setup": "Preparar prefijo",
-  "setup.busy": "Preparando el prefijo…",
+  "setup.busy": "Preparando el prefijo… (puede tardar un minuto)",
   "setup.done": "Prefijo listo",
   "desktop": "Crear acceso en el menú",
   "desktop.done": "Acceso creado en {path}",

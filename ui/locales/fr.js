@@ -178,7 +178,7 @@ I18N.add("fr", {
   "save": "Enregistrer",
   "save.done": "Enregistré dans {path}",
   "setup": "Préparer le préfixe",
-  "setup.busy": "Préparation du préfixe…",
+  "setup.busy": "Préparation du préfixe… (cela peut prendre une minute)",
   "setup.done": "Préfixe prêt",
   "desktop": "Créer un raccourci dans le menu",
   "desktop.done": "Raccourci créé dans {path}",

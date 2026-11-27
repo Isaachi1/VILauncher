@@ -178,7 +178,7 @@ I18N.add("tr", {
   "save": "Kaydet",
   "save.done": "Şuraya kaydedildi: {path}",
   "setup": "Öneki hazırla",
-  "setup.busy": "Önek hazırlanıyor…",
+  "setup.busy": "Prefix hazırlanıyor… (bir dakika sürebilir)",
   "setup.done": "Önek hazır",
   "desktop": "Menüye kısayol oluştur",
   "desktop.done": "Kısayol oluşturuldu: {path}",

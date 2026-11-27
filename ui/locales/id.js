@@ -178,7 +178,7 @@ I18N.add("id", {
   "save": "Simpan",
   "save.done": "Disimpan di {path}",
   "setup": "Siapkan prefix",
-  "setup.busy": "Menyiapkan prefix…",
+  "setup.busy": "Menyiapkan prefix… (bisa memakan waktu semenit)",
   "setup.done": "Prefix siap",
   "desktop": "Buat pintasan di menu",
   "desktop.done": "Pintasan dibuat di {path}",
