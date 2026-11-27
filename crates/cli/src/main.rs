@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use sixlauncher_core::config::{self, BackendKind, Config, Console, GpuProfile, RunnerKind};
+use sixlauncher_core::config::{self, BackendKind, Config, Console, GpuProfile, RunnerKind, ScarlettPreset};
 use sixlauncher_core::doctor::{self, Status};
 use sixlauncher_core::fixes::{self, Fix};
 use sixlauncher_core::runners::{self, Runner};
@@ -21,6 +21,7 @@ Usage:
       --backend-exe FILE          victory.exe, xcl.exe or scarlett.exe (the Windows build)
       --backend victory|xcl|scarlett  default: from the executable's name
       --console series-x|series-s victory and scarlett
+      --scarlett-preset stable|look|experimental|custom
       --runner proton|wine|native  native: Windows only
       --runner-path PATH          a Proton folder, or the wine binary
       --prefix DIR                where the prefix lives
@@ -446,6 +447,15 @@ fn setup(args: &[String]) -> ExitCode {
                     "series-x" => Console::SeriesX,
                     "series-s" => Console::SeriesS,
                     _ => return fail("--console is series-x or series-s"),
+                }
+            }
+            "--scarlett-preset" => {
+                cfg.scarlett.preset = match v.as_str() {
+                    "stable" => ScarlettPreset::Stable,
+                    "look" => ScarlettPreset::Look,
+                    "experimental" => ScarlettPreset::Experimental,
+                    "custom" => ScarlettPreset::Custom,
+                    _ => return fail("--scarlett-preset is stable, look, experimental or custom"),
                 }
             }
             "--runner" => {

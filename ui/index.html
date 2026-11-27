@@ -221,6 +221,29 @@
             </select>
           </label>
         </div>
+        <!-- ScarlettPort's play presets, as its own launcher had them (scarlett.rs). -->
+        <div data-backends="scarlett">
+          <label class="field">
+            <span data-i18n="scarlett.preset">Preset do ScarlettPort</span>
+            <select data-path="scarlett.preset">
+              <option value="stable" data-i18n="scarlett.stable">Estável (recomendado)</option>
+              <option value="look" data-i18n="scarlett.look">Visual</option>
+              <option value="experimental" data-i18n="scarlett.experimental">Experimental</option>
+              <option value="custom" data-i18n="scarlett.custom">Personalizado</option>
+            </select>
+          </label>
+          <p class="status hint" id="scarlett-preset-hint"></p>
+          <div class="toggles" data-scarlett-presets="custom">
+            <label class="toggle">
+              <input type="checkbox" data-path="scarlett.raytracing" data-kind="bool">
+              <span class="toggle-text"><b data-i18n="scarlett.raytracing">Ray tracing</b> <span data-i18n="scarlett.raytracingHint">a luz com ray tracing do próprio jogo; pesa na GPU</span></span>
+            </label>
+            <label class="toggle">
+              <input type="checkbox" data-path="scarlett.fallback_light" data-kind="bool">
+              <span class="toggle-text"><b data-i18n="scarlett.fallbackLight">Luz substituta</b> <span data-i18n="scarlett.fallbackLightHint">ilumina onde a luz do jogo ainda não aparece; precisa de uma build que a tenha</span></span>
+            </label>
+          </div>
+        </div>
         <label class="field only-xcl">
           <span><span data-i18n="compat.dxc">DXC</span> <em data-i18n="compat.dxcHint">(bin/x64 de um release do DirectXShaderCompiler)</em></span>
           <div class="row"><input data-path="backend.dxc_dir"><button data-browse="dir" data-target="backend.dxc_dir" data-i18n="browse">Escolher…</button></div>
