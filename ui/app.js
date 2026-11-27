@@ -257,7 +257,10 @@ function hideBanner() {
 }
 
 function selectTab(name) {
-  for (const b of $$(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
+  for (const b of $$(".tabs button")) {
+    b.setAttribute("aria-selected", String(b.dataset.tab === name));
+    b.tabIndex = b.dataset.tab === name ? 0 : -1;
+  }
   for (const p of $$(".panel")) p.hidden = p.id !== `tab-${name}`;
   // Full size on Jogo; a slim bar elsewhere, so the tab's own content starts near the top
   // (on a 1280x800 Steam Deck the full hero took a third of the window on every tab).
@@ -1509,6 +1512,12 @@ async function init() {
   );
   $("#proton-get").addEventListener("click", () => guarded($("#proton-get"), installProton));
 
+  $(".tabs").addEventListener("keydown", (ev) =>
+    arrowNav(ev, $$(".tabs button"), ev.target, (b) => {
+      selectTab(b.dataset.tab);
+      b.focus();
+    }),
+  );
   for (const b of $$(".tabs button")) b.addEventListener("click", () => selectTab(b.dataset.tab));
   $("#live").addEventListener("click", () => selectTab("doctor"));
   for (const el of $$('select[data-path], input[data-kind="bool"]')) el.addEventListener("change", refreshVisibility);

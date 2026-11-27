@@ -35,6 +35,8 @@
   --green: #16a36a;
   --red: #e5484d;
   --grad: linear-gradient(90deg, #7a5cff 0%, #ff2e7e 55%, #ff8a3d 100%);
+  /* The same hues, dark enough for white text on it (at least 5.1:1 at every point). */
+  --grad-text: linear-gradient(90deg, #6a4cf0 0%, #d4155f 55%, #b9460f 100%);
   --ok-bg: #e8f8f0;
   --ok-fg: #0d7a4e;
   --warn-bg: #fff4dc;
@@ -292,7 +294,7 @@ button[aria-busy="true"]::before {
 button.primary {
   border: 0;
   color: #fff;
-  background: var(--grad);
+  background: var(--grad-text);
   box-shadow: 0 6px 18px rgba(255, 46, 126, 0.25);
 }
 button.primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
@@ -393,7 +395,7 @@ input, select, textarea {
 select { appearance: none; padding-right: 34px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 17px) 52%, calc(100% - 12px) 52%; background-size: 5px 5px; background-repeat: no-repeat; }
 select option { background: var(--surface); color: var(--ink); }
 textarea { font-family: var(--mono); font-size: 12.5px; resize: vertical; }
-input::placeholder, textarea::placeholder { color: var(--faint); }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.85; }
 input:focus, select:focus, textarea:focus {
   outline: none;
   background-color: var(--surface);
@@ -402,6 +404,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .note {
+  max-width: 62ch;
   margin-top: 20px;
   padding: 14px 16px;
   border-radius: var(--radius-sm);
@@ -442,7 +445,7 @@ input:focus, select:focus, textarea:focus {
   background: var(--vi-bg);
   border: 1px solid var(--vi-line);
 }
-.step.done .step-num { color: #fff; background: var(--grad); border-color: transparent; }
+.step.done .step-num { color: #fff; background: var(--grad-text); border-color: transparent; }
 .step-body { min-width: 0; padding-top: 4px; }
 .step-body .field { margin-bottom: 6px; }
 .step-info { display: block; min-height: 1.2em; margin-bottom: 10px; font-size: 12.5px; overflow-wrap: anywhere; }
@@ -710,7 +713,7 @@ pre#log .stderr { color: #ff8a9e; }
 .effort.ours { border-color: var(--vi-line); }
 .effort.watch { background: var(--soft); box-shadow: none; }
 .effort .rank { font-family: var(--display); font-weight: 800; font-size: 26px; line-height: 1.1; color: var(--pink); }
-.effort.watch .rank { color: var(--faint); }
+.effort.watch .rank { color: var(--muted); }
 .effort header { display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
 .effort h3 { font-size: 20px; font-weight: 700; }
 .effort .repo { margin: 1px 0 0; color: var(--muted); font-size: 12.5px; }
@@ -856,13 +859,13 @@ pre#log .stderr { color: #ff8a9e; }
 .mega-label { position: absolute; top: 0; transform: translateX(-4px); font-size: 12.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .mega-label:first-child { transform: none; }
 .mega-label:nth-last-child(2) { transform: translateX(-100%); text-align: right; }
-.mega-label b { display: block; font-size: 11px; font-weight: 700; color: var(--faint); }
+.mega-label b { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
 .mega-label.is-reached { color: var(--ink); }
 .mega-label.is-reached b { color: var(--pink); }
 .mega-label .dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--line-2); vertical-align: 0; }
 .mega-label.is-reached .dot { background: var(--pink); }
 .mega-label.is-next .dot { background: var(--surface); border: 2px solid var(--pink); }
-.mega-zone { position: absolute; left: 57%; right: 11%; top: 14px; margin: 0; text-align: center; font-size: 12px; font-weight: 600; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mega-zone { position: absolute; left: 57%; right: 11%; top: 14px; margin: 0; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ov-history { margin-top: 14px; padding-top: 16px; border-top: 1px solid var(--line); }
 .ov-history p { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .ov-history svg { display: block; width: 100%; height: 70px; }
