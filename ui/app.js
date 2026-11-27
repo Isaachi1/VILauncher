@@ -259,6 +259,9 @@ function hideBanner() {
 function selectTab(name) {
   for (const b of $$(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
   for (const p of $$(".panel")) p.hidden = p.id !== `tab-${name}`;
+  // Full size on Jogo; a slim bar elsewhere, so the tab's own content starts near the top
+  // (on a 1280x800 Steam Deck the full hero took a third of the window on every tab).
+  $(".hero").classList.toggle("compact", name !== "game");
   if (name === "compat" && (!lastRuntimes || lastRuntimes.offline)) loadRuntimes();
   // Opening Verificação runs the checks (not again while they run).
   if (name === "doctor" && !$("#doctor").disabled) $("#doctor").click();
