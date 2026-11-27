@@ -20,9 +20,10 @@ pub struct Launch {
     pub env: BTreeMap<String, String>,
     pub cwd: PathBuf,
     pub cache: PathBuf,
-    /// Proton's STEAM_COMPAT_DATA_PATH: Proton opens `pfx.lock` in it first and does not create
-    /// the folder (Steam always does), so the run creates it.
-    pub compat: Option<PathBuf>,
+    /// The runner's prefix folder (Proton's STEAM_COMPAT_DATA_PATH, Wine's WINEPREFIX), created
+    /// by the run: Proton opens `pfx.lock` in it first and does not create it (Steam always
+    /// does). None when the program runs natively (Windows), which has no prefix.
+    pub prefix: Option<PathBuf>,
 }
 
 pub fn build(cfg: &Config) -> Result<Launch> {
@@ -36,9 +37,10 @@ pub fn build_with(cfg: &Config, gpus: &[gpu::Gpu], tools: &perf::Tools) -> Resul
     let info = gamedir::inspect(&game_dir)?;
     let game_exe = gamedir::resolve_exe(&info, cfg.game.exe.as_deref())?;
     let runner = Runner::from_config(cfg)?;
-    let compat = match &runner {
+    let prefix = match &runner {
         Runner::Proton(p) => Some(p.compat_dir.clone()),
-        _ => None,
+        Runner::Wine(w) => Some(w.prefix.clone()),
+        Runner::Native => None,
     };
     let plan = backends::plan(cfg, &game_exe)?;
     let base: BTreeMap<String, String> = std::env::vars().collect();
@@ -49,7 +51,7 @@ pub fn build_with(cfg: &Config, gpus: &[gpu::Gpu], tools: &perf::Tools) -> Resul
     env.extend(cfg.env.clone());
     let mut argv = perf::wrapper(&cfg.performance, tools);
     argv.extend(runner.argv(&plan.exe, &plan.args));
-    Ok(Launch { argv, env, cwd: cfg.data_dir(), cache: cfg.cache_dir(), compat })
+    Ok(Launch { argv, env, cwd: cfg.data_dir(), cache: cfg.cache_dir(), prefix })
 }
 
 /// The configuration checks that stop a run.
@@ -58,12 +60,12 @@ pub fn blocking_failures(cfg: &Config) -> Vec<Check> {
 }
 
 impl Launch {
-    /// The command, with its data, cache and (Proton) compat folders created.
+    /// The command, with its data, cache and prefix folders created.
     pub fn command(&self) -> Result<Command> {
         fs::create_dir_all(&self.cwd)?;
         fs::create_dir_all(&self.cache)?;
-        if let Some(compat) = &self.compat {
-            fs::create_dir_all(compat)?;
+        if let Some(prefix) = &self.prefix {
+            fs::create_dir_all(prefix)?;
         }
         let argv: Vec<std::ffi::OsString> = self.argv.iter().map(Into::into).collect();
         Ok(crate::host::command(&argv, &self.env, Some(&self.cwd)))
@@ -233,6 +235,19 @@ mod tests {
         assert!(!compat.exists());
         build(&cfg).unwrap().command().unwrap();
         assert!(compat.is_dir(), "{} was not created", compat.display());
+    }
+
+    #[test]
+    fn wine_launch_creates_the_prefix_folder() {
+        let h = TempHome::new();
+        let (mut cfg, ..) = victory_config(&h);
+        let wine = testutil::executable(&h.path().join("bin/wine"), "#!/bin/sh\necho wine-9.22\n");
+        let prefix = h.path().join("new prefix");
+        cfg.runner.kind = RunnerKind::Wine;
+        cfg.runner.path = Some(wine);
+        cfg.runner.prefix = Some(prefix.clone());
+        build(&cfg).unwrap().command().unwrap();
+        assert!(prefix.is_dir(), "{} was not created", prefix.display());
     }
 
     #[test]
