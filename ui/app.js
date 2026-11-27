@@ -81,6 +81,9 @@ function refreshVisibility() {
   for (const el of $$(".only-victory")) el.hidden = backend !== "victory";
   for (const el of $$(".only-xcl")) el.hidden = backend !== "xcl";
   for (const el of $$("[data-backends]")) el.hidden = !el.dataset.backends.split(" ").includes(backend);
+  const preset = $('[data-path="scarlett.preset"]').value || "stable";
+  for (const el of $$("[data-scarlett-presets]")) el.hidden = !el.dataset.scarlettPresets.split(" ").includes(preset);
+  say("#scarlett-preset-hint", `scarlett.${preset}Hint`);
   for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
   for (const el of $$(".only-mangohud")) el.hidden = !$('[data-path="performance.mangohud"]').checked;
   for (const el of $$(".only-proton")) el.hidden = runner !== "proton";

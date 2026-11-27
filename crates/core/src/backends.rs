@@ -92,7 +92,8 @@ pub fn scarlett_plan(cfg: &Config, game_exe: &Path) -> Result<Plan> {
         args.push("--".into());
         args.extend(cfg.game.args.iter().cloned());
     }
-    let env = crate::scarlett::stable_env(&to_windows(&game), &to_windows(&cfg.cache_dir())).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+    let cache = crate::scarlett::cache_for(cfg.scarlett.preset, &cfg.cache_dir());
+    let env = crate::scarlett::env(&cfg.scarlett, &to_windows(&game), &to_windows(&cache)).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
     Ok(Plan { exe, args, env })
 }
 
@@ -179,6 +180,10 @@ mod tests {
         cfg.backend.console = Console::SeriesX;
         cfg.game.args = vec!["-old".into()];
         assert_eq!(super::plan(&cfg, &exe).unwrap().args, ["run", &paths::to_windows(&exe), "--execute", "--", "-old"]);
+        cfg.scarlett.preset = crate::config::ScarlettPreset::Experimental;
+        let plan = super::plan(&cfg, &exe).unwrap();
+        assert!(plan.env["SCARLETT_CACHE_DIR"].ends_with("\\sixlauncher\\scarlett-experimental"), "Experimental has its own cache");
+        assert_eq!(plan.env["SCARLETT_PREFETCH"], "1");
     }
 
     #[test]

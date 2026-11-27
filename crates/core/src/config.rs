@@ -132,6 +132,31 @@ impl Default for GameSection {
     }
 }
 
+/// ScarlettPort's play presets (its launcher's Stable, Look, Experimental and Custom).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ScarlettPreset {
+    /// play.ps1's plain run: the verified setup.
+    #[default]
+    Stable,
+    /// Stable plus the picture and shader-translation fixes.
+    Look,
+    /// Stable plus unproven switches; its own shader cache.
+    Experimental,
+    /// The fixed play settings plus the options below (ray tracing, stand-in light).
+    Custom,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct ScarlettSection {
+    pub preset: ScarlettPreset,
+    /// Custom: the title's own ray-traced light (SCARLETT_RAYTRACING, SCARLETT_BVH_BUILDER).
+    pub raytracing: bool,
+    /// Custom: the stand-in light used where the title's lighting is missing.
+    pub fallback_light: bool,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct BackendSection {
@@ -255,6 +280,8 @@ impl Default for NotificationsSection {
 pub struct Config {
     pub game: GameSection,
     pub backend: BackendSection,
+    /// ScarlettPort's settings; read only when the backend is ScarlettPort.
+    pub scarlett: ScarlettSection,
     pub runner: RunnerSection,
     pub dirs: DirsSection,
     pub gpu: GpuSection,
