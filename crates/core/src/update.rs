@@ -52,6 +52,8 @@ pub struct Manifest {
     pub victory: Option<Asset>,
     #[serde(default)]
     pub xcl: Option<Asset>,
+    #[serde(default)]
+    pub scarlett: Option<Asset>,
     /// The backend whose effort ranks higher on the tracker.
     #[serde(default)]
     pub recommended: Option<BackendKind>,
@@ -146,6 +148,7 @@ impl Manifest {
         match kind {
             BackendKind::Victory => self.victory.as_ref(),
             BackendKind::Xcl => self.xcl.as_ref(),
+            BackendKind::Scarlett => self.scarlett.as_ref(),
         }
     }
 
@@ -185,6 +188,7 @@ pub fn exe_name(kind: BackendKind) -> &'static str {
     match kind {
         BackendKind::Victory => "victory.exe",
         BackendKind::Xcl => "xcl.exe",
+        BackendKind::Scarlett => "scarlett.exe",
     }
 }
 
@@ -199,6 +203,7 @@ fn commit_file(kind: BackendKind) -> &'static str {
     match kind {
         BackendKind::Victory => "VICTORY_COMMIT.txt",
         BackendKind::Xcl => "XCL_COMMIT.txt",
+        BackendKind::Scarlett => "SCARLETT_COMMIT.txt",
     }
 }
 
@@ -297,7 +302,7 @@ pub fn installed_source(dir: &Path) -> Option<Asset> {
 }
 
 pub fn status_from(manifest: Option<&Manifest>, root: &Path) -> Runtimes {
-    let backends = [BackendKind::Victory, BackendKind::Xcl]
+    let backends = BackendKind::ALL
         .into_iter()
         .map(|kind| {
             let dir = root.join(kind.name());

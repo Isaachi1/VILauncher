@@ -20,13 +20,32 @@ pub enum BackendKind {
     Victory,
     /// XCL, from LinuxCL (GDK titles in general).
     Xcl,
+    /// ScarlettPort's runtime (scarlett.exe), with its D3D12 Agility folder beside it.
+    Scarlett,
 }
 
 impl BackendKind {
+    pub const ALL: [BackendKind; 3] = [BackendKind::Victory, BackendKind::Xcl, BackendKind::Scarlett];
+
     pub fn name(self) -> &'static str {
         match self {
             BackendKind::Victory => "victory",
             BackendKind::Xcl => "xcl",
+            BackendKind::Scarlett => "scarlett",
+        }
+    }
+
+    /// The backend `name` names (`victory`, `xcl`, `scarlett`).
+    pub fn from_name(name: &str) -> Option<BackendKind> {
+        BackendKind::ALL.into_iter().find(|k| k.name() == name)
+    }
+
+    /// How the backend is called in messages.
+    pub fn display(self) -> &'static str {
+        match self {
+            BackendKind::Victory => "VIctory",
+            BackendKind::Xcl => "XCL",
+            BackendKind::Scarlett => "ScarlettPort",
         }
     }
 }
@@ -117,7 +136,7 @@ impl Default for GameSection {
 #[serde(default, deny_unknown_fields)]
 pub struct BackendSection {
     pub kind: BackendKind,
-    /// victory.exe or xcl.exe: the backend's Windows build.
+    /// victory.exe, xcl.exe or scarlett.exe: the backend's Windows build.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exe: Option<PathBuf>,
     pub console: Console,
@@ -326,16 +345,10 @@ pub fn save(cfg: &Config) -> Result<PathBuf> {
     Ok(path)
 }
 
-/// The backend a file name suggests: `victory.exe` or `xcl.exe`.
+/// The backend a file name suggests: `victory.exe`, `xcl.exe` or `scarlett.exe`.
 pub fn guess_backend(exe: &Path) -> Option<BackendKind> {
     let name = exe.file_name()?.to_string_lossy().to_lowercase();
-    if name.starts_with("victory") {
-        Some(BackendKind::Victory)
-    } else if name.starts_with("xcl") {
-        Some(BackendKind::Xcl)
-    } else {
-        None
-    }
+    BackendKind::ALL.into_iter().find(|k| name.starts_with(k.name()))
 }
 
 #[cfg(test)]
@@ -395,6 +408,8 @@ mod tests {
     fn guesses_backend_from_name() {
         assert_eq!(guess_backend(Path::new("/x/victory.exe")), Some(BackendKind::Victory));
         assert_eq!(guess_backend(Path::new("/x/XCL.EXE")), Some(BackendKind::Xcl));
+        assert_eq!(guess_backend(Path::new("/x/scarlett.exe")), Some(BackendKind::Scarlett));
+        assert_eq!(guess_backend(Path::new("/x/game.exe")), None);
         assert_eq!(guess_backend(Path::new("/x/game.exe")), None);
     }
 }

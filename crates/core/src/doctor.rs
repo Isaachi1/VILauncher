@@ -11,7 +11,7 @@ use std::path::Path;
 use serde::Serialize;
 
 use crate::backends::{self, MACHINE_X86_64};
-use crate::config::{BackendKind, Config};
+use crate::config::{BackendKind, Config, RunnerKind};
 use crate::fixes::{self, Fix};
 use crate::runners::{self, Runner};
 use crate::{Result, gamedir, gpu, integrity, paths, perf};
@@ -277,6 +277,7 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
         let which = match cfg.backend.kind {
             BackendKind::Victory => "victory.exe (VILinux)",
             BackendKind::Xcl => "xcl.exe (LinuxCL)",
+            BackendKind::Scarlett => "scarlett.exe (ScarlettPort)",
         };
         return vec![check(Status::Fail, "backend", format!("no backend executable: the Windows build of {which}")).coded("backend.none", &[("which", which.to_string())])];
     };
@@ -317,6 +318,20 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
                     "no opus.dll: Wine has no Opus decoder of its own, so Opus audio stays silent"
                 },
             ).coded(if runners::WINDOWS { "opus.missingWindows" } else { "opus.missingWine" }, &[])
+        });
+    }
+    // On Windows the runtime loads D3D12 from the Agility SDK folder beside it (D3D12SDKPath);
+    // under Wine and Proton, vkd3d-proton is D3D12 and the folder is not read.
+    if cfg.backend.kind == BackendKind::Scarlett && cfg.runner.kind == RunnerKind::Native {
+        let d3d12 = exe.parent().unwrap_or(Path::new("/")).join("D3D12");
+        checks.push(if d3d12.join("D3D12Core.dll").is_file() {
+            check(Status::Ok, "D3D12 Agility", d3d12.display().to_string())
+        } else {
+            check(
+                Status::Fail,
+                "D3D12 Agility",
+                format!("no D3D12\\D3D12Core.dll beside {}: extract the whole ScarlettPort release, D3D12 folder included", exe.display()),
+            ).coded("agility.missing", &[("path", d3d12.display().to_string())])
         });
     }
     for (name, dir) in [("data folder", cfg.data_dir()), ("cache folder", cfg.cache_dir())] {
@@ -476,7 +491,6 @@ mod tests {
     }
 
     use super::*;
-    use crate::config::RunnerKind;
     use crate::testutil::{self, TempHome};
 
     fn statuses(checks: &[Check]) -> std::collections::BTreeMap<String, Status> {

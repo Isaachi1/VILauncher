@@ -7,7 +7,7 @@ use std::process::Command;
 
 use serde::Serialize;
 
-use crate::config::{BackendKind, Config};
+use crate::config::Config;
 use crate::doctor::{self, Check, Status};
 use crate::runners::Runner;
 use crate::{backends, gamedir, gpu, paths, perf};
@@ -124,10 +124,7 @@ pub fn desktop_entry(cfg: &Config, exec: &[String]) -> String {
         .and_then(|d| gamedir::inspect(&d).ok())
         .map(|i| i.title())
         .unwrap_or_else(|| "SixLauncher".into());
-    let backend = match cfg.backend.kind {
-        BackendKind::Victory => "VIctory",
-        BackendKind::Xcl => "XCL",
-    };
+    let backend = cfg.backend.kind.display();
     let exec: Vec<String> = exec.iter().map(|a| desktop_quote(a)).collect();
     format!(
         "[Desktop Entry]\nType=Application\nName={title} (SixLauncher)\nComment=Runs your copy through {backend} on Wine/Proton\n\
@@ -213,7 +210,7 @@ fn write_start_menu_shortcut(cfg: &Config, exec: &[String]) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::RunnerKind;
+    use crate::config::{BackendKind, RunnerKind};
     use crate::runners;
     use crate::testutil::{self, TempHome};
 

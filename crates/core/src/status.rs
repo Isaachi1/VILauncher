@@ -30,6 +30,8 @@ const REPOS: &[(&str, BackendKind)] = &[
     ("xcl-dev/xcl", BackendKind::Xcl),
     ("ivall/xcl", BackendKind::Xcl),
     ("lportvi/xcl", BackendKind::Xcl),
+    ("zigzagboi1/scarlettport", BackendKind::Scarlett),
+    ("sixlauncher/scarlettport", BackendKind::Scarlett),
 ];
 
 /// The part of `tracker.json` the launcher reads. Every field is optional, so a

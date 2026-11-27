@@ -80,6 +80,7 @@ function refreshVisibility() {
   const runner = $('[data-path="runner.kind"]').value;
   for (const el of $$(".only-victory")) el.hidden = backend !== "victory";
   for (const el of $$(".only-xcl")) el.hidden = backend !== "xcl";
+  for (const el of $$("[data-backends]")) el.hidden = !el.dataset.backends.split(" ").includes(backend);
   for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
   for (const el of $$(".only-mangohud")) el.hidden = !$('[data-path="performance.mangohud"]').checked;
   for (const el of $$(".only-proton")) el.hidden = runner !== "proton";
@@ -593,7 +594,7 @@ async function exportReport() {
 
 // -- status (PortWatch VI) --------------------------------------------------------------------
 
-const BACKEND_NAME = { victory: "VIctory", xcl: "XCL" };
+const BACKEND_NAME = { victory: "VIctory", xcl: "XCL", scarlett: "ScarlettPort" };
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);

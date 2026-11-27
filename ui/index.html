@@ -180,6 +180,7 @@
           <select data-path="backend.kind" hidden>
             <option value="victory">VIctory</option>
             <option value="xcl">XCL</option>
+            <option value="scarlett">ScarlettPort</option>
           </select>
         </div>
         <div id="build-detail" class="build-detail" hidden></div>
@@ -188,7 +189,7 @@
           <ul id="runtimes-candidates"></ul>
         </details>
         <label class="field">
-          <span><span data-i18n="compat.exe">Executável do backend</span> <em data-i18n="compat.exeHint">(build Windows: victory.exe ou xcl.exe)</em></span>
+          <span><span data-i18n="compat.exe">Executável do backend</span> <em data-i18n="compat.exeHint">(build Windows: victory.exe, xcl.exe ou scarlett.exe)</em></span>
           <div class="row"><input data-path="backend.exe" placeholder="/home/voce/builds/victory.exe" data-i18n-attr="placeholder:compat.exePh"><button data-browse="file" data-target="backend.exe" data-i18n="browse">Escolher…</button></div>
         </label>
       </div>
@@ -205,7 +206,7 @@
 
       <div class="subpanel" id="compat-advanced" role="tabpanel" aria-labelledby="subtab-advanced" hidden>
         <div class="grid">
-          <label class="field only-victory">
+          <label class="field" data-backends="victory scarlett">
             <span><span data-i18n="compat.console">Console simulado</span></span>
             <select data-path="backend.console">
               <option value="series-x">Xbox Series X</option>

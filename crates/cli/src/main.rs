@@ -18,9 +18,9 @@ Usage:
   sixlauncher setup [options]      write the configuration and prepare the prefix
       --game DIR                  the unpacked game folder (with MicrosoftGame.config)
       --exe PATH                  the title's executable, relative to the game folder
-      --backend-exe FILE          victory.exe or xcl.exe (the Windows build)
-      --backend victory|xcl       default: from the executable's name
-      --console series-x|series-s victory only
+      --backend-exe FILE          victory.exe, xcl.exe or scarlett.exe (the Windows build)
+      --backend victory|xcl|scarlett  default: from the executable's name
+      --console series-x|series-s victory and scarlett
       --runner proton|wine|native  native: Windows only
       --runner-path PATH          a Proton folder, or the wine binary
       --prefix DIR                where the prefix lives
@@ -58,7 +58,7 @@ Usage:
   sixlauncher config               print the configuration
   sixlauncher desktop              add a menu entry that runs the game
   sixlauncher status               where VIctory, XCL and the others stand (PortWatch VI)
-  sixlauncher update [victory|xcl|best] [--build NAME] [--force]
+  sixlauncher update [victory|xcl|scarlett|best] [--build NAME] [--force]
                                   the installed and the published builds (each public VIctory /
                                   XCL tree scoring 59% or more on PortWatch VI, scanned on
                                   VirusTotal); with a backend, install its best build (--build:
@@ -66,7 +66,7 @@ Usage:
                                   `best` is the backend ranked higher. A build VirusTotal flags is never installed;
                                   with a local key the files are looked up again (--force skips
                                   only that)
-  sixlauncher rollback victory|xcl [ID]
+  sixlauncher rollback victory|xcl|scarlett [ID]
                                   list the builds earlier updates replaced (the last 3 are
                                   kept); with an ID (or `last`), put that build back in place
   sixlauncher virustotal [--upload FILE]
@@ -174,14 +174,15 @@ fn update_cmd(args: &[String]) -> ExitCode {
     let args = rest;
     let kind = match args.first().map(String::as_str) {
         None => None,
-        Some("victory") => Some(BackendKind::Victory),
-        Some("xcl") => Some(BackendKind::Xcl),
         Some("best") => match update::fetch_manifest().map(|m| m.recommended) {
             Ok(Some(k)) => Some(k),
             Ok(None) => return fail("runtimes.json names no recommended backend"),
             Err(e) => return fail(e),
         },
-        Some(other) => return fail(format!("unknown backend {other}; victory, xcl or best")),
+        Some(other) => match BackendKind::from_name(other) {
+            Some(k) => Some(k),
+            None => return fail(format!("unknown backend {other}; victory, xcl, scarlett or best")),
+        },
     };
     let Some(kind) = kind else {
         return match update::status() {
@@ -371,10 +372,8 @@ fn use_proton(path: Option<PathBuf>) -> ExitCode {
 }
 
 fn rollback_cmd(args: &[String]) -> ExitCode {
-    let kind = match args.first().map(String::as_str) {
-        Some("victory") => BackendKind::Victory,
-        Some("xcl") => BackendKind::Xcl,
-        _ => return fail("rollback victory|xcl [ID|last]"),
+    let Some(kind) = args.first().and_then(|a| BackendKind::from_name(a)) else {
+        return fail("rollback victory|xcl|scarlett [ID|last]");
     };
     let list = update::previous(kind);
     let Some(id) = args.get(1) else {
@@ -437,10 +436,9 @@ fn setup(args: &[String]) -> ExitCode {
             }
             "--backend" => {
                 backend_set = true;
-                cfg.backend.kind = match v.as_str() {
-                    "victory" => BackendKind::Victory,
-                    "xcl" => BackendKind::Xcl,
-                    _ => return fail("--backend is victory or xcl"),
+                cfg.backend.kind = match BackendKind::from_name(v) {
+                    Some(k) => k,
+                    None => return fail("--backend is victory, xcl or scarlett"),
                 }
             }
             "--console" => {

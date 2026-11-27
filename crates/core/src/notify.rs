@@ -109,7 +109,7 @@ pub fn overtakes(before: &[Standing], now: &[Standing]) -> Vec<Event> {
 /// backend: a build the player already has is no news. A build VirusTotal flagged is never
 /// announced (the launcher refuses to install it anyway).
 pub fn new_runtimes(seen: &BTreeMap<String, String>, manifest: &Manifest, installed: impl Fn(BackendKind) -> Option<String>) -> Vec<Event> {
-    [BackendKind::Victory, BackendKind::Xcl]
+    BackendKind::ALL
         .into_iter()
         .filter_map(|kind| {
             let asset = manifest.asset(kind)?;
@@ -161,7 +161,7 @@ pub fn check(settings: &NotificationsSection, seen: &mut Seen, sources: &Sources
         if settings.runtimes {
             events.extend(new_runtimes(&seen.runtimes, manifest, |k| sources.installed.get(k.name()).cloned()));
         }
-        for kind in [BackendKind::Victory, BackendKind::Xcl] {
+        for kind in BackendKind::ALL {
             if let Some(asset) = manifest.asset(kind) {
                 seen.runtimes.insert(kind.name().into(), asset.commit.clone());
             }
@@ -202,7 +202,7 @@ pub fn poll(settings: &NotificationsSection, current: &str) -> Vec<Event> {
     let report = crate::status::report().ok();
     let manifest = update::fetch_manifest().ok();
     let app = selfupdate::fetch_manifest().ok().flatten();
-    let installed = [BackendKind::Victory, BackendKind::Xcl]
+    let installed = BackendKind::ALL
         .into_iter()
         .filter_map(|k| update::installed_commit(k, &update::install_dir(k)).map(|c| (k.name().to_string(), c)))
         .collect();
@@ -320,7 +320,7 @@ mod tests {
     }
 
     fn manifest(victory: Option<Asset>, xcl: Option<Asset>) -> Manifest {
-        Manifest { schema: 1, published_at: None, run_url: None, victory, xcl, recommended: None, builds: vec![], min_score: None, candidates: vec![], missing: false }
+        Manifest { schema: 1, published_at: None, run_url: None, victory, xcl, scarlett: None, recommended: None, builds: vec![], min_score: None, candidates: vec![], missing: false }
     }
 
     #[test]
