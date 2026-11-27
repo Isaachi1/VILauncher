@@ -155,7 +155,6 @@ I18N.add("ko", {
   "doctor.kicker": "플레이 전에",
   "doctor.title": "점검",
   "doctor.run": "점검",
-  "doctor.dry": "명령 보기",
   "doctor.busy": "점검 중…",
   "doctor.summary": "실패: {fails} · 경고: {warns} · 정상: {ok}",
   "check.ok": "정상",

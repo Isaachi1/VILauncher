@@ -155,7 +155,6 @@ I18N.add("en", {
   "doctor.kicker": "Before playing",
   "doctor.title": "Check",
   "doctor.run": "Check",
-  "doctor.dry": "Show command",
   "doctor.busy": "Checking…",
   "doctor.summary": "Failures: {fails} · warnings: {warns} · ok: {ok}",
   "check.ok": "OK",

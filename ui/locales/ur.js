@@ -155,7 +155,6 @@ I18N.add("ur", {
   "doctor.kicker": "کھیلنے سے پہلے",
   "doctor.title": "جانچ",
   "doctor.run": "جانچیں",
-  "doctor.dry": "کمانڈ دکھائیں",
   "doctor.busy": "جانچ ہو رہی ہے…",
   "doctor.summary": "ناکام: {fails} · انتباہ: {warns} · ٹھیک: {ok}",
   "check.ok": "ٹھیک",

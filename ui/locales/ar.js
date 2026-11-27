@@ -155,7 +155,6 @@ I18N.add("ar", {
   "doctor.kicker": "قبل اللعب",
   "doctor.title": "الفحص",
   "doctor.run": "افحص",
-  "doctor.dry": "عرض الأمر",
   "doctor.busy": "جارٍ الفحص…",
   "doctor.summary": "إخفاقات: {fails} · تحذيرات: {warns} · سليم: {ok}",
   "check.ok": "سليم",

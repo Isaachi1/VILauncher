@@ -155,7 +155,6 @@ I18N.add("bn", {
   "doctor.kicker": "খেলার আগে",
   "doctor.title": "যাচাই",
   "doctor.run": "যাচাই করুন",
-  "doctor.dry": "কমান্ড দেখান",
   "doctor.busy": "যাচাই হচ্ছে…",
   "doctor.summary": "ব্যর্থ: {fails} · সতর্কতা: {warns} · ঠিক: {ok}",
   "check.ok": "ঠিক",

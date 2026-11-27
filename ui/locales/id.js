@@ -155,7 +155,6 @@ I18N.add("id", {
   "doctor.kicker": "Sebelum bermain",
   "doctor.title": "Pemeriksaan",
   "doctor.run": "Periksa",
-  "doctor.dry": "Tampilkan perintah",
   "doctor.busy": "Memeriksa…",
   "doctor.summary": "Gagal: {fails} · peringatan: {warns} · ok: {ok}",
   "check.ok": "OK",

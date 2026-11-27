@@ -155,7 +155,6 @@ I18N.add("zh-CN", {
   "doctor.kicker": "游戏前",
   "doctor.title": "检查",
   "doctor.run": "检查",
-  "doctor.dry": "显示命令",
   "doctor.busy": "正在检查…",
   "doctor.summary": "失败：{fails} · 警告：{warns} · 正常：{ok}",
   "check.ok": "正常",
