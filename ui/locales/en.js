@@ -30,8 +30,6 @@ I18N.add("en", {
   "game.exe": "Executable",
   "game.exeHint": "(optional; default: the one in MicrosoftGame.config)",
   "game.exeOther": "Other .exe…",
-  "game.exeAuto": "Automatic: {exe} (the one in MicrosoftGame.config)",
-  "game.exeAutoNone": "Automatic (the one in MicrosoftGame.config)",
   "game.exeLocked": "Choose the game folder first.",
   "game.exeFound": "Executables found in the folder: {n}",
   "game.exeNone": "No .exe found in the folder; use Other .exe…",

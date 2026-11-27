@@ -30,8 +30,6 @@ I18N.add("ko", {
   "game.exe": "실행 파일",
   "game.exeHint": "(선택 사항; 기본값: MicrosoftGame.config에 있는 것)",
   "game.exeOther": "다른 .exe…",
-  "game.exeAuto": "자동: {exe} (MicrosoftGame.config의 것)",
-  "game.exeAutoNone": "자동 (MicrosoftGame.config의 것)",
   "game.exeLocked": "먼저 게임 폴더를 선택하세요.",
   "game.exeFound": "폴더에서 찾은 실행 파일: {n}",
   "game.exeNone": "폴더에 .exe가 없습니다. '다른 .exe…'를 사용하세요",

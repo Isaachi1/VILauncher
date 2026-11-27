@@ -30,8 +30,6 @@ I18N.add("tr", {
   "game.exe": "Çalıştırılabilir dosya",
   "game.exeHint": "(isteğe bağlı; varsayılan: MicrosoftGame.config'deki)",
   "game.exeOther": "Başka .exe…",
-  "game.exeAuto": "Otomatik: {exe} (MicrosoftGame.config'teki)",
-  "game.exeAutoNone": "Otomatik (MicrosoftGame.config'teki)",
   "game.exeLocked": "Önce oyun klasörünü seçin.",
   "game.exeFound": "Klasörde bulunan çalıştırılabilir dosyalar: {n}",
   "game.exeNone": "Klasörde .exe yok; Başka .exe… seçeneğini kullanın",

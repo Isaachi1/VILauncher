@@ -30,8 +30,6 @@ I18N.add("bn", {
   "game.exe": "এক্সিকিউটেবল",
   "game.exeHint": "(ঐচ্ছিক; ডিফল্ট: MicrosoftGame.config-এর টি)",
   "game.exeOther": "অন্য .exe…",
-  "game.exeAuto": "স্বয়ংক্রিয়: {exe} (MicrosoftGame.config-এর)",
-  "game.exeAutoNone": "স্বয়ংক্রিয় (MicrosoftGame.config-এর)",
   "game.exeLocked": "আগে গেমের ফোল্ডার বেছে নিন।",
   "game.exeFound": "ফোল্ডারে পাওয়া এক্সিকিউটেবল: {n}",
   "game.exeNone": "ফোল্ডারে কোনো .exe নেই; «অন্য .exe…» ব্যবহার করুন",

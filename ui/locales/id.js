@@ -30,8 +30,6 @@ I18N.add("id", {
   "game.exe": "File eksekusi",
   "game.exeHint": "(opsional; bawaan: yang ada di MicrosoftGame.config)",
   "game.exeOther": "Berkas .exe lain…",
-  "game.exeAuto": "Otomatis: {exe} (dari MicrosoftGame.config)",
-  "game.exeAutoNone": "Otomatis (dari MicrosoftGame.config)",
   "game.exeLocked": "Pilih folder game terlebih dahulu.",
   "game.exeFound": "Berkas eksekusi di folder: {n}",
   "game.exeNone": "Tidak ada .exe di folder; gunakan Berkas .exe lain…",
