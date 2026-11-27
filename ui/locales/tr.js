@@ -92,6 +92,7 @@ I18N.add("tr", {
   "compat.noBuilds": "Yayınlanmış derleme yok (bağlantıyı kontrol edin)",
   "compat.customBuild": "Kendi çalıştırılabilir dosyanız ({name}, aşağıda)",
   "compat.updatePill": "güncelleme var",
+  "compat.defaultPill": "varsayılan",
   "compat.console": "Benzetilen konsol",
   "compat.exe": "Arka uç çalıştırılabilir dosyası",
   "compat.exeHint": "(Windows derlemesi: victory.exe, xcl.exe veya scarlett.exe)",
@@ -153,6 +154,7 @@ I18N.add("tr", {
   "feat.fsrSharpness": "FSR keskinliği",
   "check.detail.fsr.missing": "runtime'ın yanında veya oyun klasöründe FidelityFX DLL'si yok: FSR ve kare oluşturma kapalı kalır",
   "prep.button": "Shader'ları hazırla",
+  "prep.title": "ScarlettPort shader'ları",
   "prep.stop": "Durdur",
   "prep.intro": "Oyun takılmasın diye oynamadan önce tüm shader'ları çevirir ve pipeline'ları kurar. Birkaç dakika sürer; durdurulursa kaldığı yerden devam eder.",
   "prep.starting": "ScarlettPort başlatılıyor…",
@@ -334,6 +336,7 @@ I18N.add("tr", {
   "check.fail": "HATA",
   "check.doSetup": "Prefix'i hazırla",
   "check.doBuild": "Sürüm seç",
+  "check.doInstallDefault": "ScarlettPort'u kur",
   "check.doGame": "Klasörü seç",
   "check.doRunner": "Çalıştırmayı aç",
 

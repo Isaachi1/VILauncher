@@ -92,6 +92,7 @@ I18N.add("bn", {
   "compat.noBuilds": "কোনো বিল্ড প্রকাশিত হয়নি (সংযোগ পরীক্ষা করুন)",
   "compat.customBuild": "নিজের এক্সিকিউটেবল ({name}, নিচে)",
   "compat.updatePill": "আপডেট আছে",
+  "compat.defaultPill": "ডিফল্ট",
   "compat.console": "সিমুলেট করা কনসোল",
   "compat.exe": "ব্যাকএন্ড এক্সিকিউটেবল",
   "compat.exeHint": "(Windows বিল্ড: victory.exe, xcl.exe বা scarlett.exe)",
@@ -153,6 +154,7 @@ I18N.add("bn", {
   "feat.fsrSharpness": "FSR তীক্ষ্ণতা",
   "check.detail.fsr.missing": "রানটাইমের পাশে বা গেম ফোল্ডারে কোনো FidelityFX DLL নেই: FSR ও ফ্রেম জেনারেশন বন্ধ থাকে",
   "prep.button": "শেডার প্রস্তুত করুন",
+  "prep.title": "ScarlettPort শেডার",
   "prep.stop": "থামান",
   "prep.intro": "খেলার আগে সব শেডার অনুবাদ করে ও পাইপলাইন তৈরি করে, যাতে গেম আটকে না যায়। কয়েক মিনিট লাগে; থামালে যেখানে ছিল সেখান থেকে চলবে।",
   "prep.starting": "ScarlettPort শুরু হচ্ছে…",
@@ -334,6 +336,7 @@ I18N.add("bn", {
   "check.fail": "ব্যর্থ",
   "check.doSetup": "প্রিফিক্স প্রস্তুত করুন",
   "check.doBuild": "বিল্ড বেছে নিন",
+  "check.doInstallDefault": "ScarlettPort ইনস্টল করুন",
   "check.doGame": "ফোল্ডার বেছে নিন",
   "check.doRunner": "চালানোর সেটিংস খুলুন",
 

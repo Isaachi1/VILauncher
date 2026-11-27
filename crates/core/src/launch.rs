@@ -242,6 +242,7 @@ mod tests {
         let mut cfg = Config::default();
         cfg.game.dir = Some(game.clone());
         cfg.game.args = vec!["-windowed".into(), "a b".into()];
+        cfg.backend.kind = BackendKind::Victory;
         cfg.backend.exe = Some(exe.clone());
         (cfg, game, exe, proton)
     }

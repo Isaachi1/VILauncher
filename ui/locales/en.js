@@ -92,6 +92,7 @@ I18N.add("en", {
   "compat.noBuilds": "No build published (check the connection)",
   "compat.customBuild": "Your own executable ({name}, below)",
   "compat.updatePill": "update available",
+  "compat.defaultPill": "default",
   "compat.console": "Simulated console",
   "compat.exe": "Backend executable",
   "compat.exeHint": "(Windows build: victory.exe, xcl.exe or scarlett.exe)",
@@ -153,6 +154,7 @@ I18N.add("en", {
   "feat.fsrSharpness": "FSR sharpness",
   "check.detail.fsr.missing": "no FidelityFX DLL beside the runtime or in the game folder: FSR and frame generation stay off",
   "prep.button": "Prepare shaders",
+  "prep.title": "ScarlettPort shaders",
   "prep.stop": "Stop",
   "prep.intro": "Translates every shader and builds the pipelines before you play, so the game does not stutter. Takes a few minutes; if stopped, it resumes where it was.",
   "prep.starting": "Starting ScarlettPort…",
@@ -334,6 +336,7 @@ I18N.add("en", {
   "check.fail": "FAIL",
   "check.doSetup": "Prepare prefix",
   "check.doBuild": "Choose a build",
+  "check.doInstallDefault": "Install ScarlettPort",
   "check.doGame": "Choose the folder",
   "check.doRunner": "Open Run settings",
 

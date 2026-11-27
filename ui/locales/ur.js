@@ -92,6 +92,7 @@ I18N.add("ur", {
   "compat.noBuilds": "کوئی بلڈ شائع نہیں ہوا (کنکشن چیک کریں)",
   "compat.customBuild": "اپنا ایگزیکیوٹیبل ({name}، نیچے)",
   "compat.updatePill": "اپ ڈیٹ دستیاب",
+  "compat.defaultPill": "ڈیفالٹ",
   "compat.console": "نقلی کنسول",
   "compat.exe": "بیک اینڈ ایگزیکیوٹیبل",
   "compat.exeHint": "(Windows بلڈ: ‏victory.exe, xcl.exe یا scarlett.exe)",
@@ -153,6 +154,7 @@ I18N.add("ur", {
   "feat.fsrSharpness": "FSR تیزی",
   "check.detail.fsr.missing": "رن ٹائم کے ساتھ یا گیم فولڈر میں کوئی FidelityFX DLL نہیں: FSR اور فریم جنریشن بند رہتے ہیں",
   "prep.button": "شیڈرز تیار کریں",
+  "prep.title": "ScarlettPort شیڈرز",
   "prep.stop": "روکیں",
   "prep.intro": "کھیلنے سے پہلے تمام شیڈرز کا ترجمہ اور پائپ لائنیں تیار کرتا ہے تاکہ گیم اٹکے نہیں۔ چند منٹ لگتے ہیں؛ روکنے پر وہیں سے جاری رہتا ہے۔",
   "prep.starting": "ScarlettPort شروع ہو رہا ہے…",
@@ -334,6 +336,7 @@ I18N.add("ur", {
   "check.fail": "ناکام",
   "check.doSetup": "پری فکس تیار کریں",
   "check.doBuild": "بلڈ منتخب کریں",
+  "check.doInstallDefault": "ScarlettPort انسٹال کریں",
   "check.doGame": "فولڈر منتخب کریں",
   "check.doRunner": "رن کی ترتیبات کھولیں",
 

@@ -92,6 +92,7 @@ I18N.add("id", {
   "compat.noBuilds": "Tidak ada build yang diterbitkan (periksa koneksi)",
   "compat.customBuild": "Executable sendiri ({name}, di bawah)",
   "compat.updatePill": "pembaruan tersedia",
+  "compat.defaultPill": "bawaan",
   "compat.console": "Konsol yang disimulasikan",
   "compat.exe": "File eksekusi backend",
   "compat.exeHint": "(build Windows: victory.exe, xcl.exe atau scarlett.exe)",
@@ -153,6 +154,7 @@ I18N.add("id", {
   "feat.fsrSharpness": "Ketajaman FSR",
   "check.detail.fsr.missing": "tidak ada DLL FidelityFX di samping runtime atau di folder gim: FSR dan pembuatan frame tetap mati",
   "prep.button": "Siapkan shader",
+  "prep.title": "Shader ScarlettPort",
   "prep.stop": "Hentikan",
   "prep.intro": "Menerjemahkan semua shader dan membangun pipeline sebelum bermain, agar gim tidak tersendat. Butuh beberapa menit; bila dihentikan, lanjut dari posisi terakhir.",
   "prep.starting": "Memulai ScarlettPort…",
@@ -334,6 +336,7 @@ I18N.add("id", {
   "check.fail": "GAGAL",
   "check.doSetup": "Siapkan prefix",
   "check.doBuild": "Pilih build",
+  "check.doInstallDefault": "Pasang ScarlettPort",
   "check.doGame": "Pilih folder",
   "check.doRunner": "Buka Eksekusi",
 

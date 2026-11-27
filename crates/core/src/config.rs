@@ -16,11 +16,12 @@ use crate::{Error, Result};
 #[serde(rename_all = "lowercase")]
 pub enum BackendKind {
     /// VIctory, from VILinux (Grand Theft Auto VI).
-    #[default]
     Victory,
     /// XCL, from LinuxCL (GDK titles in general).
     Xcl,
-    /// ScarlettPort's runtime (scarlett.exe), with its D3D12 Agility folder beside it.
+    /// ScarlettPort's runtime (scarlett.exe), with its D3D12 Agility folder beside it: the
+    /// default, built by SixLauncher's builder from scarlett::DEFAULT_REPO.
+    #[default]
     Scarlett,
 }
 
@@ -502,8 +503,8 @@ mod tests {
     fn missing_file_gives_defaults() {
         let h = TempHome::new();
         let cfg = load().unwrap();
-        assert_eq!((cfg.backend.kind, cfg.runner.kind), (BackendKind::Victory, RunnerKind::Proton));
-        assert_eq!(cfg.data_dir(), h.home().join(".local/share/sixlauncher/victory/data"));
+        assert_eq!((cfg.backend.kind, cfg.runner.kind), (BackendKind::Scarlett, RunnerKind::Proton));
+        assert_eq!(cfg.data_dir(), h.home().join(".local/share/sixlauncher/scarlett/data"));
         assert_eq!(cfg.prefix(), h.home().join(".local/share/sixlauncher/compatdata"));
         assert_eq!(cfg.notifications, NotificationsSection { race: true, runtimes: true, app: true });
     }

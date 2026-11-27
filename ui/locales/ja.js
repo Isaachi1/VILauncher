@@ -92,6 +92,7 @@ I18N.add("ja", {
   "compat.noBuilds": "公開されたビルドがありません（接続を確認してください）",
   "compat.customBuild": "自分の実行ファイル（{name}、下）",
   "compat.updatePill": "更新あり",
+  "compat.defaultPill": "既定",
   "compat.console": "シミュレートするコンソール",
   "compat.exe": "バックエンドの実行ファイル",
   "compat.exeHint": "（Windows ビルド: victory.exe, xcl.exe または scarlett.exe）",
@@ -153,6 +154,7 @@ I18N.add("ja", {
   "feat.fsrSharpness": "FSR シャープネス",
   "check.detail.fsr.missing": "ランタイムの横にもゲームフォルダーにも FidelityFX DLL がありません。FSR とフレーム生成はオフのままです",
   "prep.button": "シェーダーを準備",
+  "prep.title": "ScarlettPort のシェーダー",
   "prep.stop": "停止",
   "prep.intro": "プレイ前にすべてのシェーダーを変換しパイプラインを作成して、ゲームのカクつきを防ぎます。数分かかります。停止しても続きから再開します。",
   "prep.starting": "ScarlettPort を起動中…",
@@ -334,6 +336,7 @@ I18N.add("ja", {
   "check.fail": "失敗",
   "check.doSetup": "プレフィックスを準備",
   "check.doBuild": "ビルドを選ぶ",
+  "check.doInstallDefault": "ScarlettPort をインストール",
   "check.doGame": "フォルダーを選ぶ",
   "check.doRunner": "実行設定を開く",
 

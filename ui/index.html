@@ -137,6 +137,17 @@
         <ul id="ready-list" class="ready-list"></ul>
         <p class="status ready-status" id="ready-status" role="status"></p>
       </section>
+      <!-- ScarlettPort's shader build, on the Jogo tab: `scarlett prepare` for the chosen preset,
+           its progress from the prep-line events. -->
+      <section class="readiness prep" id="prep" data-backends="scarlett" aria-labelledby="prep-title">
+        <h3 id="prep-title" data-i18n="prep.title">Shaders do ScarlettPort</h3>
+        <div class="actions">
+          <button id="prep-start" class="primary" data-i18n="prep.button">Preparar shaders</button>
+          <button id="prep-stop" class="ghost" data-i18n="prep.stop" hidden>Parar</button>
+          <span class="status" id="prep-info" role="status" data-i18n="prep.intro">Traduz todos os shaders e monta os pipelines antes de jogar, para o jogo não engasgar. Leva alguns minutos; se parar, continua de onde estava.</span>
+        </div>
+        <progress id="prep-bar" max="1" value="0" hidden></progress>
+      </section>
       <div class="toggles">
         <label class="toggle">
           <input type="checkbox" data-path="game.verify" data-kind="bool">
@@ -344,13 +355,6 @@
               </label>
             </div>
           </details>
-          <!-- `scarlett prepare` for the chosen preset: progress from its prep-line events. -->
-          <div class="prep" id="prep">
-            <div class="actions">
-              <button id="prep-start" data-i18n="prep.button">Preparar shaders</button>
-              <button id="prep-stop" class="ghost" data-i18n="prep.stop" hidden>Parar</button>
-              <span class="status" id="prep-info" role="status" data-i18n="prep.intro">Traduz todos os shaders e monta os pipelines antes de jogar, para o jogo não engasgar. Leva alguns minutos; se parar, continua de onde estava.</span>
-            </div>
             <progress id="prep-bar" max="1" value="0" hidden></progress>
           </div>
         </div>

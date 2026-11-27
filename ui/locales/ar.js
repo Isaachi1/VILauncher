@@ -92,6 +92,7 @@ I18N.add("ar", {
   "compat.noBuilds": "لا توجد إصدارات منشورة (تحقق من الاتصال)",
   "compat.customBuild": "ملفك التنفيذي الخاص ({name}، بالأسفل)",
   "compat.updatePill": "يتوفر تحديث",
+  "compat.defaultPill": "الافتراضي",
   "compat.console": "الجهاز المحاكى",
   "compat.exe": "الملف التنفيذي للواجهة الخلفية",
   "compat.exeHint": "(إصدار Windows: ‏victory.exe, xcl.exe أو scarlett.exe)",
@@ -153,6 +154,7 @@ I18N.add("ar", {
   "feat.fsrSharpness": "حدة FSR",
   "check.detail.fsr.missing": "لا توجد DLL لـFidelityFX بجانب بيئة التشغيل أو في مجلد اللعبة: يبقى FSR وتوليد الإطارات معطلين",
   "prep.button": "تجهيز الـshaders",
+  "prep.title": "shaders ScarlettPort",
   "prep.stop": "إيقاف",
   "prep.intro": "يترجم كل الـshaders ويبني خطوط المعالجة قبل اللعب حتى لا تتقطع اللعبة. يستغرق بضع دقائق؛ وإذا أُوقف يكمل من حيث توقف.",
   "prep.starting": "جارٍ تشغيل ScarlettPort…",
@@ -334,6 +336,7 @@ I18N.add("ar", {
   "check.fail": "إخفاق",
   "check.doSetup": "جهّز البادئة",
   "check.doBuild": "اختر إصدارًا",
+  "check.doInstallDefault": "تثبيت ScarlettPort",
   "check.doGame": "اختر المجلد",
   "check.doRunner": "افتح إعدادات التشغيل",
 
