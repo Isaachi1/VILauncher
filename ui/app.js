@@ -62,6 +62,9 @@ function readForm() {
       }
     } else if (el.dataset.kind === "bool") {
       v = el.checked;
+    } else if (el.dataset.kind === "float") {
+      const n = parseFloat(raw);
+      v = Number.isFinite(n) ? n : null;
     } else if (el.dataset.kind === "int") {
       const n = parseInt(raw, 10);
       v = Number.isFinite(n) && n > 0 ? n : null;
@@ -83,6 +86,8 @@ function refreshVisibility() {
   for (const el of $$("[data-backends]")) el.hidden = !el.dataset.backends.split(" ").includes(backend);
   const preset = $('[data-path="scarlett.preset"]').value || "stable";
   for (const el of $$("[data-scarlett-presets]")) el.hidden = !el.dataset.scarlettPresets.split(" ").includes(preset);
+  const upscaler = $('[data-path="scarlett.upscaler"]').value;
+  for (const el of $$("[data-scarlett-upscaler]")) el.hidden = el.dataset.scarlettUpscaler !== upscaler;
   say("#scarlett-preset-hint", `scarlett.${preset}Hint`);
   for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
   for (const el of $$(".only-mangohud")) el.hidden = !$('[data-path="performance.mangohud"]').checked;

@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::config::{ScarlettPreset, ScarlettSection};
+use crate::config::{FsrQuality, KbmHints, ScarlettPreset, ScarlettSection, Upscaler};
 
 /// C1, promoted 2026-11-25: the precompiled graphics pipelines and the verified speed switches.
 pub const C1: [&str; 9] = [
@@ -118,7 +118,7 @@ pub fn custom_env(s: &ScarlettSection, game: &str, cache: &str) -> Vec<(&'static
     v
 }
 
-/// The environment of the chosen preset.
+/// The environment of the chosen preset (without the features: see [`features_env`]).
 pub fn env(s: &ScarlettSection, game: &str, cache: &str) -> Vec<(&'static str, String)> {
     let extra: &[(&str, &str)] = match s.preset {
         ScarlettPreset::Stable => &[],
@@ -129,6 +129,91 @@ pub fn env(s: &ScarlettSection, game: &str, cache: &str) -> Vec<(&'static str, S
     let mut v = stable_env(game, cache);
     for (k, x) in extra {
         set(&mut v, k, x);
+    }
+    v
+}
+
+/// A number as the runtime reads it: `1.5`, `2.0`.
+fn num(x: f32) -> String {
+    let s = format!("{x:.2}");
+    let s = s.trim_end_matches('0').trim_end_matches('.');
+    if s.contains('.') { s.to_string() } else { format!("{s}.0") }
+}
+
+/// The features' environment (ScarlettPort's tuning.rs): only the ones away from their default.
+/// `fsr` says whether a FidelityFX DLL is there: FSR and frame generation are not asked for
+/// without it.
+pub fn features_env(s: &ScarlettSection, fsr: bool) -> Vec<(&'static str, String)> {
+    let d = ScarlettSection::default();
+    let mut v = Vec::new();
+    if s.full_textures {
+        v.push(("SCARLETT_TEXTURES", "full".to_string()));
+    }
+    if s.hdr {
+        v.push(("SCARLETT_HDR", "1".to_string()));
+    }
+    if s.pad_ps {
+        v.push(("SCARLETT_PAD_PS", "1".to_string()));
+    }
+    if !s.rumble {
+        v.push(("SCARLETT_RUMBLE", "0".to_string()));
+    } else if (s.rumble_strength - d.rumble_strength).abs() > 0.001 {
+        v.push(("SCARLETT_RUMBLE_STRENGTH", num(s.rumble_strength)));
+    }
+    match s.kbm_hints {
+        KbmHints::Auto => {}
+        KbmHints::Off => v.push(("SCARLETT_KBM_HINTS", "off".to_string())),
+        KbmHints::Always => v.push(("SCARLETT_KBM_HINTS", "always".to_string())),
+    }
+    if s.frame_cap > 0 {
+        v.push(("SCARLETT_PACE", "1".to_string()));
+        v.push(("SCARLETT_PACE_FPS", s.frame_cap.to_string()));
+    }
+    match s.upscaler {
+        Upscaler::Default => {}
+        Upscaler::Title => v.push(("SCARLETT_UPSCALER", "title".to_string())),
+        Upscaler::Stretch => v.push(("SCARLETT_UPSCALER", "stretch".to_string())),
+        Upscaler::Fsr if fsr => {
+            let quality = match s.fsr_quality {
+                FsrQuality::Native => "native",
+                FsrQuality::Quality => "quality",
+                FsrQuality::Balanced => "balanced",
+                FsrQuality::Performance => "performance",
+                FsrQuality::Ultra => "ultra",
+            };
+            v.push(("SCARLETT_UPSCALER", "fsr".to_string()));
+            v.push(("SCARLETT_UPSCALE_QUALITY", quality.to_string()));
+            v.push(("SCARLETT_UPSCALE_SHARPNESS", num(s.fsr_sharpness)));
+            v.push(("SCARLETT_FRAMEGEN", if s.framegen { "1" } else { "0" }.to_string()));
+        }
+        Upscaler::Fsr => {}
+    }
+    if s.overlay {
+        v.push(("SCARLETT_PANEL", "1".to_string()));
+    }
+    if !s.mouse_look {
+        v.push(("SCARLETT_MOUSE_LOOK", "0".to_string()));
+    } else if (s.mouse_sensitivity - d.mouse_sensitivity).abs() > 0.001 {
+        v.push(("SCARLETT_MOUSE_LOOK", num(s.mouse_sensitivity)));
+    }
+    v
+}
+
+/// FidelityFX DLLs the runtime loads for FSR (the loader, or an API DLL).
+pub const FSR_DLLS: [&str; 2] = ["amd_fidelityfx_loader_dx12.dll", "amd_fidelityfx_dx12.dll"];
+
+/// FSR can run: a FidelityFX DLL beside the runtime, or the game's own AMD upscaler
+/// (`amd_fidelityfx_upscaler*`) in the game folder, where the engine looks for it.
+pub fn fsr_available(runtime_dir: &Path, game_dir: &Path) -> bool {
+    FSR_DLLS.iter().any(|d| runtime_dir.join(d).is_file())
+        || std::fs::read_dir(game_dir).is_ok_and(|entries| entries.flatten().any(|e| e.file_name().to_string_lossy().to_ascii_lowercase().starts_with("amd_fidelityfx_upscaler")))
+}
+
+/// The full environment of a run: the preset's, then the features (which win).
+pub fn run_env(s: &ScarlettSection, game: &str, cache: &str, fsr: bool) -> Vec<(&'static str, String)> {
+    let mut v = env(s, game, cache);
+    for (k, x) in features_env(s, fsr) {
+        set(&mut v, k, &x);
     }
     v
 }
@@ -189,6 +274,59 @@ mod tests {
         s.fallback_light = true;
         let e = env(&s, "g", "c");
         assert_eq!((get(&e, "SCARLETT_RAYTRACING"), get(&e, "SCARLETT_BVH_BUILDER"), get(&e, "SCARLETT_FALLBACK_LIGHT")), (Some("1"), Some("1"), Some("1")));
+    }
+
+    #[test]
+    fn features_at_their_defaults_set_nothing() {
+        assert!(features_env(&ScarlettSection::default(), true).is_empty());
+        assert_eq!(run_env(&ScarlettSection::default(), "g", "c", true), stable_env("g", "c"));
+    }
+
+    #[test]
+    fn features_map_to_the_runtime_switches() {
+        let s = ScarlettSection {
+            full_textures: true,
+            hdr: true,
+            pad_ps: true,
+            rumble_strength: 1.5,
+            kbm_hints: KbmHints::Off,
+            frame_cap: 30,
+            upscaler: Upscaler::Fsr,
+            framegen: true,
+            overlay: true,
+            mouse_sensitivity: 2.0,
+            ..Default::default()
+        };
+        let e = features_env(&s, true);
+        assert_eq!(get(&e, "SCARLETT_TEXTURES"), Some("full"));
+        assert_eq!(get(&e, "SCARLETT_HDR"), Some("1"));
+        assert_eq!(get(&e, "SCARLETT_RUMBLE_STRENGTH"), Some("1.5"));
+        assert_eq!(get(&e, "SCARLETT_KBM_HINTS"), Some("off"));
+        assert_eq!((get(&e, "SCARLETT_PACE"), get(&e, "SCARLETT_PACE_FPS")), (Some("1"), Some("30")));
+        assert_eq!((get(&e, "SCARLETT_UPSCALER"), get(&e, "SCARLETT_UPSCALE_QUALITY")), (Some("fsr"), Some("quality")));
+        assert_eq!((get(&e, "SCARLETT_UPSCALE_SHARPNESS"), get(&e, "SCARLETT_FRAMEGEN")), (Some("0.2"), Some("1")));
+        assert_eq!((get(&e, "SCARLETT_PANEL"), get(&e, "SCARLETT_MOUSE_LOOK")), (Some("1"), Some("2.0")));
+        let without = features_env(&s, false);
+        assert!(without.iter().all(|(k, _)| !k.starts_with("SCARLETT_UPSCAL") && *k != "SCARLETT_FRAMEGEN"), "no FSR without its DLL");
+        let off = ScarlettSection { rumble: false, mouse_look: false, ..Default::default() };
+        assert_eq!(features_env(&off, true), [("SCARLETT_RUMBLE", "0".to_string()), ("SCARLETT_MOUSE_LOOK", "0".to_string())]);
+        let mut custom = s.clone();
+        custom.preset = ScarlettPreset::Custom;
+        once(&run_env(&custom, "g", "c", true));
+    }
+
+    #[test]
+    fn fsr_found_beside_the_runtime_or_in_the_game() {
+        let t = tempfile::tempdir().unwrap();
+        let (rt, game) = (t.path().join("rt"), t.path().join("game"));
+        std::fs::create_dir_all(&rt).unwrap();
+        std::fs::create_dir_all(&game).unwrap();
+        assert!(!fsr_available(&rt, &game));
+        std::fs::write(game.join("amd_fidelityfx_upscaler_dx12.dll"), "").unwrap();
+        assert!(fsr_available(&rt, &game));
+        std::fs::remove_file(game.join("amd_fidelityfx_upscaler_dx12.dll")).unwrap();
+        std::fs::write(rt.join("amd_fidelityfx_loader_dx12.dll"), "").unwrap();
+        assert!(fsr_available(&rt, &game));
     }
 
     #[test]

@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 
@@ -272,6 +272,10 @@ pub fn check_runner(cfg: &Config) -> Vec<Check> {
     checks
 }
 
+fn exe_dir_of(exe: &Path) -> PathBuf {
+    exe.parent().unwrap_or(Path::new("/")).to_path_buf()
+}
+
 pub fn check_backend(cfg: &Config) -> Vec<Check> {
     let Some(exe) = cfg.backend_exe() else {
         let which = match cfg.backend.kind {
@@ -333,6 +337,14 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
                 format!("no D3D12\\D3D12Core.dll beside {}: extract the whole ScarlettPort release, D3D12 folder included", exe.display()),
             ).coded("agility.missing", &[("path", d3d12.display().to_string())])
         });
+    }
+    if cfg.backend.kind == BackendKind::Scarlett
+        && cfg.scarlett.upscaler == crate::config::Upscaler::Fsr
+        && !crate::scarlett::fsr_available(&exe_dir_of(&exe), &cfg.game_dir().unwrap_or_default())
+    {
+        checks.push(
+            check(Status::Warn, "FSR", "no FidelityFX DLL beside the runtime or in the game folder: FSR and frame generation stay off").coded("fsr.missing", &[]),
+        );
     }
     // Without prepared shaders the first runs translate them in game: long loads and stutter.
     if cfg.backend.kind == BackendKind::Scarlett {

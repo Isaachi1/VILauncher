@@ -93,7 +93,8 @@ pub fn scarlett_plan(cfg: &Config, game_exe: &Path) -> Result<Plan> {
         args.extend(cfg.game.args.iter().cloned());
     }
     let cache = crate::scarlett::cache_for(cfg.scarlett.preset, &cfg.cache_dir());
-    let env = crate::scarlett::env(&cfg.scarlett, &to_windows(&game), &to_windows(&cache)).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+    let fsr = crate::scarlett::fsr_available(exe.parent().unwrap_or(Path::new("/")), &game);
+    let env = crate::scarlett::run_env(&cfg.scarlett, &to_windows(&game), &to_windows(&cache), fsr).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
     Ok(Plan { exe, args, env })
 }
 
