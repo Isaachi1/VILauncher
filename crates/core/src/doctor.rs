@@ -4,6 +4,7 @@
 //! missing or unverified) or FAIL (a run cannot work). A launch refuses to start
 //! while a configuration check fails, unless forced.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -31,13 +32,25 @@ pub struct Check {
     /// A fix the window can apply (as root, after asking), for a warning about a kernel setting.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fix: Option<fixes::Plan>,
+    /// A stable id of the message, with its values in `args`, for the window to show it in the
+    /// user's language; `detail` stays the English text (the CLI, the report, the fallback).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub args: BTreeMap<String, String>,
 }
 
 fn check(status: Status, name: &str, detail: impl Into<String>) -> Check {
-    Check { status, name: name.into(), detail: detail.into(), fix: None }
+    Check { status, name: name.into(), detail: detail.into(), fix: None, code: None, args: BTreeMap::new() }
 }
 
 impl Check {
+    fn coded(mut self, code: &str, args: &[(&str, String)]) -> Check {
+        self.code = Some(code.into());
+        self.args = args.iter().map(|(k, v)| ((*k).to_string(), v.clone())).collect();
+        self
+    }
+
     fn fixable(mut self, fix: Fix) -> Check {
         self.fix = Some(fix.plan());
         self
@@ -64,7 +77,7 @@ pub fn platform_check(os: &str, arch: &str) -> Check {
     } else if os == "macos" && arch == "aarch64" {
         check(Status::Ok, "platform", "macOS on Apple Silicon: Rosetta 2 runs the title's x86-64 code under Wine with D3DMetal")
     } else if os == "macos" {
-        check(Status::Fail, "platform", "macOS on Intel: VIctory for macOS needs Apple Silicon (M1 or newer)")
+        check(Status::Fail, "platform", "macOS on Intel: VIctory for macOS needs Apple Silicon (M1 or newer)").coded("platform.intelMac", &[])
     } else {
         check(
             Status::Fail,
@@ -77,12 +90,12 @@ pub fn platform_check(os: &str, arch: &str) -> Check {
 }
 
 pub fn check_avx2(cpuinfo: Option<&str>) -> Check {
-    let Some(cpuinfo) = cpuinfo else { return check(Status::Warn, "CPU", "cannot read /proc/cpuinfo") };
+    let Some(cpuinfo) = cpuinfo else { return check(Status::Warn, "CPU", "cannot read /proc/cpuinfo").coded("cpu.unreadable", &[]) };
     let flags = cpuinfo.lines().find(|l| l.starts_with("flags")).and_then(|l| l.split_once(':')).map(|(_, f)| f).unwrap_or("");
     if flags.split_whitespace().any(|f| f == "avx2") {
         check(Status::Ok, "CPU", "AVX2 present")
     } else {
-        check(Status::Fail, "CPU", "no AVX2: the console's code uses it, and VIctory requires it")
+        check(Status::Fail, "CPU", "no AVX2: the console's code uses it, and VIctory requires it").coded("cpu.noAvx2", &[])
     }
 }
 
@@ -96,7 +109,7 @@ pub fn check_avx2_cpu() -> Check {
 }
 
 pub fn check_memory(meminfo: Option<&str>) -> Check {
-    let Some(meminfo) = meminfo else { return check(Status::Warn, "memory", "cannot read /proc/meminfo") };
+    let Some(meminfo) = meminfo else { return check(Status::Warn, "memory", "cannot read /proc/meminfo").coded("memory.unreadable", &[]) };
     let kib = |key: &str| -> u64 {
         meminfo
             .lines()
@@ -120,10 +133,10 @@ pub fn check_memory(meminfo: Option<&str>) -> Check {
 
 pub fn check_max_map_count(value: Option<&str>) -> Check {
     let Some(n) = value.and_then(|v| v.trim().parse::<u64>().ok()) else {
-        return check(Status::Warn, "vm.max_map_count", "cannot read it");
+        return check(Status::Warn, "vm.max_map_count", "cannot read it").coded("mapcount.unreadable", &[]);
     };
     if n < MAX_MAP_COUNT {
-        check(Status::Warn, "vm.max_map_count", format!("{n}; large titles need more mappings: `sudo sysctl -w vm.max_map_count={MAX_MAP_COUNT}`"))
+        check(Status::Warn, "vm.max_map_count", format!("{n}; large titles need more mappings: `sudo sysctl -w vm.max_map_count={MAX_MAP_COUNT}`")).coded("mapcount.low", &[("n", n.to_string()), ("want", MAX_MAP_COUNT.to_string())])
             .fixable(Fix::MaxMapCount)
     } else {
         check(Status::Ok, "vm.max_map_count", n.to_string())
@@ -151,7 +164,7 @@ pub fn check_userfaultfd(unprivileged: Option<&str>, device_usable: bool) -> Che
 /// Reads `vulkaninfo` output: the devices, and whether mesh shaders are there.
 pub fn check_vulkan(output: Option<&str>) -> Vec<Check> {
     let Some(out) = output else {
-        return vec![check(Status::Warn, "Vulkan", "vulkaninfo not found or failed (package vulkan-tools); cannot check the GPU")];
+        return vec![check(Status::Warn, "Vulkan", "vulkaninfo not found or failed (package vulkan-tools); cannot check the GPU").coded("vulkan.noTool", &[])];
     };
     let mut names: Vec<String> = out
         .lines()
@@ -161,7 +174,7 @@ pub fn check_vulkan(output: Option<&str>) -> Vec<Check> {
     names.sort();
     names.dedup();
     if names.is_empty() {
-        return vec![check(Status::Fail, "Vulkan", "no Vulkan device: vkd3d-proton needs a Vulkan driver (Mesa RADV, NVIDIA)")];
+        return vec![check(Status::Fail, "Vulkan", "no Vulkan device: vkd3d-proton needs a Vulkan driver (Mesa RADV, NVIDIA)").coded("vulkan.noDevice", &[])];
     }
     let mesh = if out.contains("VK_EXT_mesh_shader") {
         check(Status::Ok, "mesh shaders", "VK_EXT_mesh_shader present")
@@ -224,7 +237,7 @@ pub fn check_runner(cfg: &Config) -> Vec<Check> {
     }
     let is_wine = matches!(runner, Runner::Wine(_));
     if !is_wine && std::env::var_os("PROTON_USE_WINED3D").is_some_and(|v| !v.is_empty() && v != "0") {
-        checks.push(check(Status::Fail, "vkd3d-proton", "PROTON_USE_WINED3D is set: unset it, D3D12 must go through vkd3d-proton"));
+        checks.push(check(Status::Fail, "vkd3d-proton", "PROTON_USE_WINED3D is set: unset it, D3D12 must go through vkd3d-proton").coded("vkd3d.wined3d", &[]));
     } else if runners::MACOS && is_wine {
         checks.push(check(Status::Ok, "d3d12", "D3D12 goes to the Wine build's D3DMetal (4.0 or newer is needed)"));
     } else if runner.vkd3d_installed() {
@@ -236,22 +249,22 @@ pub fn check_runner(cfg: &Config) -> Vec<Check> {
             format!("not in {}: choose an unpacked vkd3d-proton release and prepare the prefix", w.system32().display()),
         ));
     } else {
-        checks.push(check(Status::Warn, "vkd3d-proton", "not found in this Proton; it may not support D3D12"));
+        checks.push(check(Status::Warn, "vkd3d-proton", "not found in this Proton; it may not support D3D12").coded("vkd3d.notInProton", &[]));
     }
     let pfx = runner.wineprefix().unwrap_or_default();
     let z = pfx.join("dosdevices/z:");
     let prefix_check = if !pfx.join("system.reg").is_file() {
         if is_wine {
-            check(Status::Fail, "prefix", format!("{} not created yet: prepare the prefix", pfx.display()))
+            check(Status::Fail, "prefix", format!("{} not created yet: prepare the prefix", pfx.display())).coded("prefix.notCreated", &[("path", pfx.display().to_string())])
         } else {
-            check(Status::Warn, "prefix", format!("{} not created yet; Proton creates it on the first run", pfx.display()))
+            check(Status::Warn, "prefix", format!("{} not created yet; Proton creates it on the first run", pfx.display())).coded("prefix.protonFirstRun", &[("path", pfx.display().to_string())])
         }
     } else if fs::read_to_string(pfx.join("system.reg")).unwrap_or_default().contains("#arch=win32") {
-        check(Status::Fail, "prefix", format!("{} is a 32-bit prefix; delete it and prepare it again", pfx.display()))
+        check(Status::Fail, "prefix", format!("{} is a 32-bit prefix; delete it and prepare it again", pfx.display())).coded("prefix.win32", &[("path", pfx.display().to_string())])
     } else if !z.is_symlink() {
-        check(Status::Fail, "prefix", format!("{} has no drive Z:; paths would not resolve", pfx.display()))
+        check(Status::Fail, "prefix", format!("{} has no drive Z:; paths would not resolve", pfx.display())).coded("prefix.noZ", &[("path", pfx.display().to_string())])
     } else if fs::canonicalize(&z).ok().as_deref() != Some(Path::new("/")) {
-        check(Status::Fail, "prefix", format!("drive Z: of {} is not the Linux root; paths would not resolve", pfx.display()))
+        check(Status::Fail, "prefix", format!("drive Z: of {} is not the Linux root; paths would not resolve", pfx.display())).coded("prefix.zNotRoot", &[("path", pfx.display().to_string())])
     } else {
         check(Status::Ok, "prefix", pfx.display().to_string())
     };
@@ -265,13 +278,13 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
             BackendKind::Victory => "victory.exe (VILinux)",
             BackendKind::Xcl => "xcl.exe (LinuxCL)",
         };
-        return vec![check(Status::Fail, "backend", format!("no backend executable: the Windows build of {which}"))];
+        return vec![check(Status::Fail, "backend", format!("no backend executable: the Windows build of {which}")).coded("backend.none", &[("which", which.to_string())])];
     };
     if !exe.is_file() {
-        return vec![check(Status::Fail, "backend", format!("{} does not exist", exe.display()))];
+        return vec![check(Status::Fail, "backend", format!("{} does not exist", exe.display())).coded("backend.missing", &[("path", exe.display().to_string())])];
     }
     if backends::pe_machine(&exe) != Some(MACHINE_X86_64) {
-        return vec![check(Status::Fail, "backend", format!("{} is not a 64-bit Windows executable", exe.display()))];
+        return vec![check(Status::Fail, "backend", format!("{} is not a 64-bit Windows executable", exe.display())).coded("backend.notWin64", &[("path", exe.display().to_string())])];
     }
     let mut checks = vec![check(Status::Ok, "backend", format!("{}: {}", cfg.backend.kind.name(), exe.display()))];
     let exe_dir = exe.parent().unwrap_or(Path::new("/")).to_path_buf();
@@ -320,7 +333,7 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
 
 pub fn check_game(cfg: &Config) -> Vec<Check> {
     let Some(dir) = cfg.game_dir() else {
-        return vec![check(Status::Fail, "game", "no game folder: the unpacked folder of a game you own")];
+        return vec![check(Status::Fail, "game", "no game folder: the unpacked folder of a game you own").coded("game.none", &[])];
     };
     if let Some(tree) = paths::inside_victory_tree(&dir) {
         return vec![check(
@@ -448,6 +461,18 @@ pub fn run_all(cfg: &Config) -> Vec<Check> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn coded_checks_carry_their_id_and_values() {
+        let c = super::check_max_map_count(Some("65530"));
+        assert_eq!(c.code.as_deref(), Some("mapcount.low"));
+        assert_eq!(c.args.get("n").map(String::as_str), Some("65530"));
+        let json = serde_json::to_value(&c).unwrap();
+        assert_eq!(json["code"], "mapcount.low");
+        assert_eq!(json["args"]["want"], super::MAX_MAP_COUNT.to_string());
+        let plain = serde_json::to_value(super::check_max_map_count(Some("2000000"))).unwrap();
+        assert!(plain.get("code").is_none() && plain.get("args").is_none(), "{plain}");
+    }
+
     use super::*;
     use crate::config::RunnerKind;
     use crate::testutil::{self, TempHome};
