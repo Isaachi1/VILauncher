@@ -322,7 +322,9 @@ function showChecks(checks) {
   lastChecks = checks;
   const body = $("#checks tbody");
   body.replaceChildren();
-  for (const c of checks) {
+  // What needs doing first: failures, then warnings, then what passed (stable within each).
+  const order = { fail: 0, warn: 1, ok: 2 };
+  for (const c of [...checks].sort((a, b) => order[a.status] - order[b.status])) {
     const tr = document.createElement("tr");
     const pill = document.createElement("span");
     pill.className = `pill ${c.status}`;
@@ -335,13 +337,13 @@ function showChecks(checks) {
     const tdD = document.createElement("td");
     tdD.textContent = c.detail;
     if (c.fix) {
-      const fix = el("button", "fix primary");
+      const fix = el("button", c.status === "fail" ? "fix primary" : "fix");
       I18N.text(fix, "fix.button");
       fix.addEventListener("click", () => askFix(c.fix));
       tdD.appendChild(fix);
     } else if (c.status !== "ok" && CHECK_ACTION[c.name]) {
       const a = CHECK_ACTION[c.name];
-      const b = el("button", "fix");
+      const b = el("button", c.status === "fail" ? "fix primary" : "fix");
       I18N.text(b, a.key);
       b.addEventListener("click", () => guarded(b, a.go));
       tdD.appendChild(b);
