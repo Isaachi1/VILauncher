@@ -218,6 +218,13 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; margin: 0; }
   background: var(--faint);
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
 }
+/* The chip is a button that opens Verificação: no button chrome, a visible focus ring. */
+button.live { padding: 3px 10px 3px 6px; margin-inline-start: -6px; background: none; border: 0; border-radius: 999px; color: rgba(255, 255, 255, 0.85); font: inherit; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; }
+button.live:hover { background: rgba(255, 255, 255, 0.08); }
+button.live:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.8); outline-offset: 2px; }
+.live.ok i { background: #2ee59d; box-shadow: 0 0 0 4px rgba(46, 229, 157, 0.2); }
+.live.warn i { background: #f5c451; box-shadow: 0 0 0 4px rgba(245, 196, 81, 0.2); }
+.live.fail i { background: #ff5d73; box-shadow: 0 0 0 4px rgba(255, 93, 115, 0.22); }
 .live.on i { background: #2ee59d; box-shadow: 0 0 0 4px rgba(46, 229, 157, 0.2); animation: pulse 1.6s ease-in-out infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(46, 229, 157, 0.05); } }
 .chip-glass {
