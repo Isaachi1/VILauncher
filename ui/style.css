@@ -671,6 +671,7 @@ pre#log {
 }
 .fix-dialog .actions { justify-content: flex-end; }
 pre#log .stderr { color: #ff8a9e; }
+pre#log .cmd { color: #9aa0b4; }
 
 /* -- runtime updates ------------------------------------------------------------------------- */
 
