@@ -109,6 +109,8 @@ I18N.add("tr", {
   "scarlett.raytracingHint": "oyunun kendi ışın izlemeli ışığı; GPU'yu zorlar",
   "scarlett.fallbackLight": "Yedek ışık",
   "scarlett.fallbackLightHint": "oyunun ışığının henüz görünmediği yerleri aydınlatır; bunu içeren bir sürüm gerekir",
+  "saves.backup": "Kayıt yedekleri",
+  "saves.backupHint": "her oturumdan önce kayıtları veri klasörünün yanındaki save-backups'a kopyalar; en yeni 10 tanesi tutulur",
   "feat.title": "ScarlettPort özellikleri",
   "feat.fullTextures": "Tam dokular",
   "feat.fullTexturesHint": "tüm doku seviyelerini tek seferde yükler; daha fazla video belleği kullanır",

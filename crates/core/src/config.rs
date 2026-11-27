@@ -209,6 +209,8 @@ pub struct ScarlettSection {
     /// The mouse turns the camera while the game window has focus.
     pub mouse_look: bool,
     pub mouse_sensitivity: f32,
+    /// Copy the saves before each run (the newest scarlett::KEEP_BACKUPS are kept).
+    pub backup_saves: bool,
 }
 
 impl Default for ScarlettSection {
@@ -231,6 +233,7 @@ impl Default for ScarlettSection {
             overlay: false,
             mouse_look: true,
             mouse_sensitivity: 1.0,
+            backup_saves: true,
         }
     }
 }

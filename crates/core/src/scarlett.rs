@@ -482,3 +482,95 @@ mod prep_tests {
         assert!(!prepared(&cfg), "another runtime build");
     }
 }
+
+// -- saves -----------------------------------------------------------------------------------
+//
+// The runtime keeps each title's saves in SCARLETT_DATA_DIR (`<data>/<title id>/...`), which
+// SixLauncher points at its data folder, outside the prefix. Before each run they are copied to
+// `save-backups/<date>` beside it; the runtime's `temp` folders are left out.
+
+/// Backups kept: the newest ones.
+pub const KEEP_BACKUPS: usize = 10;
+
+pub fn backups_dir(cfg: &crate::config::Config) -> PathBuf {
+    let data = cfg.data_dir();
+    data.parent().map_or_else(|| data.join("save-backups"), |p| p.join("save-backups"))
+}
+
+fn copy_tree(from: &Path, to: &Path) -> std::io::Result<u64> {
+    let mut n = 0;
+    for e in std::fs::read_dir(from)?.flatten() {
+        let (src, dst) = (e.path(), to.join(e.file_name()));
+        let kind = e.file_type()?;
+        if kind.is_dir() {
+            if e.file_name().eq_ignore_ascii_case("temp") {
+                continue;
+            }
+            std::fs::create_dir_all(&dst)?;
+            n += copy_tree(&src, &dst)?;
+        } else if kind.is_file() {
+            std::fs::copy(&src, &dst)?;
+            n += 1;
+        }
+    }
+    Ok(n)
+}
+
+/// Copies the saves into `root/<stamp>` and keeps the newest [`KEEP_BACKUPS`]. None when there
+/// is nothing to copy yet (no run has saved).
+pub fn backup_saves_to(data: &Path, root: &Path, stamp: &str) -> crate::Result<Option<PathBuf>> {
+    if !data.is_dir() || std::fs::read_dir(data)?.next().is_none() {
+        return Ok(None);
+    }
+    let dest = root.join(stamp);
+    std::fs::create_dir_all(&dest)?;
+    if copy_tree(data, &dest)? == 0 {
+        std::fs::remove_dir_all(&dest)?;
+        return Ok(None);
+    }
+    let mut all: Vec<PathBuf> = std::fs::read_dir(root)?.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect();
+    all.sort();
+    let extra = all.len().saturating_sub(KEEP_BACKUPS);
+    for old in &all[..extra] {
+        std::fs::remove_dir_all(old)?;
+    }
+    Ok(Some(dest))
+}
+
+/// Before a ScarlettPort run: the saves backup, when it is on. What it did, for the log.
+pub fn before_run(cfg: &crate::config::Config) -> Option<String> {
+    if cfg.backend.kind != crate::config::BackendKind::Scarlett || !cfg.scarlett.backup_saves {
+        return None;
+    }
+    let stamp = crate::report::stamp(std::time::SystemTime::now());
+    Some(match backup_saves_to(&cfg.data_dir(), &backups_dir(cfg), &stamp) {
+        Ok(Some(dest)) => format!("saves backed up to {}", dest.display()),
+        Ok(None) => return None,
+        Err(e) => format!("saves backup failed: {e}"),
+    })
+}
+
+#[cfg(test)]
+mod saves_tests {
+    use super::*;
+
+    #[test]
+    fn backups_copy_the_saves_and_keep_the_newest() {
+        let t = tempfile::tempdir().unwrap();
+        let (data, root) = (t.path().join("data"), t.path().join("save-backups"));
+        assert_eq!(backup_saves_to(&data, &root, "a").unwrap(), None, "nothing saved yet");
+        std::fs::create_dir_all(data.join("4D4F5049/saves")).unwrap();
+        std::fs::create_dir_all(data.join("4D4F5049/temp")).unwrap();
+        std::fs::write(data.join("4D4F5049/saves/slot0"), "save").unwrap();
+        std::fs::write(data.join("4D4F5049/temp/big.bin"), "scratch").unwrap();
+        let first = backup_saves_to(&data, &root, "20261127-100000").unwrap().unwrap();
+        assert_eq!(std::fs::read_to_string(first.join("4D4F5049/saves/slot0")).unwrap(), "save");
+        assert!(!first.join("4D4F5049/temp").exists(), "temp is not a save");
+        for i in 1..=KEEP_BACKUPS {
+            backup_saves_to(&data, &root, &format!("20261127-1{i:05}")).unwrap();
+        }
+        let left: Vec<_> = std::fs::read_dir(&root).unwrap().flatten().collect();
+        assert_eq!(left.len(), KEEP_BACKUPS);
+        assert!(!first.exists(), "the oldest goes first");
+    }
+}

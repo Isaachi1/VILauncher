@@ -109,6 +109,8 @@ I18N.add("zh-CN", {
   "scarlett.raytracingHint": "游戏自带的光线追踪光照；GPU 负担重",
   "scarlett.fallbackLight": "替代光照",
   "scarlett.fallbackLightHint": "照亮游戏光照尚未显示的地方；需要包含它的构建",
+  "saves.backup": "存档备份",
+  "saves.backupHint": "每次游戏前把存档复制到数据文件夹旁的 save-backups；保留最新的 10 份",
   "feat.title": "ScarlettPort 功能",
   "feat.fullTextures": "完整纹理",
   "feat.fullTexturesHint": "一次加载所有纹理级别；占用更多显存",

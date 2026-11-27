@@ -52,6 +52,11 @@ pub fn proton_log_dir() -> PathBuf {
 
 /// `sixlauncher-report-YYYYMMDD-HHMMSS.zip` (UTC).
 pub fn file_name(now: SystemTime) -> String {
+    format!("sixlauncher-report-{}.zip", stamp(now))
+}
+
+/// `20261127-183005`: a moment as UTC date and time, for file names.
+pub fn stamp(now: SystemTime) -> String {
     let secs = now.duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     let (days, rest) = (secs / 86_400, secs % 86_400);
     // Days since 1970-01-01 to a civil date (Howard Hinnant's algorithm).
@@ -64,7 +69,7 @@ pub fn file_name(now: SystemTime) -> String {
     let day = doy - (153 * mp + 2) / 5 + 1;
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = yoe + era * 400 + i64::from(month <= 2);
-    format!("sixlauncher-report-{year:04}{month:02}{day:02}-{:02}{:02}{:02}.zip", rest / 3600, rest % 3600 / 60, rest % 60)
+    format!("{year:04}{month:02}{day:02}-{:02}{:02}{:02}", rest / 3600, rest % 3600 / 60, rest % 60)
 }
 
 /// The report's default place: the home folder.

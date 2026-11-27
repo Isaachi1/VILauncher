@@ -109,6 +109,8 @@ I18N.add("ko", {
   "scarlett.raytracingHint": "게임 자체의 레이 트레이싱 조명. GPU 부담이 큼",
   "scarlett.fallbackLight": "대체 조명",
   "scarlett.fallbackLightHint": "게임 조명이 아직 나오지 않는 곳을 밝힙니다. 이를 포함한 빌드가 필요",
+  "saves.backup": "세이브 백업",
+  "saves.backupHint": "매 플레이 전에 세이브를 데이터 폴더 옆 save-backups에 복사합니다. 최신 10개를 보관",
   "feat.title": "ScarlettPort 기능",
   "feat.fullTextures": "전체 텍스처",
   "feat.fullTexturesHint": "모든 텍스처 단계를 한 번에 불러옵니다. 비디오 메모리를 더 씁니다",

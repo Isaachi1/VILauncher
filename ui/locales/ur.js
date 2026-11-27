@@ -109,6 +109,8 @@ I18N.add("ur", {
   "scarlett.raytracingHint": "گیم کی اپنی رے ٹریسڈ روشنی؛ GPU پر بھاری",
   "scarlett.fallbackLight": "متبادل روشنی",
   "scarlett.fallbackLightHint": "جہاں گیم کی روشنی ابھی نظر نہیں آتی وہاں روشنی دیتی ہے؛ اس والا بلڈ درکار ہے",
+  "saves.backup": "سیوز کا بیک اپ",
+  "saves.backupHint": "ہر بار کھیلنے سے پہلے سیوز کو ڈیٹا فولڈر کے ساتھ save-backups میں کاپی کرتا ہے؛ تازہ ترین 10 رکھے جاتے ہیں",
   "feat.title": "ScarlettPort خصوصیات",
   "feat.fullTextures": "مکمل ٹیکسچرز",
   "feat.fullTexturesHint": "تمام ٹیکسچر درجے ایک ساتھ لوڈ کرتا ہے؛ زیادہ ویڈیو میموری لیتا ہے",

@@ -542,6 +542,9 @@ fn launch_game(app: AppHandle, running: State<Running>, config: Config, force: b
     }
     let l = launch::build(&config).map_err(err)?;
     let runner = Runner::from_config(&config).map_err(err)?;
+    if let Some(line) = scarlett::before_run(&config) {
+        let _ = app.emit("game-log", LogLine { stream: "cmd", line });
+    }
     start(app, &running, l, runner, Arc::new(|_: &AppHandle, _: &str| {}), Box::new(|app: &AppHandle, code: Option<i32>| {
         let _ = app.emit("game-exit", code);
     }))
