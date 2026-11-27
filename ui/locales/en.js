@@ -178,7 +178,7 @@ I18N.add("en", {
   "save": "Save",
   "save.done": "Saved to {path}",
   "setup": "Prepare prefix",
-  "setup.busy": "Preparing the prefix…",
+  "setup.busy": "Preparing the prefix… (this can take a minute)",
   "setup.done": "Prefix ready",
   "desktop": "Create menu shortcut",
   "desktop.done": "Shortcut created at {path}",

@@ -444,8 +444,8 @@ async function showRefusal(error) {
       I18N.text(b, a.key);
       b.addEventListener("click", () =>
         guarded(b, async () => {
-          hideBanner();
           await a.go();
+          hideBanner();
         }),
       );
       li.append(" ", b);
@@ -472,9 +472,12 @@ const CHECK_ACTION = {
     key: "check.doSetup",
     go: async () => {
       await save();
+      tell("setup.busy");
       const lines = await invoke("setup_prefix", { config });
       for (const l of lines) appendLog(l, "stdout");
-      await $("#doctor").click();
+      // Wait for the new checks, so the button keeps spinning until the list is up to date.
+      showChecks(await invoke("run_doctor", { config: readForm() }));
+      tell("setup.done");
     },
   },
   backend: { key: "check.doBuild", go: () => goTo("compat", "#backend-build") },
@@ -498,10 +501,18 @@ function askFix(plan) {
 }
 
 async function applyFix(plan) {
-  say("#doctor-status", "fix.busy", { setting: plan.setting });
+  tell("fix.busy", { setting: plan.setting });
   await invoke("apply_fixes", { fixes: [plan.id] });
   showChecks(await invoke("run_doctor", { config: readForm() }));
-  say("#doctor-status", "fix.done", { setting: plan.setting, value: plan.value });
+  tell("fix.done", { setting: plan.setting, value: plan.value });
+}
+
+// A fix's progress and result, where the player may be: Verificação's status line and the one
+// under the Jogo tab's checklist (both role="status"), since a fix can start from either, or
+// from the refusal banner over any tab.
+function tell(key, vars) {
+  say("#doctor-status", key, vars);
+  say("#ready-status", key, vars);
 }
 
 // -- the report for the backends' developers ------------------------------------------------

@@ -178,7 +178,7 @@ I18N.add("de", {
   "save": "Speichern",
   "save.done": "Gespeichert unter {path}",
   "setup": "Präfix vorbereiten",
-  "setup.busy": "Präfix wird vorbereitet…",
+  "setup.busy": "Präfix wird vorbereitet… (das kann eine Minute dauern)",
   "setup.done": "Präfix bereit",
   "desktop": "Menüeintrag erstellen",
   "desktop.done": "Verknüpfung erstellt unter {path}",

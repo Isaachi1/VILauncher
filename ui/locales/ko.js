@@ -178,7 +178,7 @@ I18N.add("ko", {
   "save": "저장",
   "save.done": "{path}에 저장됨",
   "setup": "프리픽스 준비",
-  "setup.busy": "프리픽스 준비 중…",
+  "setup.busy": "프리픽스 준비 중… (1분 정도 걸릴 수 있습니다)",
   "setup.done": "프리픽스 준비 완료",
   "desktop": "메뉴 바로 가기 만들기",
   "desktop.done": "바로 가기를 만들었습니다: {path}",
