@@ -398,7 +398,16 @@ pub enum PrepLine {
     Done { seconds: f64 },
 }
 
+/// Shader programs the title has (`scarlett shaders`, measured): the bar's total while the
+/// runtime reports only the count it reached.
+pub const SHADERS_TOTAL: u64 = 26_084;
+
 pub fn parse_prep(line: &str) -> Option<PrepLine> {
+    // The translation step's own count: `25756 shaders in the cache, 14 s`.
+    if let Some((n, _)) = line.trim().split_once(" shaders in the cache") {
+        let done: u64 = n.trim().parse().ok()?;
+        return Some(PrepLine::Progress { name: "shaders".into(), done, total: SHADERS_TOTAL.max(done) });
+    }
     let rest = line.trim().strip_prefix("prepare ")?;
     let (word, rest) = rest.split_once(' ').unwrap_or((rest, ""));
     let mut w = rest.split_whitespace();
@@ -474,6 +483,8 @@ mod prep_tests {
         assert_eq!(parse_prep("prepare note no pipeline records yet: runs write them"), Some(PrepLine::Note { text: "no pipeline records yet: runs write them".into() }));
         assert_eq!(parse_prep("prepare done 171.4"), Some(PrepLine::Done { seconds: 171.4 }));
         assert_eq!(parse_prep("info: loading"), None);
+        assert_eq!(parse_prep("25756 shaders in the cache, 14 s"), Some(PrepLine::Progress { name: "shaders".into(), done: 25756, total: SHADERS_TOTAL }));
+        assert_eq!(parse_prep("26090 shaders in the cache, 3 do not translate, 171 s"), Some(PrepLine::Progress { name: "shaders".into(), done: 26090, total: 26090 }));
         assert_eq!(parse_prep("prepare progress shaders x 1"), None);
     }
 

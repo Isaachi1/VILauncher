@@ -396,6 +396,24 @@ impl Runner {
         argv
     }
 
+    /// The command line for a console tool whose output the launcher reads (ScarlettPort's
+    /// `scarlett prepare`). Proton's `run` verbs start the program through its steam.exe, and
+    /// Wine then gives a console program a console window of its own: the output lands there,
+    /// not in the launcher. `runinprefix` runs Wine directly in the prefix, so the program
+    /// writes to the launcher's pipes and no window opens. A prefix Proton has not created yet
+    /// still goes through `waitforexitandrun`, which creates it.
+    pub fn argv_console(&self, exe: &Path, args: &[String]) -> Vec<String> {
+        match self {
+            Runner::Proton(p) if p.compat_dir.join("pfx").join("system.reg").is_file() => {
+                let mut argv = vec![p.proton_dir.join("proton").to_string_lossy().into_owned(), "runinprefix".into()];
+                argv.push(exe.to_string_lossy().into_owned());
+                argv.extend(args.iter().cloned());
+                argv
+            }
+            _ => self.argv(exe, args),
+        }
+    }
+
     /// Prepares the prefix: wineboot and vkd3d-proton for Wine, the folder for Proton.
     pub fn setup(&self, log: &mut dyn FnMut(String)) -> Result<()> {
         match self {
