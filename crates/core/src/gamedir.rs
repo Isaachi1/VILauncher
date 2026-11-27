@@ -153,9 +153,27 @@ pub fn find_executables(folder: &Path) -> Result<Vec<String>> {
 
 /// The title's executable: `override_exe` (relative to the folder or absolute),
 /// else the first `<Executable>` of the config that exists, else the only .exe.
+/// The file in `folder` named `name`, ignoring case.
+fn same_name_in(folder: &Path, name: &str) -> Option<PathBuf> {
+    let exact = folder.join(name);
+    if exact.is_file() {
+        return Some(exact);
+    }
+    fs::read_dir(folder).ok()?.flatten().map(|e| e.path()).find(|p| p.is_file() && p.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(name)))
+}
+
 pub fn resolve_exe(info: &GameInfo, override_exe: Option<&str>) -> Result<PathBuf> {
     if let Some(o) = override_exe.filter(|o| !o.is_empty()) {
         let p = crate::paths::expand(&info.folder.join(o));
+        // A file picked outside the game folder that the folder also holds: the folder's copy.
+        // In the Flatpak a file chosen in the dialog arrives through the document portal as
+        // /run/user/<uid>/doc/<id>/<name>, alone in its folder; the backends read the title's
+        // DLLs and MicrosoftGame.config beside the executable, so that copy cannot run.
+        if !p.starts_with(&info.folder) {
+            if let Some(own) = p.file_name().and_then(|n| same_name_in(&info.folder, &n.to_string_lossy())) {
+                return Ok(own);
+            }
+        }
         return if p.is_file() {
             Ok(p)
         } else {
@@ -254,6 +272,23 @@ pub fn search(starts: &[(PathBuf, u32)], deadline: std::time::Instant) -> Vec<Pa
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_executable_picked_through_the_portal_runs_from_the_game_folder() {
+        let t = tempfile::tempdir().unwrap();
+        let game = t.path().join("GTA6.Xbox");
+        fs::create_dir_all(&game).unwrap();
+        fs::write(game.join("gta6.exe"), "MZ").unwrap();
+        let portal = t.path().join("doc/jUlq7ixdg/GTA6.EXE");
+        fs::create_dir_all(portal.parent().unwrap()).unwrap();
+        fs::write(&portal, "MZ").unwrap();
+        let info = GameInfo { folder: game.clone(), config: None, identity: None, version: None, display_name: None, executables: vec![] };
+        assert_eq!(resolve_exe(&info, Some(&portal.to_string_lossy())).unwrap(), game.join("gta6.exe"));
+        let elsewhere = t.path().join("other/tool.exe");
+        fs::create_dir_all(elsewhere.parent().unwrap()).unwrap();
+        fs::write(&elsewhere, "MZ").unwrap();
+        assert_eq!(resolve_exe(&info, Some(&elsewhere.to_string_lossy())).unwrap(), elsewhere, "a file the folder lacks is used as picked");
+    }
+
     #[test]
     fn search_finds_game_folders_and_skips_the_rest() {
         let t = tempfile::tempdir().unwrap();

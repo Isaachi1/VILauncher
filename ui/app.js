@@ -206,8 +206,12 @@ async function browseExe() {
   const dir = $('[data-path="game.dir"]').value.trim().replace(/\/+$/, "");
   const picked = await dialog.open({ multiple: false, defaultPath: dir || undefined, filters: [{ name: "EXE", extensions: ["exe", "EXE"] }] });
   if (typeof picked !== "string") return;
-  const value = dir && picked.startsWith(`${dir}/`) ? picked.slice(dir.length + 1) : picked;
   const sel = $("#game-exe");
+  // In the Flatpak the dialog hands back a document-portal copy (/run/user/<uid>/doc/<id>/name),
+  // alone in its folder: an executable the game folder also lists is kept by its name there.
+  const base = picked.split("/").pop();
+  const listed = [...sel.options].find((o) => o.value && o.value.toLowerCase() === base.toLowerCase());
+  const value = dir && picked.startsWith(`${dir}/`) ? picked.slice(dir.length + 1) : listed ? listed.value : picked;
   if (![...sel.options].some((o) => o.value === value)) sel.append(new Option(value, value));
   sel.value = value;
   sel.dispatchEvent(new Event("change"));
