@@ -129,6 +129,7 @@
         </label>
       </div>
       <div class="actions">
+        <button id="desktop" class="ghost" data-i18n="desktop">Criar atalho no menu</button>
         <button id="verify-zip" class="ghost" data-i18n="game.verifyZip">Verificar um .zip…</button>
         <span class="status" id="zip-verify"></span>
       </div>
@@ -229,11 +230,6 @@
         </label>
       </div>
       <p class="status hint only-native" data-i18n="run.nativeHint">No Windows o VIctory e o XCL rodam direto, com o D3D12 do próprio sistema: não há Proton, Wine nem prefixo para configurar.</p>
-      <label class="field not-native">
-        <span id="runner-path-label">Pasta do Proton</span>
-        <div class="row"><input data-path="runner.path" list="protons" placeholder="detectado automaticamente" data-i18n-attr="placeholder:run.pathPh"><button data-browse="any" data-target="runner.path" data-i18n="browse">Escolher…</button></div>
-        <datalist id="protons"></datalist>
-      </label>
       <div class="protons only-proton">
         <div class="actions">
           <b data-i18n="proton.title">Versões do Proton</b>
@@ -250,14 +246,25 @@
         <span><span data-i18n="run.vkd3d">vkd3d-proton</span> <em data-i18n="run.vkd3dHint">(release descompactado, com x64/d3d12.dll)</em></span>
         <div class="row"><input data-path="runner.vkd3d_dir"><button data-browse="dir" data-target="runner.vkd3d_dir" data-i18n="browse">Escolher…</button></div>
       </label>
+      <!-- What the defaults already cover: the Proton found, the launcher's own prefix, no extra
+           variables. Kept out of the way until someone needs it. -->
+      <details class="more">
+        <summary data-i18n="run.more">Opções avançadas</summary>
+      <label class="field not-native">
+        <span id="runner-path-label">Pasta do Proton</span>
+        <div class="row"><input data-path="runner.path" list="protons" placeholder="detectado automaticamente" data-i18n-attr="placeholder:run.pathPh"><button data-browse="any" data-target="runner.path" data-i18n="browse">Escolher…</button></div>
+        <datalist id="protons"></datalist>
+      </label>
       <label class="field not-native">
         <span><span data-i18n="run.prefix">Prefixo</span> <em data-i18n="run.prefixHint">(opcional)</em></span>
-        <div class="row"><input data-path="runner.prefix" placeholder="~/.local/share/sixlauncher/…"><button data-browse="dir" data-target="runner.prefix" data-i18n="browse">Escolher…</button></div>
+        <div class="row"><input data-path="runner.prefix" placeholder="~/.local/share/sixlauncher/…"><button data-browse="dir" data-target="runner.prefix" data-i18n="browse">Escolher…</button><button id="setup" type="button" data-i18n="setup">Preparar prefixo</button></div>
       </label>
       <label class="field">
         <span><span data-i18n="run.env">Variáveis extras</span> <em data-i18n="run.envHint">(NOME=valor, uma por linha)</em></span>
         <textarea data-path="env" data-kind="env" rows="3" placeholder="VICTORY_LOG=info"></textarea>
       </label>
+      </details>
+      <p class="status" id="save-status" role="status"></p>
      </section>
 
      <section class="card not-windows" aria-labelledby="perf-title">
@@ -282,7 +289,7 @@
           </select>
         </label>
       </div>
-      <p class="status hint not-windows" id="gpu-info" data-i18n="gpu.hint">Em notebooks com duas GPUs, o launcher liga o PRIME offload (NVIDIA) ou o DRI_PRIME (AMD, Intel) para a GPU escolhida. As variáveis extras abaixo sempre têm prioridade.</p>
+      <p class="status hint not-windows" id="gpu-info" data-i18n="gpu.hint">Em notebooks com duas GPUs, o launcher liga o PRIME offload (NVIDIA) ou o DRI_PRIME (AMD, Intel) para a GPU escolhida. As variáveis extras (Execução › Opções avançadas) sempre têm prioridade.</p>
       <div class="toggles not-windows">
         <label class="toggle">
           <input type="checkbox" data-path="performance.mangohud" data-kind="bool">
@@ -305,12 +312,6 @@
       </div>
      </section>
 
-     <div class="card save-bar actions">
-        <button id="save" class="primary" data-i18n="save">Salvar</button>
-        <button id="setup" class="not-native" data-i18n="setup">Preparar prefixo</button>
-        <button id="desktop" class="ghost" data-i18n="desktop">Criar atalho no menu</button>
-        <span class="status" id="save-status"></span>
-     </div>
     </section>
 
     <section id="tab-doctor" class="panel" hidden>

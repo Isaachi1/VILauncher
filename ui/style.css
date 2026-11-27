@@ -366,7 +366,10 @@ main { flex: 1; padding-bottom: 28px; }
 /* A tab made of several cards (Compatibilidade), and the bar of buttons that saves them all,
    kept in reach at the bottom of the window while the cards scroll. */
 .panel.stack:not([hidden]) { display: grid; gap: 16px; }
-.card.save-bar { position: sticky; bottom: 12px; z-index: 5; margin: 0; padding: 14px 18px; }
+/* Options the defaults already cover, folded inside their card. */
+details.more { margin: 6px 0 4px; }
+details.more > summary { cursor: pointer; width: fit-content; padding: 6px 0; color: var(--ink-2); font-weight: 600; }
+details.more[open] > summary { margin-bottom: 10px; }
 
 /* -- fields ------------------------------------------------------------------------------- */
 

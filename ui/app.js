@@ -1555,7 +1555,15 @@ async function init() {
   });
   $("#run-retry").addEventListener("click", () => guarded($("#run-retry"), retryRun));
   $("#run-export").addEventListener("click", () => $("#report-export").click());
-  $("#save").addEventListener("click", () => guarded($("#save"), save));
+  // Every field saves when it changes (a path picked, a box ticked, a field left), so no
+  // Salvar button: build and Proton choices already applied at once, and now the rest does too.
+  let saveTimer = null;
+  for (const field of $$("[data-path]")) {
+    field.addEventListener("change", () => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => save().catch((e) => showBanner(String(e), false)), 300);
+    });
+  }
   $("#setup").addEventListener("click", () =>
     guarded($("#setup"), async () => {
       await save();
@@ -1570,7 +1578,7 @@ async function init() {
     guarded($("#desktop"), async () => {
       await save();
       const path = await invoke("create_desktop_entry", { config });
-      say("#save-status", "desktop.done", { path });
+      say("#zip-verify", "desktop.done", { path });
     }),
   );
   $("#doctor").addEventListener("click", () =>
