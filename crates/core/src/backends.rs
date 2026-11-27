@@ -1,4 +1,5 @@
-//! The compatibility layers SixLauncher starts: VIctory (VILinux) and XCL (LinuxCL).
+//! The compatibility layers SixLauncher starts: VIctory (VILinux), XCL (LinuxCL) and
+//! ScarlettPort's runtime.
 //!
 //! Each one is a Windows executable built from its repository. This module
 //! turns the configuration into the command line and environment each one
@@ -9,6 +10,9 @@
 //! * XCL: `xcl.exe run <game folder> [-- title args]` with `XCL_DATA_ROOT`,
 //!   `XCL_DXC_DIR` (DXC's `dxcompiler.dll` + `dxil.dll`) and `XCL_OPUS_DIR`
 //!   (`opus.dll`: under Wine there is no Media Foundation Opus decoder).
+//! * ScarlettPort: `scarlett.exe run <title exe> --execute [--console series-s]
+//!   [-- title args]` with `SCARLETT_GAME_DIR`, `SCARLETT_CACHE_DIR` and the Stable
+//!   preset's switches ([`crate::scarlett`]).
 //!
 //! Every path goes through [`paths::to_windows`], because Wine hands arguments
 //! and environment variables to the program unchanged.
@@ -33,7 +37,7 @@ pub struct Plan {
 }
 
 fn require(cfg: &Config) -> Result<(PathBuf, PathBuf)> {
-    let exe = cfg.backend_exe().ok_or_else(|| Error::Config("no backend executable (victory.exe or xcl.exe) is set".into()))?;
+    let exe = cfg.backend_exe().ok_or_else(|| Error::Config("no backend executable (victory.exe, xcl.exe or scarlett.exe) is set".into()))?;
     let game = cfg.game_dir().ok_or_else(|| Error::Game("no game folder is set".into()))?;
     Ok((exe, game))
 }
@@ -78,10 +82,25 @@ pub fn xcl_plan(cfg: &Config, game_exe: &Path) -> Result<Plan> {
     Ok(Plan { exe, args, env })
 }
 
+pub fn scarlett_plan(cfg: &Config, game_exe: &Path) -> Result<Plan> {
+    let (exe, game) = require(cfg)?;
+    let mut args = vec!["run".into(), to_windows(game_exe), "--execute".into()];
+    if cfg.backend.console != Console::SeriesX {
+        args.extend(["--console".into(), cfg.backend.console.arg().into()]);
+    }
+    if !cfg.game.args.is_empty() {
+        args.push("--".into());
+        args.extend(cfg.game.args.iter().cloned());
+    }
+    let env = crate::scarlett::stable_env(&to_windows(&game), &to_windows(&cfg.cache_dir())).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+    Ok(Plan { exe, args, env })
+}
+
 pub fn plan(cfg: &Config, game_exe: &Path) -> Result<Plan> {
     match cfg.backend.kind {
         BackendKind::Victory => victory_plan(cfg, game_exe),
         BackendKind::Xcl => xcl_plan(cfg, game_exe),
+        BackendKind::Scarlett => scarlett_plan(cfg, game_exe),
     }
 }
 
@@ -141,6 +160,25 @@ mod tests {
         assert_eq!(plan.env["XCL_DXC_DIR"], r"Z:\opt\dxc\bin\x64");
         assert!(!plan.env.contains_key("XCL_OPUS_DIR"));
         assert!(plan.env["XCL_DATA_ROOT"].ends_with("\\sixlauncher\\xcl\\data"));
+    }
+
+    #[test]
+    fn scarlett_command_line() {
+        let h = TempHome::new();
+        let (mut cfg, game) = cfg(&h);
+        cfg.backend.kind = BackendKind::Scarlett;
+        cfg.backend.exe = Some(h.path().join("b/scarlett.exe"));
+        cfg.backend.console = Console::SeriesS;
+        let exe = game.join("game_scarlett_master.exe");
+        let plan = plan(&cfg, &exe).unwrap();
+        assert_eq!(plan.args, ["run", &paths::to_windows(&exe), "--execute", "--console", "series-s"]);
+        assert_eq!(plan.env["SCARLETT_GAME_DIR"], paths::to_windows(&game));
+        assert!(plan.env["SCARLETT_CACHE_DIR"].ends_with("\\sixlauncher\\scarlett"));
+        assert_eq!(plan.env["SCARLETT_PRECOMPILED_GRAPHICS"], "1");
+        assert_eq!(plan.env["SCARLETT_CARD_BUFFERS_MIN_KB"], "64");
+        cfg.backend.console = Console::SeriesX;
+        cfg.game.args = vec!["-old".into()];
+        assert_eq!(super::plan(&cfg, &exe).unwrap().args, ["run", &paths::to_windows(&exe), "--execute", "--", "-old"]);
     }
 
     #[test]

@@ -31,6 +31,7 @@ pub mod perf;
 pub mod protons;
 pub mod report;
 pub mod runners;
+pub mod scarlett;
 pub mod selfupdate;
 pub mod status;
 pub mod update;
