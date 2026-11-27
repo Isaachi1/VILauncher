@@ -97,6 +97,16 @@ pub fn scarlett_plan(cfg: &Config, game_exe: &Path) -> Result<Plan> {
     Ok(Plan { exe, args, env })
 }
 
+/// `scarlett.exe prepare --jobs N` with the preset's environment, so the shaders land in the
+/// cache the preset's runs read, translated under the same switches.
+pub fn scarlett_prepare_plan(cfg: &Config, jobs: usize) -> Result<Plan> {
+    let (exe, game) = require(cfg)?;
+    let args = vec!["prepare".into(), "--jobs".into(), jobs.max(1).to_string()];
+    let cache = crate::scarlett::prep_cache(cfg);
+    let env = crate::scarlett::env(&cfg.scarlett, &to_windows(&game), &to_windows(&cache)).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+    Ok(Plan { exe, args, env })
+}
+
 pub fn plan(cfg: &Config, game_exe: &Path) -> Result<Plan> {
     match cfg.backend.kind {
         BackendKind::Victory => victory_plan(cfg, game_exe),
@@ -184,6 +194,18 @@ mod tests {
         let plan = super::plan(&cfg, &exe).unwrap();
         assert!(plan.env["SCARLETT_CACHE_DIR"].ends_with("\\sixlauncher\\scarlett-experimental"), "Experimental has its own cache");
         assert_eq!(plan.env["SCARLETT_PREFETCH"], "1");
+    }
+
+    #[test]
+    fn scarlett_prepare_command_line() {
+        let h = TempHome::new();
+        let (mut cfg, game) = cfg(&h);
+        cfg.backend.kind = BackendKind::Scarlett;
+        cfg.scarlett.preset = crate::config::ScarlettPreset::Experimental;
+        let plan = scarlett_prepare_plan(&cfg, 0).unwrap();
+        assert_eq!(plan.args, ["prepare", "--jobs", "1"]);
+        assert_eq!(plan.env["SCARLETT_GAME_DIR"], paths::to_windows(&game));
+        assert!(plan.env["SCARLETT_CACHE_DIR"].ends_with("-experimental"), "the preset's own cache");
     }
 
     #[test]

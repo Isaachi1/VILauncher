@@ -7,7 +7,7 @@ use sixlauncher_core::config::{self, BackendKind, Config, Console, GpuProfile, R
 use sixlauncher_core::doctor::{self, Status};
 use sixlauncher_core::fixes::{self, Fix};
 use sixlauncher_core::runners::{self, Runner};
-use sixlauncher_core::{gamedir, gpu, integrity, launch, paths, perf, protons, report, status, update, virustotal};
+use sixlauncher_core::{gamedir, gpu, integrity, launch, paths, perf, protons, report, scarlett, status, update, virustotal};
 
 const HELP: &str = "\
 sixlauncher - runs an Xbox Series title you own on Linux through VIctory (VILinux)
@@ -55,6 +55,10 @@ Usage:
                                   ~/.local/share/sixlauncher/protons; --use also selects it
   sixlauncher proton use NAME|PATH select an installed Proton (empty name: the best found)
   sixlauncher proton remove NAME   delete a Proton the launcher downloaded
+  sixlauncher prepare-shaders [--dry-run]
+                                  ScarlettPort: translate every shader and make the pipelines
+                                  ahead of a run (`scarlett prepare`), for the chosen preset;
+                                  a stopped run resumes where it was
   sixlauncher gpus                 the GPUs, the one `auto` picks, MangoHud and GameMode
   sixlauncher config               print the configuration
   sixlauncher desktop              add a menu entry that runs the game
@@ -630,6 +634,53 @@ fn run(args: &[String]) -> ExitCode {
     }
 }
 
+fn prepare_shaders(args: &[String]) -> ExitCode {
+    let cfg = match load() {
+        Ok(c) => c,
+        Err(code) => return code,
+    };
+    let dry = match args {
+        [] => false,
+        [a] if a == "--dry-run" => true,
+        [a, ..] => return fail(format!("unknown option {a}")),
+    };
+    let l = match launch::prepare_shaders(&cfg) {
+        Ok(l) => l,
+        Err(e) => return fail(e),
+    };
+    if dry {
+        print!("{}", l.shell_text());
+        return ExitCode::SUCCESS;
+    }
+    let mut cmd = match l.command() {
+        Ok(c) => c,
+        Err(e) => return fail(e),
+    };
+    let mut child = match cmd.stdout(std::process::Stdio::piped()).spawn() {
+        Ok(c) => c,
+        Err(e) => return fail(format!("{}: {e}", l.argv[0])),
+    };
+    let mut finished = false;
+    if let Some(out) = child.stdout.take() {
+        for line in std::io::BufRead::lines(std::io::BufReader::new(out)).map_while(Result::ok) {
+            println!("{line}");
+            finished |= matches!(scarlett::parse_prep(&line), Some(scarlett::PrepLine::Done { .. }));
+        }
+    }
+    match child.wait() {
+        Ok(s) if s.success() && finished => match scarlett::mark_prepared(&cfg) {
+            Ok(()) => {
+                println!("shaders prepared in {}", scarlett::prep_cache(&cfg).display());
+                ExitCode::SUCCESS
+            }
+            Err(e) => fail(e),
+        },
+        Ok(s) if s.success() => fail("scarlett prepare ended without `prepare done`: is this runtime older than 0.5?"),
+        Ok(s) => fail(format!("scarlett prepare failed (exit code {:?}); run it again to resume", s.code())),
+        Err(e) => fail(e),
+    }
+}
+
 fn gpus() -> ExitCode {
     let cfg = match load() {
         Ok(c) => c,
@@ -764,6 +815,7 @@ fn main() -> ExitCode {
         Some("fix") => fix_cmd(rest),
         Some("report") => report_cmd(rest),
         Some("run") => run(rest),
+        Some("prepare-shaders") => prepare_shaders(rest),
         Some("info") => info(rest),
         Some("gpus") => gpus(),
         Some("protons") => {

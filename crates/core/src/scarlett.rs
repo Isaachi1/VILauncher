@@ -218,3 +218,129 @@ mod tests {
         assert_eq!(names.len(), e.len(), "each variable once");
     }
 }
+
+// -- preparing the shaders -------------------------------------------------------------------
+//
+// `scarlett prepare --jobs N` (runtimes since 0.5) translates every shader into the cache and
+// makes the pipelines earlier runs drew with, with no game window. It prints one line per
+// event: `prepare step <n>/<steps> <name>`, `prepare progress <name> <done> <total>` (total 0
+// when unknown), `prepare note <text>` and, at the end, `prepare done <seconds>`. A stopped
+// run resumes: what is already in the cache is skipped.
+
+/// A line of `scarlett prepare`'s output.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum PrepLine {
+    Step { n: u32, steps: u32, name: String },
+    Progress { name: String, done: u64, total: u64 },
+    Note { text: String },
+    Done { seconds: f64 },
+}
+
+pub fn parse_prep(line: &str) -> Option<PrepLine> {
+    let rest = line.trim().strip_prefix("prepare ")?;
+    let (word, rest) = rest.split_once(' ').unwrap_or((rest, ""));
+    let mut w = rest.split_whitespace();
+    match word {
+        "step" => {
+            let (n, steps) = w.next()?.split_once('/')?;
+            Some(PrepLine::Step { n: n.parse().ok()?, steps: steps.parse().ok()?, name: w.next()?.to_string() })
+        }
+        "progress" => Some(PrepLine::Progress { name: w.next()?.to_string(), done: w.next()?.parse().ok()?, total: w.next()?.parse().ok()? }),
+        "note" => Some(PrepLine::Note { text: rest.trim().to_string() }),
+        "done" => Some(PrepLine::Done { seconds: w.next()?.parse().ok()? }),
+        _ => None,
+    }
+}
+
+/// Parallel jobs: one per logical core but one (the PC stays usable), and no more than free
+/// RAM allows at about 1 GiB each beyond 2 GiB kept free. At least one.
+pub fn jobs(cores: usize, free_mb: Option<u64>) -> usize {
+    let by_cpu = cores.saturating_sub(1).max(1);
+    let by_ram = free_mb.map_or(by_cpu, |f| (f.saturating_sub(2048) / 1024) as usize);
+    by_cpu.min(by_ram).max(1)
+}
+
+/// MemAvailable from /proc/meminfo, in MiB (None elsewhere).
+pub fn free_mb() -> Option<u64> {
+    let text = std::fs::read_to_string("/proc/meminfo").ok()?;
+    let kb: u64 = text.lines().find_map(|l| l.strip_prefix("MemAvailable:"))?.trim().trim_end_matches("kB").trim().parse().ok()?;
+    Some(kb / 1024)
+}
+
+/// The file in the preset's cache that records what it was prepared for.
+pub const STAMP: &str = "prepared.txt";
+
+/// What a prepared cache is valid for: this build of the runtime (size and modification time
+/// of scarlett.exe), the preset and the cache folder. An update of the runtime prepares again;
+/// `prepare` then only does what the new translator changed.
+pub fn stamp(cfg: &crate::config::Config) -> Option<String> {
+    let exe = cfg.backend_exe()?;
+    let meta = std::fs::metadata(&exe).ok()?;
+    let mtime = meta.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs();
+    let preset = serde_json::to_value(cfg.scarlett.preset).ok()?;
+    Some(format!("runtime={}-{mtime}\npreset={}\ncache={}\n", meta.len(), preset.as_str()?, prep_cache(cfg).display()))
+}
+
+/// The cache the preset's runs use (Experimental has its own).
+pub fn prep_cache(cfg: &crate::config::Config) -> PathBuf {
+    cache_for(cfg.scarlett.preset, &cfg.cache_dir())
+}
+
+/// True when the preset's cache was prepared for this runtime build.
+pub fn prepared(cfg: &crate::config::Config) -> bool {
+    stamp(cfg).is_some_and(|s| std::fs::read_to_string(prep_cache(cfg).join(STAMP)).is_ok_and(|t| t == s))
+}
+
+/// Records that the preset's cache is prepared for this runtime build.
+pub fn mark_prepared(cfg: &crate::config::Config) -> crate::Result<()> {
+    let s = stamp(cfg).ok_or_else(|| crate::Error::Config("no ScarlettPort runtime to prepare for".into()))?;
+    let dir = prep_cache(cfg);
+    std::fs::create_dir_all(&dir)?;
+    std::fs::write(dir.join(STAMP), s)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod prep_tests {
+    use super::*;
+    use crate::config::{BackendKind, Config};
+
+    #[test]
+    fn prepare_lines() {
+        assert_eq!(parse_prep("prepare step 1/2 shaders"), Some(PrepLine::Step { n: 1, steps: 2, name: "shaders".into() }));
+        assert_eq!(parse_prep("prepare progress library 1000 5200"), Some(PrepLine::Progress { name: "library".into(), done: 1000, total: 5200 }));
+        assert_eq!(parse_prep("prepare note no pipeline records yet: runs write them"), Some(PrepLine::Note { text: "no pipeline records yet: runs write them".into() }));
+        assert_eq!(parse_prep("prepare done 171.4"), Some(PrepLine::Done { seconds: 171.4 }));
+        assert_eq!(parse_prep("info: loading"), None);
+        assert_eq!(parse_prep("prepare progress shaders x 1"), None);
+    }
+
+    #[test]
+    fn jobs_leave_a_core_and_fit_in_memory() {
+        assert_eq!(jobs(8, None), 7);
+        assert_eq!(jobs(8, Some(6144)), 4);
+        assert_eq!(jobs(1, Some(512)), 1);
+    }
+
+    #[test]
+    fn stamp_follows_runtime_and_preset() {
+        let h = crate::testutil::TempHome::new();
+        let mut cfg = Config::default();
+        cfg.backend.kind = BackendKind::Scarlett;
+        assert!(!prepared(&cfg), "no runtime: never prepared");
+        assert!(mark_prepared(&cfg).is_err());
+        let exe = h.path().join("rt/scarlett.exe");
+        std::fs::create_dir_all(exe.parent().unwrap()).unwrap();
+        std::fs::write(&exe, "MZ").unwrap();
+        cfg.backend.exe = Some(exe.clone());
+        assert!(!prepared(&cfg));
+        mark_prepared(&cfg).unwrap();
+        assert!(prepared(&cfg));
+        cfg.scarlett.preset = ScarlettPreset::Look;
+        assert!(!prepared(&cfg), "another preset");
+        cfg.scarlett.preset = ScarlettPreset::Stable;
+        std::fs::write(&exe, "MZ new build").unwrap();
+        assert!(!prepared(&cfg), "another runtime build");
+    }
+}

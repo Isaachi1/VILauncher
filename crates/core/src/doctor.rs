@@ -334,6 +334,15 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
             ).coded("agility.missing", &[("path", d3d12.display().to_string())])
         });
     }
+    // Without prepared shaders the first runs translate them in game: long loads and stutter.
+    if cfg.backend.kind == BackendKind::Scarlett {
+        checks.push(if crate::scarlett::prepared(cfg) {
+            check(Status::Ok, "shaders", crate::scarlett::prep_cache(cfg).display().to_string()).coded("shaders.prepared", &[])
+        } else {
+            check(Status::Warn, "shaders", "not prepared for this ScarlettPort build and preset: the first run translates them in game (long loads, stutter)")
+                .coded("shaders.unprepared", &[])
+        });
+    }
     for (name, dir) in [("data folder", cfg.data_dir()), ("cache folder", cfg.cache_dir())] {
         if let Some(tree) = paths::inside_victory_tree(&dir) {
             checks.push(check(
