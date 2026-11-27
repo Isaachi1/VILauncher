@@ -1450,6 +1450,7 @@ async function init() {
   $("#proton-get").addEventListener("click", () => guarded($("#proton-get"), installProton));
 
   for (const b of $$(".tabs button")) b.addEventListener("click", () => selectTab(b.dataset.tab));
+  $("#live").addEventListener("click", () => selectTab("doctor"));
   for (const el of $$('select[data-path], input[data-kind="bool"]')) el.addEventListener("change", refreshVisibility);
   loadHardware();
   $('[data-path="game.dir"]').addEventListener("change", () => {
@@ -1488,7 +1489,6 @@ async function init() {
   $("#play").addEventListener("click", () => guarded($("#play"), () => play(false)));
   $("#banner-force").addEventListener("click", () => guarded($("#play"), () => play(true)));
   $("#banner-close").addEventListener("click", hideBanner);
-  $("#live").addEventListener("click", () => selectTab("doctor"));
   $("#stop").addEventListener("click", () => invoke("stop_game"));
   $("#save").addEventListener("click", () => guarded($("#save"), save));
   $("#setup").addEventListener("click", () =>
