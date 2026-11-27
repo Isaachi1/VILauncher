@@ -14,6 +14,8 @@
 # (crates/core/src/update.rs).
 #
 # Runs on pushes to main, on pull requests and by hand (Actions > build > Run workflow).
+# On a pull request the Linux, macOS and Windows builds run only once the PR is approved (a review
+# with "Approve"); a push to the PR does not build them.
 # Every push to main (a merged PR) publishes the files as a GitHub release, versioned
 # <major>.<minor>.<run number> from Cargo.toml's workspace version (job `version`); a `v*` tag
 # pushed by hand publishes one under that tag.
@@ -35,6 +37,8 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+  pull_request_review:
+    types: [submitted]
   workflow_dispatch:
 
 permissions:
@@ -42,9 +46,10 @@ permissions:
 
 # A PR's new push cancels its older run; every push to main runs to the end, since each one
 # publishes its own release.
+# A PR's pushes and its approvals have separate groups, so a push does not cancel an approved build.
 concurrency:
-  group: build-${{ github.event_name == 'push' && github.sha || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: build-${{ github.event_name }}-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_review' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -57,6 +62,8 @@ jobs:
   # new minor or major. On a `v*` tag: the tag. Otherwise: Cargo.toml's version as it is.
   version:
     name: Version
+    # A review that is not an approval (a comment, changes requested) builds nothing.
+    if: github.event_name != 'pull_request_review' || github.event.review.state == 'approved'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -84,6 +91,8 @@ jobs:
   launcher:
     name: SixLauncher (Linux)
     needs: version
+    # On a pull request: only after it is approved, not on each push to it.
+    if: github.event_name != 'pull_request' && (github.event_name != 'pull_request_review' || github.event.review.state == 'approved')
     # The oldest supported runner, so the AppImage and the binaries run on older glibc too.
     runs-on: ubuntu-22.04
     timeout-minutes: 45
@@ -187,6 +196,8 @@ jobs:
   macos:
     name: SixLauncher (macOS)
     needs: version
+    # On a pull request: only after it is approved, not on each push to it.
+    if: github.event_name != 'pull_request' && (github.event_name != 'pull_request_review' || github.event.review.state == 'approved')
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -252,6 +263,8 @@ jobs:
   windows:
     name: SixLauncher (Windows)
     needs: version
+    # On a pull request: only after it is approved, not on each push to it.
+    if: github.event_name != 'pull_request' && (github.event_name != 'pull_request_review' || github.event.review.state == 'approved')
     runs-on: windows-2022
     timeout-minutes: 45
     defaults:
@@ -354,6 +367,8 @@ jobs:
   flatpak:
     name: SixLauncher (Flatpak)
     needs: version
+    # As before: on pushes and pull requests, not again when a PR is approved.
+    if: github.event_name != 'pull_request_review'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     container:
