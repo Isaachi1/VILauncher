@@ -155,7 +155,6 @@ I18N.add("ru", {
   "doctor.kicker": "Перед игрой",
   "doctor.title": "Проверка",
   "doctor.run": "Проверить",
-  "doctor.dry": "Показать команду",
   "doctor.busy": "Проверка…",
   "doctor.summary": "Ошибки: {fails} · предупреждения: {warns} · ok: {ok}",
   "check.ok": "OK",

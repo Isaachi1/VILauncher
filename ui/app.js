@@ -243,6 +243,8 @@ function selectTab(name) {
   for (const b of $$(".tabs button")) b.setAttribute("aria-selected", String(b.dataset.tab === name));
   for (const p of $$(".panel")) p.hidden = p.id !== `tab-${name}`;
   if (name === "compat" && (!lastRuntimes || lastRuntimes.offline)) loadRuntimes();
+  // Opening Verificação runs the checks (not again while they run).
+  if (name === "doctor" && !$("#doctor").disabled) $("#doctor").click();
   if (name === "status" && !statusLoaded) {
     statusLoaded = true;
     $("#status-refresh").click();
@@ -1428,13 +1430,6 @@ async function init() {
       showChecks(await invoke("run_doctor", { config: readForm() }));
     }),
   );
-  $("#dry").addEventListener("click", () =>
-    guarded($("#dry"), async () => {
-      const out = $("#dry-out");
-      out.hidden = false;
-      out.textContent = await invoke("dry_run", { config: readForm() });
-    }),
-  );
   $("#log-clear").addEventListener("click", () => $("#log").replaceChildren());
   $("#fix-dialog").addEventListener("close", () => {
     const plan = pendingFix;
@@ -1493,8 +1488,7 @@ async function init() {
     if (!ev.ctrlKey || ev.altKey || ev.metaKey) return;
     if (ev.key === "Enter" && !$("#play").hidden) $("#play").click();
     else if (ev.key.toLowerCase() === "d") {
-      selectTab("doctor");
-      $("#doctor").click();
+      selectTab("doctor"); // which runs the checks
     } else if (ev.key >= "1" && ev.key <= "5") selectTab(tabs[Number(ev.key) - 1]);
     else return;
     ev.preventDefault();

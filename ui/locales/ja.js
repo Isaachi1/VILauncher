@@ -155,7 +155,6 @@ I18N.add("ja", {
   "doctor.kicker": "プレイする前に",
   "doctor.title": "チェック",
   "doctor.run": "チェック",
-  "doctor.dry": "コマンドを表示",
   "doctor.busy": "チェック中…",
   "doctor.summary": "失敗: {fails} · 警告: {warns} · OK: {ok}",
   "check.ok": "OK",

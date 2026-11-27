@@ -155,7 +155,6 @@ I18N.add("fr", {
   "doctor.kicker": "Avant de jouer",
   "doctor.title": "Vérification",
   "doctor.run": "Vérifier",
-  "doctor.dry": "Afficher la commande",
   "doctor.busy": "Vérification…",
   "doctor.summary": "Échecs : {fails} · avertissements : {warns} · ok : {ok}",
   "check.ok": "OK",

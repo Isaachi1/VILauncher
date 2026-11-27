@@ -155,7 +155,6 @@ I18N.add("hi", {
   "doctor.kicker": "खेलने से पहले",
   "doctor.title": "जाँच",
   "doctor.run": "जाँचें",
-  "doctor.dry": "कमांड दिखाएँ",
   "doctor.busy": "जाँच हो रही है…",
   "doctor.summary": "विफल: {fails} · चेतावनी: {warns} · ठीक: {ok}",
   "check.ok": "ठीक",

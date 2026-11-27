@@ -536,7 +536,7 @@ td.name { white-space: nowrap; font-weight: 700; color: var(--ink); }
 
 /* -- log ---------------------------------------------------------------------------------- */
 
-pre#log, pre#dry-out {
+pre#log {
   margin: 0;
   color: #d9dbe5;
   background: var(--code-bg);
@@ -550,7 +550,6 @@ pre#log, pre#dry-out {
   word-break: break-all;
   font: 12px/1.6 var(--mono);
 }
-pre#dry-out { min-height: 0; margin-top: 12px; }
 
 /* The report: what goes in the .zip, the detailed-logs switch, the button. */
 .report {

@@ -155,7 +155,6 @@ I18N.add("tr", {
   "doctor.kicker": "Oynamadan önce",
   "doctor.title": "Denetim",
   "doctor.run": "Denetle",
-  "doctor.dry": "Komutu göster",
   "doctor.busy": "Denetleniyor…",
   "doctor.summary": "Hata: {fails} · uyarı: {warns} · tamam: {ok}",
   "check.ok": "TAMAM",
