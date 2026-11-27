@@ -813,7 +813,9 @@ function effortBar(e) {
 const short = (c) => (c ? c.slice(0, 10) : "—");
 
 const SCAN_KEYS = ["clean", "flagged", "pending", "skipped", "error"];
-const SCAN_PILL = { clean: "ok", flagged: "fail" };
+// A clean scan is a neutral fact, not a green light: VirusTotal is one layer, never a
+// guarantee (PRODUCT.md). An alert stays red.
+const SCAN_PILL = { clean: "", flagged: "fail" };
 
 function sourceLine(a) {
   if (!a) return "";
@@ -883,7 +885,7 @@ function showBuilds(rt) {
         : { cls: "gold", text: t("compat.updatePill") }
       : null;
     const scan = c.virustotal && c.virustotal.verdict;
-    const vt = scan ? { cls: SCAN_PILL[scan] || "warn", text: SCAN_KEYS.includes(scan) ? t(`scan.${scan}`) : scan } : null;
+    const vt = scan ? { cls: SCAN_PILL[scan] ?? "warn", text: SCAN_KEYS.includes(scan) ? t(`scan.${scan}`) : scan } : null;
     const value = `${r.backend}|${c.file}`;
     grid.append(
       buildCard(value, c.effort || c.repo || short(c.commit), [c.repo, short(c.commit)],
@@ -954,7 +956,13 @@ function buildAction(r, c, button) {
 
 function scanLine(scan) {
   const line = el("div", null);
-  const pill = el("span", `pill ${SCAN_PILL[scan.verdict] || "warn"}`, SCAN_KEYS.includes(scan.verdict) ? t(`scan.${scan.verdict}`) : scan.verdict);
+  const pill = el("span", `pill ${SCAN_PILL[scan.verdict] ?? "warn"}`, SCAN_KEYS.includes(scan.verdict) ? t(`scan.${scan.verdict}`) : scan.verdict);
+  // Who checked and when: the builder, at publication (the user's own lookup is the
+  // VirusTotal subtab).
+  if (scan.scanned_at) {
+    const date = new Date(scan.scanned_at).toLocaleDateString(I18N.locale());
+    line.append(el("span", "status", t("runtimes.builderScan", { date })), " ");
+  }
   const flagged = scan.files.filter((f) => f.malicious > 0).map((f) => `${f.name}: ${f.malicious}/${f.engines}`);
   line.append(pill, " ", flagged.length ? flagged.join(", ") : scan.files.map((f) => `${f.name} ${f.malicious}/${f.engines}`).join(" · "));
   return line;
