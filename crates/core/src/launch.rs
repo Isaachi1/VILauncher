@@ -48,6 +48,12 @@ pub fn build_with(cfg: &Config, gpus: &[gpu::Gpu], tools: &perf::Tools) -> Resul
 
 /// A backend's plan run through the configured runner, on the chosen GPU.
 fn wrap(cfg: &Config, plan: backends::Plan, gpus: &[gpu::Gpu]) -> Result<Launch> {
+    wrap_as(cfg, plan, gpus, false)
+}
+
+/// [`wrap`]; `console`: the program is a console tool whose output the launcher reads
+/// ([`Runner::argv_console`]).
+fn wrap_as(cfg: &Config, plan: backends::Plan, gpus: &[gpu::Gpu], console: bool) -> Result<Launch> {
     let runner = Runner::from_config(cfg)?;
     let prefix = match &runner {
         Runner::Proton(p) => Some(p.compat_dir.clone()),
@@ -58,7 +64,7 @@ fn wrap(cfg: &Config, plan: backends::Plan, gpus: &[gpu::Gpu]) -> Result<Launch>
     let mut env = runner.env(&base);
     env.extend(plan.env);
     env.extend(gpu::env_for(cfg, gpus));
-    let argv = runner.argv(&plan.exe, &plan.args);
+    let argv = if console { runner.argv_console(&plan.exe, &plan.args) } else { runner.argv(&plan.exe, &plan.args) };
     Ok(Launch { argv, env, cwd: cfg.data_dir(), cache: cfg.cache_dir(), prefix })
 }
 
@@ -69,7 +75,7 @@ pub fn prepare_shaders(cfg: &Config) -> Result<Launch> {
         return Err(Error::Config("only ScarlettPort prepares its shaders ahead of a run".into()));
     }
     let jobs = crate::scarlett::jobs(std::thread::available_parallelism().map_or(4, |n| n.get()), crate::scarlett::free_mb());
-    let mut launch = wrap(cfg, backends::scarlett_prepare_plan(cfg, jobs)?, &gpu::list())?;
+    let mut launch = wrap_as(cfg, backends::scarlett_prepare_plan(cfg, jobs)?, &gpu::list(), true)?;
     launch.cache = crate::scarlett::prep_cache(cfg);
     launch.env.extend(cfg.env.clone());
     Ok(launch)
@@ -339,6 +345,21 @@ mod tests {
         assert_eq!(proton_log_tail(&env, 1), ["Caused by: not found"]);
         env.insert("PROTON_LOG".into(), "0".into());
         assert!(proton_log_tail(&env, 10).is_empty());
+    }
+
+    #[test]
+    fn a_console_tool_runs_in_the_prefix_without_steam_exe() {
+        let h = TempHome::new();
+        let (cfg, ..) = victory_config(&h);
+        let runner = Runner::from_config(&cfg).unwrap();
+        let exe = Path::new("/rt/scarlett.exe");
+        let args = ["prepare".to_string()];
+        assert_eq!(runner.argv_console(exe, &args)[1], "waitforexitandrun", "no prefix yet: Proton creates it");
+        let pfx = cfg.prefix().join("pfx");
+        fs::create_dir_all(&pfx).unwrap();
+        fs::write(pfx.join("system.reg"), "").unwrap();
+        assert_eq!(&runner.argv_console(exe, &args)[1..], ["runinprefix", "/rt/scarlett.exe", "prepare"]);
+        assert_eq!(runner.argv(exe, &args)[1], "waitforexitandrun", "the game still goes through steam.exe");
     }
 
     #[test]

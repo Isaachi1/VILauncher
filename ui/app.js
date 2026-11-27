@@ -578,12 +578,27 @@ const CHECK_ACTION = {
 // -- ScarlettPort's shader preparation ---------------------------------------------------------
 // `scarlett prepare` runs in the game's place (the hero's Parar stops it too); its progress
 // lines (scarlett::PrepLine) move the bar: each step is an equal share of it.
-let prepStep = { n: 1, steps: 1, name: "" };
+// `scarlett prepare` has two steps (shaders, then the pipeline library); a runtime that prints
+// only its shader count stays in the first.
+let prepStep = { n: 1, steps: 2, name: "shaders" };
+let preparing = false;
+const PREP_LINES = 6;
+
+function prepOut(line) {
+  const out = $("#prep-out");
+  const lines = out.textContent ? out.textContent.split("\n") : [];
+  lines.push(line);
+  out.textContent = lines.slice(-PREP_LINES).join("\n");
+  out.hidden = false;
+}
 
 async function startPrepare() {
   await save();
   $("#log").replaceChildren();
-  prepStep = { n: 1, steps: 1, name: "" };
+  prepStep = { n: 1, steps: 2, name: "shaders" };
+  preparing = true;
+  $("#prep-out").textContent = "";
+  $("#prep-out").hidden = true;
   $("#prep-bar").value = 0;
   $("#prep-bar").removeAttribute("value"); // indeterminate until the first progress line
   $("#prep-bar").hidden = false;
@@ -600,6 +615,7 @@ async function startPrepare() {
 }
 
 function endPrepare() {
+  preparing = false;
   $("#prep-bar").hidden = true;
   $("#prep-start").hidden = false;
   $("#prep-stop").hidden = true;
@@ -629,6 +645,7 @@ function onPrepLine(line) {
 }
 
 async function onPrepExit({ code, prepared }) {
+  preparing = false;
   setRunning(false);
   endPrepare();
   if (prepared) say("#prep-info", "prep.done");
@@ -2021,7 +2038,10 @@ async function init() {
   setTimeout(pollNotifications, NOTIFY_FIRST_MS);
   setInterval(pollNotifications, NOTIFY_EVERY_MS);
 
-  await listen("game-log", (ev) => appendLog(ev.payload.line, ev.payload.stream));
+  await listen("game-log", (ev) => {
+    appendLog(ev.payload.line, ev.payload.stream);
+    if (preparing && ev.payload.line.trim()) prepOut(ev.payload.line);
+  });
   await listen("prep-line", (ev) => onPrepLine(ev.payload));
   await listen("prep-exit", (ev) => onPrepExit(ev.payload));
   await listen("game-exit", (ev) => {

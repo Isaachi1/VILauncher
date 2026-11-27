@@ -147,6 +147,8 @@
           <span class="status" id="prep-info" role="status" data-i18n="prep.intro">Traduz todos os shaders e monta os pipelines antes de jogar, para o jogo não engasgar. Leva alguns minutos; se parar, continua de onde estava.</span>
         </div>
         <progress id="prep-bar" max="1" value="0" hidden></progress>
+        <!-- The runtime's last lines while it prepares (the whole output is in the Log tab). -->
+        <pre class="prep-out" id="prep-out" aria-live="off" hidden></pre>
       </section>
       <div class="toggles">
         <label class="toggle">

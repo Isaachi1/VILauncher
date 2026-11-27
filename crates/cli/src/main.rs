@@ -673,7 +673,7 @@ fn prepare_shaders(args: &[String]) -> ExitCode {
         }
     }
     match child.wait() {
-        Ok(s) if s.success() && finished => match scarlett::mark_prepared(&cfg) {
+        Ok(s) if s.success() && (finished || scarlett::cache_complete(&cfg)) => match scarlett::mark_prepared(&cfg) {
             Ok(()) => {
                 println!("shaders prepared in {}", scarlett::prep_cache(&cfg).display());
                 ExitCode::SUCCESS
