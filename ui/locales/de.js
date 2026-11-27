@@ -273,4 +273,10 @@ I18N.add("de", {
   "runtimes.rolledBack": "{name} ist zurück auf {build}.",
   "runtimes.offline": "Die veröffentlichten Builds konnten nicht geladen werden; nur Installiertes wird gezeigt.",
   "runtimes.unpublished": "Unter {url} sind keine Builds veröffentlicht (GitHub antwortete 404). Der Builder hat noch nichts veröffentlicht, oder sein Repository ist privat: Downloads aus einem privaten Repository liefern dem Launcher 404.",
+  "runtimes.install": "Diesen Build installieren ({mb} MB)",
+  "runtimes.use": "Diesen Build verwenden",
+  "proton.removeConfirm": "{name} löschen?",
+  "hero.notPlayable": "Auf dem PC noch nicht spielbar (laut PortWatch VI)",
+  "ov.notPlayable": "GTA VI ist auf dem PC noch nicht spielbar: Die Wertung zeigt, wie weit das am weitesten fortgeschrittene Projekt gekommen ist, nicht, dass das Spiel läuft.",
+  "footer.disclaimer": "Ein Community-Projekt, nicht mit Rockstar Games, Take-Two Interactive oder Microsoft verbunden oder von ihnen unterstützt, und ohne Dateien des Spiels.",
 });

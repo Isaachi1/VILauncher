@@ -273,4 +273,10 @@ I18N.add("ko", {
   "runtimes.rolledBack": "{name}이(가) {build}(으)로 돌아갔습니다.",
   "runtimes.offline": "게시된 빌드를 가져올 수 없습니다. 설치된 것만 표시합니다.",
   "runtimes.unpublished": "{url}에 게시된 빌드가 없습니다(GitHub가 404 응답). 빌더가 아직 아무것도 게시하지 않았거나 저장소가 비공개입니다. 비공개 저장소의 다운로드는 런처에 404를 반환합니다.",
+  "runtimes.install": "이 빌드 설치 ({mb} MB)",
+  "runtimes.use": "이 빌드 사용",
+  "proton.removeConfirm": "{name}을(를) 삭제할까요?",
+  "hero.notPlayable": "아직 PC에서 플레이할 수 없습니다 (PortWatch VI 기준)",
+  "ov.notPlayable": "GTA VI는 아직 PC에서 플레이할 수 없습니다. 점수는 가장 앞선 프로젝트가 어디까지 왔는지를 보여줄 뿐, 게임이 실행된다는 뜻이 아닙니다.",
+  "footer.disclaimer": "커뮤니티 프로젝트로, Rockstar Games, Take-Two Interactive, Microsoft와 관련이 없고 승인받지 않았으며, 게임 파일을 전혀 포함하지 않습니다.",
 });

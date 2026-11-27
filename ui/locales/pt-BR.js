@@ -273,4 +273,10 @@ I18N.add("pt-BR", {
   "runtimes.rolledBack": "{name} voltou para {build}.",
   "runtimes.offline": "Não foi possível buscar as builds publicadas; mostrando só o que está instalado.",
   "runtimes.unpublished": "Nenhuma build publicada em {url} (o GitHub respondeu 404). O builder ainda não publicou nada, ou o repositório dele é privado: downloads de um repositório privado dão 404 para o launcher.",
+  "runtimes.install": "Instalar esta build ({mb} MB)",
+  "runtimes.use": "Usar esta build",
+  "proton.removeConfirm": "Apagar {name}?",
+  "hero.notPlayable": "Ainda não é jogável no PC (segundo o PortWatch VI)",
+  "ov.notPlayable": "O GTA VI ainda não é jogável no PC: a nota mostra até onde o projeto mais avançado chegou, não que o jogo roda.",
+  "footer.disclaimer": "Projeto da comunidade, sem afiliação nem aval da Rockstar Games, da Take-Two Interactive ou da Microsoft, e sem nenhum arquivo do jogo.",
 });

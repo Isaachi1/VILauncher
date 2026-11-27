@@ -273,4 +273,10 @@ I18N.add("id", {
   "runtimes.rolledBack": "{name} kembali ke {build}.",
   "runtimes.offline": "Tidak bisa mengambil build yang diterbitkan; hanya menampilkan yang terpasang.",
   "runtimes.unpublished": "Tidak ada build yang dipublikasikan di {url} (GitHub menjawab 404). Builder belum memublikasikan apa pun, atau repositorinya privat: unduhan dari repositori privat menjawab 404 ke launcher.",
+  "runtimes.install": "Pasang build ini ({mb} MB)",
+  "runtimes.use": "Gunakan build ini",
+  "proton.removeConfirm": "Hapus {name}?",
+  "hero.notPlayable": "Belum bisa dimainkan di PC (menurut PortWatch VI)",
+  "ov.notPlayable": "GTA VI belum bisa dimainkan di PC: skor menunjukkan seberapa jauh proyek paling maju sudah sampai, bukan bahwa gimnya berjalan.",
+  "footer.disclaimer": "Proyek komunitas, tidak berafiliasi dengan atau didukung oleh Rockstar Games, Take-Two Interactive, atau Microsoft, dan tidak berisi apa pun dari gim.",
 });

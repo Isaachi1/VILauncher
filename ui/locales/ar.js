@@ -273,4 +273,10 @@ I18N.add("ar", {
   "runtimes.rolledBack": "عاد {name} إلى {build}.",
   "runtimes.offline": "تعذّر جلب الإصدارات المنشورة؛ يُعرض المثبّت فقط.",
   "runtimes.unpublished": "لا توجد إصدارات منشورة على {url} (أجاب GitHub بالرمز 404). لم ينشر الـbuilder شيئًا بعد، أو أن مستودعه خاص: تنزيلات المستودع الخاص تُرجع 404 للمشغّل.",
+  "runtimes.install": "ثبّت هذا الإصدار ({mb} م.ب)",
+  "runtimes.use": "استخدم هذا الإصدار",
+  "proton.removeConfirm": "حذف {name}؟",
+  "hero.notPlayable": "غير قابلة للعب على الحاسوب بعد (حسب PortWatch VI)",
+  "ov.notPlayable": "لعبة GTA VI غير قابلة للعب على الحاسوب بعد: النتيجة تُظهر إلى أين وصل المشروع الأكثر تقدمًا، لا أن اللعبة تعمل.",
+  "footer.disclaimer": "مشروع مجتمعي، غير تابع لـ Rockstar Games أو Take-Two Interactive أو Microsoft ولا معتمد منها، ولا يحتوي على أي شيء من اللعبة.",
 });

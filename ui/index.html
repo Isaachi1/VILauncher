@@ -65,6 +65,7 @@
       <div class="hero-actions">
         <button id="play" class="primary big"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.6v12.8c0 .8.9 1.3 1.6.8l10-6.4c.6-.4.6-1.2 0-1.6l-10-6.4C8.9 4.3 8 4.8 8 5.6Z"/></svg><span data-i18n="play">Jogar</span></button>
         <button id="stop" class="danger big" hidden data-i18n="stop">Parar</button>
+        <p class="hero-note" data-i18n="hero.notPlayable">Ainda não é jogável no PC (segundo o PortWatch VI)</p>
       </div>
     </section>
   </div>
@@ -363,6 +364,7 @@
             <p class="kicker" data-i18n="ov.kicker">Progresso geral · projeto mais perto de ser jogável</p>
             <div class="big-score"><span id="ov-score">0</span><span class="pct">%</span></div>
             <p class="ov-leader" id="ov-leader">&nbsp;</p>
+            <p class="ov-note" data-i18n="ov.notPlayable">O GTA VI ainda não é jogável no PC: a nota mostra até onde o projeto mais avançado chegou, não que o jogo roda.</p>
           </div>
           <div class="ov-stats">
             <div class="ov-stat"><b id="ov-stage">-</b><small data-i18n="ov.stage">Marco mais avançado</small></div>
@@ -423,7 +425,7 @@
     </section>
   </main>
 
-  <footer class="wrap"><span><span id="app-version"></span> <span id="config-path"></span></span><span class="prompts"><kbd>Ctrl</kbd><kbd>Enter</kbd> Jogar <kbd>Ctrl</kbd><kbd>D</kbd> Verificar <kbd>Ctrl</kbd><kbd>1-5</kbd> Abas</span></footer>
+  <footer class="wrap"><span><span id="app-version"></span> <span id="config-path"></span></span><p class="disclaimer" data-i18n="footer.disclaimer">Projeto da comunidade, sem afiliação nem aval da Rockstar Games, da Take-Two Interactive ou da Microsoft, e sem nenhum arquivo do jogo.</p><span class="prompts"><kbd>Ctrl</kbd><kbd>Enter</kbd> Jogar <kbd>Ctrl</kbd><kbd>D</kbd> Verificar <kbd>Ctrl</kbd><kbd>1-5</kbd> Abas</span></footer>
   <script src="app.js"></script>
 </body>
 </html>

@@ -273,4 +273,10 @@ I18N.add("ja", {
   "runtimes.rolledBack": "{name} を {build} に戻しました。",
   "runtimes.offline": "公開されたビルドを取得できませんでした。インストール済みのものだけを表示しています。",
   "runtimes.unpublished": "{url} に公開済みのビルドがありません（GitHub は 404 を返しました）。ビルダーがまだ何も公開していないか、リポジトリが非公開です。非公開リポジトリのダウンロードはランチャーに 404 を返します。",
+  "runtimes.install": "このビルドをインストール（{mb} MB）",
+  "runtimes.use": "このビルドを使う",
+  "proton.removeConfirm": "{name} を削除しますか？",
+  "hero.notPlayable": "PC ではまだプレイできません（PortWatch VI による）",
+  "ov.notPlayable": "GTA VI は PC ではまだプレイできません。スコアは最も進んだプロジェクトの到達点を示すもので、ゲームが動くことを意味しません。",
+  "footer.disclaimer": "コミュニティのプロジェクトです。Rockstar Games、Take-Two Interactive、Microsoft とは無関係で、承認も受けておらず、ゲームのファイルは一切含みません。",
 });

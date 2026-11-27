@@ -236,7 +236,9 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; margin: 0; }
   letter-spacing: -0.035em;
 }
 .hero .sub { margin: 10px 0 0; color: rgba(255, 255, 255, 0.72); font-size: 15px; }
-.hero-actions { flex: none; }
+.hero-actions { flex: none; display: grid; justify-items: center; gap: 10px; }
+/* The binding "not playable yet" line, right under the button it qualifies. */
+.hero-note { margin: 0; max-width: 22ch; color: rgba(255, 255, 255, 0.78); font-size: 12.5px; line-height: 1.35; text-align: center; text-wrap: balance; }
 
 /* -- buttons ------------------------------------------------------------------------------ */
 
@@ -730,6 +732,7 @@ pre#log .stderr { color: #ff8a9e; }
 }
 .big-score .pct { font-size: 0.42em; margin: 0.12em 0 0 0.08em; letter-spacing: 0; }
 .ov-leader { margin: 12px 0 0; color: var(--muted); font-size: 14.5px; }
+.ov-note { margin: 8px 0 0; max-width: 62ch; color: var(--ink-2); font-size: 13px; line-height: 1.45; }
 .ov-leader b { color: var(--ink); font-weight: 600; border-bottom: 1.5px solid rgba(255, 46, 126, 0.35); }
 .ov-private { white-space: nowrap; }
 .lock { fill: currentColor; }
@@ -848,6 +851,7 @@ footer {
   font-size: 12px;
 }
 .prompts { white-space: nowrap; }
+footer .disclaimer { order: 3; flex: 1 1 100%; margin: 0; }
 kbd {
   display: inline-block;
   min-width: 20px;

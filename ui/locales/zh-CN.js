@@ -273,4 +273,10 @@ I18N.add("zh-CN", {
   "runtimes.rolledBack": "{name} 已回退到 {build}。",
   "runtimes.offline": "无法获取已发布的构建；仅显示已安装的内容。",
   "runtimes.unpublished": "{url} 上没有已发布的构建（GitHub 返回 404）。构建服务尚未发布任何内容，或其仓库是私有的：私有仓库的下载对启动器返回 404。",
+  "runtimes.install": "安装此构建（{mb} MB）",
+  "runtimes.use": "使用此构建",
+  "proton.removeConfirm": "删除 {name}？",
+  "hero.notPlayable": "PC 上尚不可玩（据 PortWatch VI）",
+  "ov.notPlayable": "GTA VI 在 PC 上尚不可玩：分数表示进展最快的项目走到了哪一步，而不是游戏能运行。",
+  "footer.disclaimer": "社区项目，与 Rockstar Games、Take-Two Interactive 或 Microsoft 无关，也未获其认可，不包含任何游戏文件。",
 });
