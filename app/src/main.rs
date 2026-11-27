@@ -26,6 +26,7 @@ use sixlauncher_core::launch;
 use sixlauncher_core::{gpu, notify, perf};
 use sixlauncher_core::paths;
 use sixlauncher_core::report;
+use sixlauncher_core::scarlett;
 use sixlauncher_core::protons::{self, Release};
 use sixlauncher_core::runners::{self, ProtonInstall, Runner};
 use sixlauncher_core::selfupdate;
@@ -541,6 +542,57 @@ fn launch_game(app: AppHandle, running: State<Running>, config: Config, force: b
     }
     let l = launch::build(&config).map_err(err)?;
     let runner = Runner::from_config(&config).map_err(err)?;
+    start(app, &running, l, runner, Arc::new(|_: &AppHandle, _: &str| {}), Box::new(|app: &AppHandle, code: Option<i32>| {
+        let _ = app.emit("game-exit", code);
+    }))
+}
+
+/// What `prep-exit` carries: the exit code, and whether `scarlett prepare` reached its end
+/// and the cache is now marked prepared.
+#[derive(Clone, Serialize)]
+struct PrepExit {
+    code: Option<i32>,
+    prepared: bool,
+}
+
+/// ScarlettPort: `scarlett prepare` for the chosen preset, in the game's place (Parar stops
+/// it). Its lines arrive as `game-log`, its progress as `prep-line` (scarlett::PrepLine), and
+/// `prep-exit` says how it ended.
+#[tauri::command]
+fn prepare_shaders(app: AppHandle, running: State<Running>, config: Config) -> Result<(), String> {
+    if running.child.lock().unwrap().is_some() {
+        return Err("the game is already running".into());
+    }
+    let l = launch::prepare_shaders(&config).map_err(err)?;
+    let runner = Runner::from_config(&config).map_err(err)?;
+    let finished = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let seen = finished.clone();
+    start(
+        app,
+        &running,
+        l,
+        runner,
+        Arc::new(move |app: &AppHandle, line: &str| {
+            if let Some(event) = scarlett::parse_prep(line) {
+                if matches!(event, scarlett::PrepLine::Done { .. }) {
+                    seen.store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+                let _ = app.emit("prep-line", event);
+            }
+        }),
+        Box::new(move |app: &AppHandle, code: Option<i32>| {
+            let prepared = code == Some(0) && finished.load(std::sync::atomic::Ordering::SeqCst) && scarlett::mark_prepared(&config).is_ok();
+            let _ = app.emit("prep-exit", PrepExit { code, prepared });
+        }),
+    )
+}
+
+type OnLine = Arc<dyn Fn(&AppHandle, &str) + Send + Sync>;
+type OnExit = Box<dyn FnOnce(&AppHandle, Option<i32>) + Send>;
+
+/// Runs `l` as the window's one process: its output goes to the log file and to `game-log`
+/// (and to `on_line`); `on_exit` gets the exit code once every line was read.
+fn start(app: AppHandle, running: &Running, l: launch::Launch, runner: Runner, on_line: OnLine, on_exit: OnExit) -> Result<(), String> {
     let mut cmd = l.command().map_err(err)?;
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("{}: {e}", l.argv[0]))?;
 
@@ -556,10 +608,11 @@ fn launch_game(app: AppHandle, running: State<Running>, config: Config, force: b
     ];
     for (stream, pipe) in pipes {
         let Some(pipe) = pipe else { continue };
-        let (app, log) = (app.clone(), log.clone());
+        let (app, log, on_line) = (app.clone(), log.clone(), on_line.clone());
         readers.push(std::thread::spawn(move || {
             for line in BufReader::new(pipe).lines().map_while(Result::ok) {
                 writeln!(log.lock().unwrap(), "{line}").ok();
+                on_line(&app, &line);
                 let _ = app.emit("game-log", LogLine { stream, line });
             }
         }));
@@ -589,7 +642,7 @@ fn launch_game(app: AppHandle, running: State<Running>, config: Config, force: b
         for r in readers {
             let _ = r.join();
         }
-        let _ = app.emit("game-exit", code);
+        on_exit(&app, code);
     });
     Ok(())
 }
@@ -651,6 +704,7 @@ fn main() {
             notifications_set,
             create_desktop_entry,
             launch_game,
+            prepare_shaders,
             stop_game
         ])
         .run(tauri::generate_context!())

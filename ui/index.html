@@ -243,6 +243,15 @@
               <span class="toggle-text"><b data-i18n="scarlett.fallbackLight">Luz substituta</b> <span data-i18n="scarlett.fallbackLightHint">ilumina onde a luz do jogo ainda não aparece; precisa de uma build que a tenha</span></span>
             </label>
           </div>
+          <!-- `scarlett prepare` for the chosen preset: progress from its prep-line events. -->
+          <div class="prep" id="prep">
+            <div class="actions">
+              <button id="prep-start" data-i18n="prep.button">Preparar shaders</button>
+              <button id="prep-stop" class="ghost" data-i18n="prep.stop" hidden>Parar</button>
+              <span class="status" id="prep-info" role="status" data-i18n="prep.intro">Traduz todos os shaders e monta os pipelines antes de jogar, para o jogo não engasgar. Leva alguns minutos; se parar, continua de onde estava.</span>
+            </div>
+            <progress id="prep-bar" max="1" value="0" hidden></progress>
+          </div>
         </div>
         <label class="field only-xcl">
           <span><span data-i18n="compat.dxc">DXC</span> <em data-i18n="compat.dxcHint">(bin/x64 de um release do DirectXShaderCompiler)</em></span>

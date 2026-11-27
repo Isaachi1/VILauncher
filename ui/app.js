@@ -319,7 +319,7 @@ function showReadiness() {
 // each one sums up; "system" is every other check (CPU, Vulkan, the kernel settings…).
 const READY_PARTS = [
   { key: "ready.game", checks: ["game", "game-sha256"] },
-  { key: "ready.build", checks: ["backend", "DXC", "Opus"] },
+  { key: "ready.build", checks: ["backend", "DXC", "Opus", "D3D12 Agility", "shaders"] },
   { key: "ready.runner", checks: ["runner", "vkd3d-proton", "d3d12"] },
   { key: "ready.prefix", checks: ["prefix"] },
   { key: "ready.system", checks: null },
@@ -530,7 +530,79 @@ const CHECK_ACTION = {
   "game-sha256": { key: "check.doGame", go: () => goTo("game", "#step-dir") },
   runner: { key: "check.doRunner", go: () => goTo("compat", '[data-path="runner.kind"]') },
   "vkd3d-proton": { key: "check.doRunner", go: () => goTo("compat", '[data-path="runner.vkd3d_dir"]') },
+  shaders: {
+    key: "prep.button",
+    go: async () => {
+      selectTab("compat");
+      selectSubtab("advanced");
+      goTo("compat", "#prep");
+      await startPrepare();
+    },
+  },
 };
+
+// -- ScarlettPort's shader preparation ---------------------------------------------------------
+// `scarlett prepare` runs in the game's place (the hero's Parar stops it too); its progress
+// lines (scarlett::PrepLine) move the bar: each step is an equal share of it.
+let prepStep = { n: 1, steps: 1, name: "" };
+
+async function startPrepare() {
+  await save();
+  $("#log").replaceChildren();
+  prepStep = { n: 1, steps: 1, name: "" };
+  $("#prep-bar").value = 0;
+  $("#prep-bar").removeAttribute("value"); // indeterminate until the first progress line
+  $("#prep-bar").hidden = false;
+  $("#prep-start").hidden = true;
+  $("#prep-stop").hidden = false;
+  say("#prep-info", "prep.starting");
+  try {
+    await invoke("prepare_shaders", { config });
+    setRunning(true);
+  } catch (e) {
+    endPrepare();
+    throw e;
+  }
+}
+
+function endPrepare() {
+  $("#prep-bar").hidden = true;
+  $("#prep-start").hidden = false;
+  $("#prep-stop").hidden = true;
+}
+
+const prepWhat = (name) => {
+  const key = `prep.name.${name}`;
+  const text = t(key);
+  return text === key ? name : text;
+};
+const count = (n) => n.toLocaleString(I18N.locale());
+
+function onPrepLine(line) {
+  const bar = $("#prep-bar");
+  if (line.kind === "step") {
+    prepStep = line;
+    bar.value = (line.n - 1) / line.steps;
+    say("#prep-info", "prep.step", { n: line.n, steps: line.steps, what: prepWhat(line.name) });
+  } else if (line.kind === "progress") {
+    const share = line.total ? line.done / line.total : 0;
+    bar.value = (prepStep.n - 1 + share) / prepStep.steps;
+    const vars = { n: prepStep.n, steps: prepStep.steps, what: prepWhat(line.name), done: count(line.done), total: count(line.total) };
+    say("#prep-info", line.total ? "prep.progress" : "prep.step", vars);
+  } else if (line.kind === "done") {
+    bar.value = 1;
+  }
+}
+
+async function onPrepExit({ code, prepared }) {
+  setRunning(false);
+  endPrepare();
+  if (prepared) say("#prep-info", "prep.done");
+  else if (stopRequested) say("#prep-info", "prep.stopped");
+  else say("#prep-info", code === 0 ? "prep.unfinished" : "prep.failed", { code: code ?? t("log.unknownCode") });
+  stopRequested = false;
+  showChecks(await invoke("run_doctor", { config: readForm() }));
+}
 
 // A kernel setting's fix: say what it writes (and the risk, for userfaultfd), then run it as
 // root (pkexec asks for the password) and check again.
@@ -1768,6 +1840,11 @@ async function init() {
     invoke("stop_game");
   });
   $("#run-retry").addEventListener("click", () => guarded($("#run-retry"), retryRun));
+  $("#prep-start").addEventListener("click", () => guarded($("#prep-start"), startPrepare));
+  $("#prep-stop").addEventListener("click", () => {
+    stopRequested = true;
+    invoke("stop_game");
+  });
   // Every field saves when it changes (a path picked, a box ticked, a field left), so no
   // Salvar button: build and Proton choices already applied at once, and now the rest does too.
   let saveTimer = null;
@@ -1899,6 +1976,8 @@ async function init() {
   setInterval(pollNotifications, NOTIFY_EVERY_MS);
 
   await listen("game-log", (ev) => appendLog(ev.payload.line, ev.payload.stream));
+  await listen("prep-line", (ev) => onPrepLine(ev.payload));
+  await listen("prep-exit", (ev) => onPrepExit(ev.payload));
   await listen("game-exit", (ev) => {
     setRunning(false);
     const code = ev.payload ?? t("log.unknownCode");

@@ -36,22 +36,43 @@ pub fn build_with(cfg: &Config, gpus: &[gpu::Gpu], tools: &perf::Tools) -> Resul
     let game_dir = cfg.game_dir().ok_or_else(|| Error::Game("no game folder is set".into()))?;
     let info = gamedir::inspect(&game_dir)?;
     let game_exe = gamedir::resolve_exe(&info, cfg.game.exe.as_deref())?;
+    let plan = backends::plan(cfg, &game_exe)?;
+    let mut launch = wrap(cfg, plan, gpus)?;
+    launch.env.extend(perf::env_for(&cfg.performance));
+    launch.env.extend(cfg.env.clone());
+    let mut argv = perf::wrapper(&cfg.performance, tools);
+    argv.append(&mut launch.argv);
+    launch.argv = argv;
+    Ok(launch)
+}
+
+/// A backend's plan run through the configured runner, on the chosen GPU.
+fn wrap(cfg: &Config, plan: backends::Plan, gpus: &[gpu::Gpu]) -> Result<Launch> {
     let runner = Runner::from_config(cfg)?;
     let prefix = match &runner {
         Runner::Proton(p) => Some(p.compat_dir.clone()),
         Runner::Wine(w) => Some(w.prefix.clone()),
         Runner::Native => None,
     };
-    let plan = backends::plan(cfg, &game_exe)?;
     let base: BTreeMap<String, String> = std::env::vars().collect();
     let mut env = runner.env(&base);
     env.extend(plan.env);
     env.extend(gpu::env_for(cfg, gpus));
-    env.extend(perf::env_for(&cfg.performance));
-    env.extend(cfg.env.clone());
-    let mut argv = perf::wrapper(&cfg.performance, tools);
-    argv.extend(runner.argv(&plan.exe, &plan.args));
+    let argv = runner.argv(&plan.exe, &plan.args);
     Ok(Launch { argv, env, cwd: cfg.data_dir(), cache: cfg.cache_dir(), prefix })
+}
+
+/// ScarlettPort's shader preparation (`scarlett prepare`), through the same runner and GPU as a
+/// run but without MangoHud or GameMode: there is no game window.
+pub fn prepare_shaders(cfg: &Config) -> Result<Launch> {
+    if cfg.backend.kind != crate::config::BackendKind::Scarlett {
+        return Err(Error::Config("only ScarlettPort prepares its shaders ahead of a run".into()));
+    }
+    let jobs = crate::scarlett::jobs(std::thread::available_parallelism().map_or(4, |n| n.get()), crate::scarlett::free_mb());
+    let mut launch = wrap(cfg, backends::scarlett_prepare_plan(cfg, jobs)?, &gpu::list())?;
+    launch.cache = crate::scarlett::prep_cache(cfg);
+    launch.env.extend(cfg.env.clone());
+    Ok(launch)
 }
 
 /// The configuration checks that stop a run.

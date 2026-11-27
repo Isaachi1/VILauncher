@@ -682,6 +682,9 @@ pre#log {
 .fix-dialog .actions { justify-content: flex-end; }
 pre#log .stderr { color: #ff8a9e; }
 pre#log .cmd { color: #9aa0b4; }
+/* ScarlettPort's shader preparation. */
+.prep { margin-top: 18px; }
+.prep progress { width: 100%; height: 8px; margin-top: 10px; accent-color: var(--vi-fg); }
 
 /* -- runtime updates ------------------------------------------------------------------------- */
 
