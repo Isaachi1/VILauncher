@@ -273,4 +273,10 @@ I18N.add("bn", {
   "runtimes.rolledBack": "{name} আবার {build}-এ ফিরেছে।",
   "runtimes.offline": "প্রকাশিত বিল্ড আনা যায়নি; শুধু ইনস্টল করা জিনিস দেখানো হচ্ছে।",
   "runtimes.unpublished": "{url}-এ কোনো বিল্ড প্রকাশিত নেই (GitHub 404 দিয়েছে)। বিল্ডার এখনো কিছু প্রকাশ করেনি, অথবা এর রিপোজিটরি প্রাইভেট: প্রাইভেট রিপোজিটরির ডাউনলোড লঞ্চারকে 404 দেয়।",
+  "runtimes.install": "এই বিল্ডটি ইনস্টল করুন ({mb} MB)",
+  "runtimes.use": "এই বিল্ডটি ব্যবহার করুন",
+  "proton.removeConfirm": "{name} মুছবেন?",
+  "hero.notPlayable": "PC-তে এখনও খেলা যায় না (PortWatch VI অনুযায়ী)",
+  "ov.notPlayable": "GTA VI এখনও PC-তে খেলা যায় না: স্কোর দেখায় সবচেয়ে এগিয়ে থাকা প্রকল্প কতদূর পৌঁছেছে, গেমটি চলে তা নয়।",
+  "footer.disclaimer": "একটি কমিউনিটি প্রকল্প, Rockstar Games, Take-Two Interactive বা Microsoft-এর সাথে যুক্ত বা তাদের দ্বারা সমর্থিত নয়, এবং গেমের কোনো ফাইল এতে নেই।",
 });

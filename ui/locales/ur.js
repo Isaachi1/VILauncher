@@ -273,4 +273,10 @@ I18N.add("ur", {
   "runtimes.rolledBack": "{name} واپس {build} پر ہے۔",
   "runtimes.offline": "شائع شدہ بلڈز حاصل نہیں ہو سکے؛ صرف انسٹال شدہ دکھایا جا رہا ہے۔",
   "runtimes.unpublished": "{url} پر کوئی بلڈ شائع نہیں (GitHub نے 404 دیا)۔ بلڈر نے ابھی کچھ شائع نہیں کیا، یا اس کی ریپوزٹری پرائیویٹ ہے: پرائیویٹ ریپوزٹری کی ڈاؤن لوڈز لانچر کو 404 دیتی ہیں۔",
+  "runtimes.install": "یہ بلڈ انسٹال کریں ({mb} MB)",
+  "runtimes.use": "یہ بلڈ استعمال کریں",
+  "proton.removeConfirm": "{name} حذف کریں؟",
+  "hero.notPlayable": "PC پر ابھی کھیلنے کے قابل نہیں (PortWatch VI کے مطابق)",
+  "ov.notPlayable": "GTA VI ابھی PC پر کھیلنے کے قابل نہیں: اسکور بتاتا ہے کہ سب سے آگے کا پروجیکٹ کہاں تک پہنچا ہے، یہ نہیں کہ گیم چلتی ہے۔",
+  "footer.disclaimer": "ایک کمیونٹی پروجیکٹ، جو Rockstar Games، Take-Two Interactive یا Microsoft سے وابستہ یا ان کا منظور شدہ نہیں، اور اس میں گیم کی کوئی فائل نہیں۔",
 });

@@ -273,4 +273,10 @@ I18N.add("tr", {
   "runtimes.rolledBack": "{name}, {build} sürümüne geri döndü.",
   "runtimes.offline": "Yayınlanan derlemeler alınamadı; yalnızca kurulu olanlar gösteriliyor.",
   "runtimes.unpublished": "{url} adresinde yayımlanmış derleme yok (GitHub 404 döndürdü). Builder henüz bir şey yayımlamadı ya da deposu özel: özel bir depodan indirmeler başlatıcıya 404 döndürür.",
+  "runtimes.install": "Bu sürümü kur ({mb} MB)",
+  "runtimes.use": "Bu sürümü kullan",
+  "proton.removeConfirm": "{name} silinsin mi?",
+  "hero.notPlayable": "PC'de henüz oynanamıyor (PortWatch VI'ya göre)",
+  "ov.notPlayable": "GTA VI PC'de henüz oynanamıyor: puan, en ileri projenin nereye kadar geldiğini gösterir, oyunun çalıştığını değil.",
+  "footer.disclaimer": "Bir topluluk projesidir; Rockstar Games, Take-Two Interactive veya Microsoft ile bağlantılı değildir ve onlar tarafından onaylanmamıştır; oyundan hiçbir dosya içermez.",
 });

@@ -757,6 +757,8 @@ function showBuilds(rt) {
   showBuildDetail(rt);
 }
 
+const mbOf = (bytes) => (bytes / 1048576).toLocaleString(I18N.locale(), { maximumFractionDigits: 1 });
+
 function picked(rt) {
   const [backend, file] = buildValue.split("|");
   const r = rt && file ? rt.backends.find((b) => b.backend === backend) : null;
@@ -765,21 +767,14 @@ function picked(rt) {
 }
 
 // Picking a card: mark it, then install or switch to it; the whole grid waits meanwhile.
+// Choosing a card (click, Enter, Space, the arrows or a gamepad's d-pad) only selects it and
+// shows its detail; installing or switching is the explicit button there, so moving through
+// the list never downloads anything.
 function chooseBuild(card) {
   if (!card || card.dataset.value === buildValue) return;
   markBuild(card.dataset.value);
   card.focus();
-  const grid = {
-    set disabled(v) {
-      for (const c of $$("#backend-build .build-card")) c.disabled = v;
-    },
-  };
-  return guarded(grid, () =>
-    pickBuild().catch((e) => {
-      showBuilds(lastRuntimes); // back to the build actually in use
-      throw e;
-    }),
-  );
+  showBuildDetail(lastRuntimes);
 }
 
 // Compatibilidade's own sub-tabs (Builds, VirusTotal, Avançado).
@@ -805,13 +800,15 @@ function arrowNav(ev, items, current, go) {
   go(items[j]);
 }
 
-async function pickBuild() {
-  const p = picked(lastRuntimes);
-  if (!p) return showBuildDetail(lastRuntimes);
-  const { r, c } = p;
-  // Already installed (this commit): just use it. Otherwise download it.
-  if (r.exe && r.installed === c.commit) await useRuntime(r.backend, r.exe);
-  else await installRuntime(r.backend, null, false, c.file);
+// The detail's action for the selected build: use it when this commit is installed,
+// otherwise download it. A failure puts the list back on the build actually in use.
+function buildAction(r, c, button) {
+  return guarded(button, () =>
+    (r.exe && r.installed === c.commit ? useRuntime(r.backend, r.exe) : installRuntime(r.backend, button, false, c.file)).catch((e) => {
+      showBuilds(lastRuntimes);
+      throw e;
+    }),
+  );
 }
 
 function scanLine(scan) {
@@ -839,7 +836,7 @@ function showBuildDetail(rt) {
   const head = el("div", "build-head");
   const what = el("div");
   what.append(el("div", "build-name", `${c.effort || c.repo} · ${BACKEND_NAME[r.backend]}${c.score != null ? ` · ${pctOf(c.score)}` : ""}`));
-  const where = [c.repo ? `github.com/${c.repo}` : null, short(c.commit), `${(c.size / 1048576).toFixed(1)} MB`];
+  const where = [c.repo ? `github.com/${c.repo}` : null, short(c.commit), `${mbOf(c.size)} MB`];
   what.append(el("div", "status", where.filter(Boolean).join(" · ")));
   head.append(what);
   const inUse = r.exe && r.installed === c.commit && $('[data-path="backend.exe"]').value.trim() === r.exe;
@@ -850,6 +847,11 @@ function showBuildDetail(rt) {
     head.append(b);
   } else if (inUse) {
     head.append(el("span", "pill ok", t("runtimes.inUse")));
+  } else {
+    const installed = r.exe && r.installed === c.commit;
+    const b = el("button", "primary", installed ? t("runtimes.use") : t("runtimes.install", { mb: mbOf(c.size) }));
+    b.addEventListener("click", () => buildAction(r, c, b));
+    head.append(b);
   }
   box.append(head);
   if (sameProject && r.installed !== c.commit) {
@@ -987,13 +989,30 @@ function showProtons(list) {
     }
     if (p.origin === "launcher" && !(chosen && inUse)) {
       const del = el("button", "ghost", t("proton.remove"));
-      del.addEventListener("click", () =>
+      // Deleting a downloaded Proton asks twice: the first click turns the button into the
+      // confirmation, which goes back after a few seconds or when focus leaves it.
+      let armed = null;
+      const disarm = () => {
+        clearTimeout(armed);
+        armed = null;
+        del.className = "ghost";
+        del.textContent = t("proton.remove");
+      };
+      del.addEventListener("blur", () => armed && disarm());
+      del.addEventListener("click", () => {
+        if (!armed) {
+          del.className = "danger";
+          del.textContent = t("proton.removeConfirm", { name: p.name });
+          armed = setTimeout(disarm, 5000);
+          return;
+        }
+        disarm();
         guarded(del, async () => {
           await invoke("proton_remove", { name: p.name, config: readForm() });
           say("#proton-info", "proton.removed", { name: p.name });
           await refreshProtons();
-        }),
-      );
+        });
+      });
       td.append(" ", del);
     }
     tr.append(td);
