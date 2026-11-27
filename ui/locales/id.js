@@ -109,6 +109,8 @@ I18N.add("id", {
   "scarlett.raytracingHint": "cahaya ray tracing milik gim itu sendiri; berat bagi GPU",
   "scarlett.fallbackLight": "Cahaya pengganti",
   "scarlett.fallbackLightHint": "menerangi bagian yang belum tersentuh cahaya gim; perlu build yang memilikinya",
+  "saves.backup": "Cadangan simpanan",
+  "saves.backupHint": "sebelum setiap permainan, menyalin simpanan ke save-backups di samping folder data; 10 terbaru disimpan",
   "feat.title": "Fitur ScarlettPort",
   "feat.fullTextures": "Tekstur penuh",
   "feat.fullTexturesHint": "memuat semua level tekstur sekaligus; memakai lebih banyak memori video",

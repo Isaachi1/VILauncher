@@ -109,6 +109,8 @@ I18N.add("ar", {
   "scarlett.raytracingHint": "إضاءة تتبع الأشعة الخاصة باللعبة؛ ثقيلة على الـGPU",
   "scarlett.fallbackLight": "إضاءة بديلة",
   "scarlett.fallbackLightHint": "تضيء حيث لا تظهر إضاءة اللعبة بعد؛ تحتاج إصدارًا يتضمنها",
+  "saves.backup": "نسخ احتياطي للحفظ",
+  "saves.backupHint": "قبل كل تشغيل، ينسخ ملفات الحفظ إلى save-backups بجانب مجلد البيانات؛ يُحتفظ بأحدث 10",
   "feat.title": "ميزات ScarlettPort",
   "feat.fullTextures": "خامات كاملة",
   "feat.fullTexturesHint": "يحمّل كل مستويات الخامات دفعة واحدة؛ يستهلك ذاكرة فيديو أكثر",

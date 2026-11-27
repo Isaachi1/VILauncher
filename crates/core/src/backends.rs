@@ -11,8 +11,8 @@
 //!   `XCL_DXC_DIR` (DXC's `dxcompiler.dll` + `dxil.dll`) and `XCL_OPUS_DIR`
 //!   (`opus.dll`: under Wine there is no Media Foundation Opus decoder).
 //! * ScarlettPort: `scarlett.exe run <title exe> --execute [--console series-s]
-//!   [-- title args]` with `SCARLETT_GAME_DIR`, `SCARLETT_CACHE_DIR` and the Stable
-//!   preset's switches ([`crate::scarlett`]).
+//!   [-- title args]` with `SCARLETT_GAME_DIR`, `SCARLETT_CACHE_DIR`, `SCARLETT_DATA_DIR`
+//!   (the saves, outside the prefix) and the preset's switches ([`crate::scarlett`]).
 //!
 //! Every path goes through [`paths::to_windows`], because Wine hands arguments
 //! and environment variables to the program unchanged.
@@ -94,7 +94,8 @@ pub fn scarlett_plan(cfg: &Config, game_exe: &Path) -> Result<Plan> {
     }
     let cache = crate::scarlett::cache_for(cfg.scarlett.preset, &cfg.cache_dir());
     let fsr = crate::scarlett::fsr_available(exe.parent().unwrap_or(Path::new("/")), &game);
-    let env = crate::scarlett::run_env(&cfg.scarlett, &to_windows(&game), &to_windows(&cache), fsr).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+    let mut env: BTreeMap<String, String> = crate::scarlett::run_env(&cfg.scarlett, &to_windows(&game), &to_windows(&cache), fsr).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+    env.insert("SCARLETT_DATA_DIR".into(), to_windows(&cfg.data_dir()));
     Ok(Plan { exe, args, env })
 }
 
@@ -104,7 +105,8 @@ pub fn scarlett_prepare_plan(cfg: &Config, jobs: usize) -> Result<Plan> {
     let (exe, game) = require(cfg)?;
     let args = vec!["prepare".into(), "--jobs".into(), jobs.max(1).to_string()];
     let cache = crate::scarlett::prep_cache(cfg);
-    let env = crate::scarlett::env(&cfg.scarlett, &to_windows(&game), &to_windows(&cache)).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+    let mut env: BTreeMap<String, String> = crate::scarlett::env(&cfg.scarlett, &to_windows(&game), &to_windows(&cache)).into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+    env.insert("SCARLETT_DATA_DIR".into(), to_windows(&cfg.data_dir()));
     Ok(Plan { exe, args, env })
 }
 
@@ -188,6 +190,7 @@ mod tests {
         assert!(plan.env["SCARLETT_CACHE_DIR"].ends_with("\\sixlauncher\\scarlett"));
         assert_eq!(plan.env["SCARLETT_PRECOMPILED_GRAPHICS"], "1");
         assert_eq!(plan.env["SCARLETT_CARD_BUFFERS_MIN_KB"], "64");
+        assert!(plan.env["SCARLETT_DATA_DIR"].ends_with("\\sixlauncher\\scarlett\\data"), "saves outside the prefix");
         cfg.backend.console = Console::SeriesX;
         cfg.game.args = vec!["-old".into()];
         assert_eq!(super::plan(&cfg, &exe).unwrap().args, ["run", &paths::to_windows(&exe), "--execute", "--", "-old"]);

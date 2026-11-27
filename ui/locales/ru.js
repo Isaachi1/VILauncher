@@ -109,6 +109,8 @@ I18N.add("ru", {
   "scarlett.raytracingHint": "свет с трассировкой лучей из самой игры; нагружает GPU",
   "scarlett.fallbackLight": "Замещающий свет",
   "scarlett.fallbackLightHint": "освещает то, где свет игры ещё не появляется; нужна сборка с ним",
+  "saves.backup": "Резервные копии сохранений",
+  "saves.backupHint": "перед каждым запуском копирует сохранения в save-backups рядом с папкой данных; хранятся 10 последних",
   "feat.title": "Функции ScarlettPort",
   "feat.fullTextures": "Полные текстуры",
   "feat.fullTexturesHint": "загружает все уровни текстур сразу; использует больше видеопамяти",

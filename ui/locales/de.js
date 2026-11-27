@@ -109,6 +109,8 @@ I18N.add("de", {
   "scarlett.raytracingHint": "das Raytracing-Licht des Spiels selbst; fordert die GPU stark",
   "scarlett.fallbackLight": "Ersatzlicht",
   "scarlett.fallbackLightHint": "beleuchtet, wo das Licht des Spiels noch fehlt; braucht einen Build, der es hat",
+  "saves.backup": "Spielstand-Sicherung",
+  "saves.backupHint": "kopiert vor jeder Runde die Spielstände nach save-backups neben dem Datenordner; die 10 neuesten bleiben",
   "feat.title": "ScarlettPort-Funktionen",
   "feat.fullTextures": "Volle Texturen",
   "feat.fullTexturesHint": "lädt alle Texturstufen auf einmal; braucht mehr Videospeicher",

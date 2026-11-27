@@ -109,6 +109,8 @@ I18N.add("fr", {
   "scarlett.raytracingHint": "la lumière en ray tracing du jeu lui-même ; lourd pour le GPU",
   "scarlett.fallbackLight": "Lumière de secours",
   "scarlett.fallbackLightHint": "éclaire là où la lumière du jeu n’apparaît pas encore ; demande un build qui l’a",
+  "saves.backup": "Sauvegarde des parties",
+  "saves.backupHint": "avant chaque partie, copie les sauvegardes dans save-backups, à côté du dossier de données ; les 10 plus récentes sont gardées",
   "feat.title": "Fonctions de ScarlettPort",
   "feat.fullTextures": "Textures complètes",
   "feat.fullTexturesHint": "charge tous les niveaux de texture d’un coup ; utilise plus de mémoire vidéo",

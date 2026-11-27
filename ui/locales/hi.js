@@ -109,6 +109,8 @@ I18N.add("hi", {
   "scarlett.raytracingHint": "गेम की अपनी रे-ट्रेस्ड रोशनी; GPU पर भारी",
   "scarlett.fallbackLight": "वैकल्पिक रोशनी",
   "scarlett.fallbackLightHint": "जहाँ गेम की रोशनी अभी नहीं दिखती वहाँ उजाला करती है; इसके साथ वाला बिल्ड चाहिए",
+  "saves.backup": "सेव का बैकअप",
+  "saves.backupHint": "हर बार खेलने से पहले सेव को डेटा फ़ोल्डर के पास save-backups में कॉपी करता है; नवीनतम 10 रखे जाते हैं",
   "feat.title": "ScarlettPort सुविधाएँ",
   "feat.fullTextures": "पूरे टेक्सचर",
   "feat.fullTexturesHint": "सभी टेक्सचर स्तर एक साथ लोड करता है; ज़्यादा वीडियो मेमोरी लेता है",

@@ -109,6 +109,8 @@ I18N.add("bn", {
   "scarlett.raytracingHint": "গেমের নিজস্ব রে-ট্রেসড আলো; GPU-তে ভারী",
   "scarlett.fallbackLight": "বিকল্প আলো",
   "scarlett.fallbackLightHint": "যেখানে গেমের আলো এখনো দেখা যায় না সেখানে আলো দেয়; এটি থাকা বিল্ড দরকার",
+  "saves.backup": "সেভের ব্যাকআপ",
+  "saves.backupHint": "প্রতিবার খেলার আগে সেভগুলো ডেটা ফোল্ডারের পাশে save-backups-এ কপি করে; সর্বশেষ ১০টি রাখা হয়",
   "feat.title": "ScarlettPort বৈশিষ্ট্য",
   "feat.fullTextures": "পূর্ণ টেক্সচার",
   "feat.fullTexturesHint": "সব টেক্সচার স্তর একসাথে লোড করে; বেশি ভিডিও মেমরি লাগে",

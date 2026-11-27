@@ -109,6 +109,8 @@ I18N.add("en", {
   "scarlett.raytracingHint": "the game's own ray-traced light; heavy on the GPU",
   "scarlett.fallbackLight": "Stand-in light",
   "scarlett.fallbackLightHint": "lights what the game's lighting does not show yet; needs a build that has it",
+  "saves.backup": "Save backups",
+  "saves.backupHint": "before each run, copies the saves to save-backups, beside the data folder; the 10 newest are kept",
   "feat.title": "ScarlettPort features",
   "feat.fullTextures": "Full textures",
   "feat.fullTexturesHint": "loads every texture level at once; uses more video memory",

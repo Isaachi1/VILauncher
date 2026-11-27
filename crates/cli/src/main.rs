@@ -615,6 +615,9 @@ fn run(args: &[String]) -> ExitCode {
         print!("{}", l.shell_text());
         return ExitCode::SUCCESS;
     }
+    if let Some(note) = scarlett::before_run(&cfg) {
+        eprintln!("{note}");
+    }
     let mut cmd = match l.command() {
         Ok(c) => c,
         Err(e) => return fail(e),

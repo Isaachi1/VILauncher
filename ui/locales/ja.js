@@ -109,6 +109,8 @@ I18N.add("ja", {
   "scarlett.raytracingHint": "ゲーム本来のレイトレーシング照明。GPU 負荷が高い",
   "scarlett.fallbackLight": "代替ライト",
   "scarlett.fallbackLightHint": "ゲームの照明がまだ出ない場所を照らします。対応ビルドが必要",
+  "saves.backup": "セーブのバックアップ",
+  "saves.backupHint": "毎回のプレイ前に、データフォルダー横の save-backups にセーブをコピーします。新しい 10 件を保持",
   "feat.title": "ScarlettPort の機能",
   "feat.fullTextures": "フルテクスチャ",
   "feat.fullTexturesHint": "すべてのテクスチャレベルを一度に読み込みます。ビデオメモリを多く使います",
