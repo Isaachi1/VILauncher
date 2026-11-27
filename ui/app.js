@@ -129,8 +129,8 @@ async function refreshTitle() {
 let exeRun = 0;
 
 // Fills step 2 with the .exe files of the folder of step 1 (MicrosoftGame.config's own
-// first). "Automático" leaves game.exe empty, so the launcher keeps following the config;
-// a pick outside the list (Outro .exe…) is kept as an option too.
+// first). The select starts empty: game.exe stays unset, so the launcher keeps following the
+// config, until one is picked; a pick outside the list (Outro .exe…) is kept as an option too.
 async function refreshExes() {
   const dir = $('[data-path="game.dir"]').value.trim();
   const sel = $("#game-exe");
@@ -162,8 +162,7 @@ async function refreshExes() {
 
   const named = (info && info.executables) || [];
   const fromConfig = (e) => named.some((n) => n.replace(/\\/g, "/").toLowerCase() === e.toLowerCase());
-  const auto = exes.find(fromConfig) || (named.length === 0 && exes.length === 1 ? exes[0] : null);
-  sel.replaceChildren(new Option(auto ? t("game.exeAuto", { exe: auto }) : t("game.exeAutoNone"), ""));
+  sel.replaceChildren(new Option("", ""));
   for (const e of exes) sel.append(new Option(fromConfig(e) ? `${e} · MicrosoftGame.config` : e, e));
   if (current && !exes.includes(current)) sel.append(new Option(current, current));
   sel.value = current;

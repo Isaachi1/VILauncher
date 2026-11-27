@@ -30,8 +30,6 @@ I18N.add("zh-CN", {
   "game.exe": "可执行文件",
   "game.exeHint": "（可选；默认使用 MicrosoftGame.config 中指定的）",
   "game.exeOther": "其他 .exe…",
-  "game.exeAuto": "自动：{exe}（MicrosoftGame.config 中的）",
-  "game.exeAutoNone": "自动（MicrosoftGame.config 中的）",
   "game.exeLocked": "请先选择游戏文件夹。",
   "game.exeFound": "文件夹中找到的可执行文件：{n}",
   "game.exeNone": "文件夹中没有 .exe；请使用“其他 .exe…”",

@@ -30,8 +30,6 @@ I18N.add("ur", {
   "game.exe": "ایگزیکیوٹیبل",
   "game.exeHint": "(اختیاری؛ ڈیفالٹ: MicrosoftGame.config والا)",
   "game.exeOther": "دوسری .exe…",
-  "game.exeAuto": "خودکار: {exe} (MicrosoftGame.config والی)",
-  "game.exeAutoNone": "خودکار (MicrosoftGame.config والی)",
   "game.exeLocked": "پہلے گیم کا فولڈر منتخب کریں۔",
   "game.exeFound": "فولڈر میں ملنے والی ایگزیکیوٹ ایبل فائلیں: {n}",
   "game.exeNone": "فولڈر میں کوئی .exe نہیں ملی؛ «دوسری .exe…» استعمال کریں",

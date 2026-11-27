@@ -30,8 +30,6 @@ I18N.add("ru", {
   "game.exe": "Исполняемый файл",
   "game.exeHint": "(необязательно; по умолчанию — из MicrosoftGame.config)",
   "game.exeOther": "Другой .exe…",
-  "game.exeAuto": "Автоматически: {exe} (из MicrosoftGame.config)",
-  "game.exeAutoNone": "Автоматически (из MicrosoftGame.config)",
   "game.exeLocked": "Сначала выберите папку игры.",
   "game.exeFound": "Найдено исполняемых файлов в папке: {n}",
   "game.exeNone": "В папке нет .exe; используйте «Другой .exe…»",

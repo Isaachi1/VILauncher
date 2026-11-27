@@ -30,8 +30,6 @@ I18N.add("ja", {
   "game.exe": "実行ファイル",
   "game.exeHint": "（任意。既定: MicrosoftGame.config のもの）",
   "game.exeOther": "他の .exe…",
-  "game.exeAuto": "自動: {exe}（MicrosoftGame.config のもの）",
-  "game.exeAutoNone": "自動（MicrosoftGame.config のもの）",
   "game.exeLocked": "先にゲームフォルダーを選んでください。",
   "game.exeFound": "フォルダー内の実行ファイル: {n}",
   "game.exeNone": "フォルダーに .exe がありません。「他の .exe…」を使ってください",

@@ -30,8 +30,6 @@ I18N.add("es", {
   "game.exe": "Ejecutable",
   "game.exeHint": "(opcional; por defecto: el de MicrosoftGame.config)",
   "game.exeOther": "Otro .exe…",
-  "game.exeAuto": "Automático: {exe} (el de MicrosoftGame.config)",
-  "game.exeAutoNone": "Automático (el de MicrosoftGame.config)",
   "game.exeLocked": "Elige primero la carpeta del juego.",
   "game.exeFound": "Ejecutables encontrados en la carpeta: {n}",
   "game.exeNone": "No se encontró ningún .exe en la carpeta; usa Otro .exe…",

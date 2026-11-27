@@ -30,8 +30,6 @@ I18N.add("ar", {
   "game.exe": "الملف التنفيذي",
   "game.exeHint": "(اختياري؛ الافتراضي: الموجود في MicrosoftGame.config)",
   "game.exeOther": "ملف .exe آخر…",
-  "game.exeAuto": "تلقائي: {exe} (المذكور في MicrosoftGame.config)",
-  "game.exeAutoNone": "تلقائي (المذكور في MicrosoftGame.config)",
   "game.exeLocked": "اختر مجلد اللعبة أولًا.",
   "game.exeFound": "الملفات التنفيذية في المجلد: {n}",
   "game.exeNone": "لا يوجد ملف .exe في المجلد؛ استخدم «ملف .exe آخر…»",

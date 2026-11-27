@@ -30,8 +30,6 @@ I18N.add("de", {
   "game.exe": "Programmdatei",
   "game.exeHint": "(optional; Standard: die aus MicrosoftGame.config)",
   "game.exeOther": "Andere .exe…",
-  "game.exeAuto": "Automatisch: {exe} (die aus MicrosoftGame.config)",
-  "game.exeAutoNone": "Automatisch (die aus MicrosoftGame.config)",
   "game.exeLocked": "Wähle zuerst den Spielordner.",
   "game.exeFound": "Gefundene Programme im Ordner: {n}",
   "game.exeNone": "Keine .exe im Ordner gefunden; nutze Andere .exe…",
