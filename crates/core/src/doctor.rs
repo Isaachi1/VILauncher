@@ -71,11 +71,11 @@ pub fn check_platform() -> Check {
 /// under a Wine with D3DMetal (VIctory for macOS); Windows x86-64 runs the backend natively.
 pub fn platform_check(os: &str, arch: &str) -> Check {
     if os == "linux" && arch == "x86_64" {
-        check(Status::Ok, "platform", "Linux x86_64")
+        check(Status::Ok, "platform", "Linux x86_64").coded("platform.linux", &[])
     } else if os == "windows" && arch == "x86_64" {
-        check(Status::Ok, "platform", "Windows x86_64: VIctory and XCL run natively, with the system's D3D12")
+        check(Status::Ok, "platform", "Windows x86_64: VIctory and XCL run natively, with the system's D3D12").coded("platform.windows", &[])
     } else if os == "macos" && arch == "aarch64" {
-        check(Status::Ok, "platform", "macOS on Apple Silicon: Rosetta 2 runs the title's x86-64 code under Wine with D3DMetal")
+        check(Status::Ok, "platform", "macOS on Apple Silicon: Rosetta 2 runs the title's x86-64 code under Wine with D3DMetal").coded("platform.macArm", &[])
     } else if os == "macos" {
         check(Status::Fail, "platform", "macOS on Intel: VIctory for macOS needs Apple Silicon (M1 or newer)").coded("platform.intelMac", &[])
     } else {
@@ -85,7 +85,7 @@ pub fn platform_check(os: &str, arch: &str) -> Check {
             format!(
                 "{os} {arch}: the title's x86-64 code runs directly on the CPU, so an x86-64 Linux or Windows (or an Apple Silicon Mac) is required"
             ),
-        )
+        ).coded("platform.unsupported", &[("os", os.to_string()), ("arch", arch.to_string())])
     }
 }
 
@@ -93,7 +93,7 @@ pub fn check_avx2(cpuinfo: Option<&str>) -> Check {
     let Some(cpuinfo) = cpuinfo else { return check(Status::Warn, "CPU", "cannot read /proc/cpuinfo").coded("cpu.unreadable", &[]) };
     let flags = cpuinfo.lines().find(|l| l.starts_with("flags")).and_then(|l| l.split_once(':')).map(|(_, f)| f).unwrap_or("");
     if flags.split_whitespace().any(|f| f == "avx2") {
-        check(Status::Ok, "CPU", "AVX2 present")
+        check(Status::Ok, "CPU", "AVX2 present").coded("cpu.ok", &[])
     } else {
         check(Status::Fail, "CPU", "no AVX2: the console's code uses it, and VIctory requires it").coded("cpu.noAvx2", &[])
     }
@@ -125,7 +125,7 @@ pub fn check_memory(meminfo: Option<&str>) -> Check {
             Status::Warn,
             "memory",
             format!("{detail}; XCL measured ~15 GiB committed in a newer title's menus, plus the GPU's own: 32 GiB or more is safer"),
-        )
+        ).coded("memory.low", &[("total", detail.clone())])
     } else {
         check(Status::Ok, "memory", detail)
     }
@@ -148,14 +148,14 @@ pub fn check_max_map_count(value: Option<&str>) -> Check {
 /// them the GPU reads zeros where the title wrote (XCL logs it in its start-up UMA check).
 pub fn check_userfaultfd(unprivileged: Option<&str>, device_usable: bool) -> Check {
     if unprivileged.map(str::trim) == Some("1") || device_usable {
-        check(Status::Ok, "userfaultfd", "available to Wine")
+        check(Status::Ok, "userfaultfd", "available to Wine").coded("userfaultfd.ok", &[])
     } else {
         let c = check(
             Status::Warn,
             "userfaultfd",
             "not available to unprivileged processes; vkd3d-proton may not see the title's memory writes (XCL #175). \
              Fix: `sudo sysctl -w vm.unprivileged_userfaultfd=1` or give your user access to /dev/userfaultfd",
-        );
+        ).coded("userfaultfd.off", &[]);
         // Without the setting (a kernel built without it) there is nothing to switch on.
         if unprivileged.is_some() { c.fixable(Fix::Userfaultfd) } else { c }
     }
@@ -177,13 +177,13 @@ pub fn check_vulkan(output: Option<&str>) -> Vec<Check> {
         return vec![check(Status::Fail, "Vulkan", "no Vulkan device: vkd3d-proton needs a Vulkan driver (Mesa RADV, NVIDIA)").coded("vulkan.noDevice", &[])];
     }
     let mesh = if out.contains("VK_EXT_mesh_shader") {
-        check(Status::Ok, "mesh shaders", "VK_EXT_mesh_shader present")
+        check(Status::Ok, "mesh shaders", "VK_EXT_mesh_shader present").coded("mesh.ok", &[])
     } else {
         check(
             Status::Warn,
             "mesh shaders",
             "no VK_EXT_mesh_shader: the console's geometry / NGG programs run as mesh shaders; the world will not draw",
-        )
+        ).coded("mesh.missing", &[])
     };
     vec![check(Status::Ok, "Vulkan", names.join(", ")), mesh]
 }
@@ -232,22 +232,22 @@ pub fn check_runner(cfg: &Config) -> Vec<Check> {
     };
     let mut checks = vec![check(Status::Ok, "runner", format!("{} {}", runner.name(), runner.version()))];
     if matches!(runner, Runner::Native) {
-        checks.push(check(Status::Ok, "d3d12", "the system's own D3D12 (the GPU driver's); no prefix needed"));
+        checks.push(check(Status::Ok, "d3d12", "the system's own D3D12 (the GPU driver's); no prefix needed").coded("d3d12.native", &[]));
         return checks;
     }
     let is_wine = matches!(runner, Runner::Wine(_));
     if !is_wine && std::env::var_os("PROTON_USE_WINED3D").is_some_and(|v| !v.is_empty() && v != "0") {
         checks.push(check(Status::Fail, "vkd3d-proton", "PROTON_USE_WINED3D is set: unset it, D3D12 must go through vkd3d-proton").coded("vkd3d.wined3d", &[]));
     } else if runners::MACOS && is_wine {
-        checks.push(check(Status::Ok, "d3d12", "D3D12 goes to the Wine build's D3DMetal (4.0 or newer is needed)"));
+        checks.push(check(Status::Ok, "d3d12", "D3D12 goes to the Wine build's D3DMetal (4.0 or newer is needed)").coded("d3d12.metal", &[]));
     } else if runner.vkd3d_installed() {
-        checks.push(check(Status::Ok, "vkd3d-proton", if is_wine { "installed in the prefix" } else { "bundled with Proton" }));
+        checks.push(check(Status::Ok, "vkd3d-proton", if is_wine { "installed in the prefix" } else { "bundled with Proton" }).coded(if is_wine { "vkd3d.inPrefix" } else { "vkd3d.bundled" }, &[]));
     } else if let Runner::Wine(w) = &runner {
         checks.push(check(
             Status::Fail,
             "vkd3d-proton",
             format!("not in {}: choose an unpacked vkd3d-proton release and prepare the prefix", w.system32().display()),
-        ));
+        ).coded("vkd3d.notInWine", &[("path", w.system32().display().to_string())]));
     } else {
         checks.push(check(Status::Warn, "vkd3d-proton", "not found in this Proton; it may not support D3D12").coded("vkd3d.notInProton", &[]));
     }
@@ -302,7 +302,7 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
                     missing.join(", "),
                     dxc.display()
                 ),
-            )
+            ).coded("dxc.missing", &[("files", missing.join(", ")), ("path", dxc.display().to_string())])
         });
         let opus = cfg.opus_dir().unwrap_or(exe_dir);
         checks.push(if ["opus.dll", "libopus.dll", "libopus-0.dll"].iter().any(|n| opus.join(n).is_file()) {
@@ -316,7 +316,7 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
                 } else {
                     "no opus.dll: Wine has no Opus decoder of its own, so Opus audio stays silent"
                 },
-            )
+            ).coded(if runners::WINDOWS { "opus.missingWindows" } else { "opus.missingWine" }, &[])
         });
     }
     for (name, dir) in [("data folder", cfg.data_dir()), ("cache folder", cfg.cache_dir())] {
@@ -325,7 +325,7 @@ pub fn check_backend(cfg: &Config) -> Vec<Check> {
                 Status::Fail,
                 name,
                 format!("{} is inside the VIctory source tree {}; game-derived data must stay out of it", dir.display(), tree.display()),
-            ));
+            ).coded("folder.inTree", &[("path", dir.display().to_string()), ("tree", tree.display().to_string())]));
         }
     }
     checks
@@ -340,7 +340,7 @@ pub fn check_game(cfg: &Config) -> Vec<Check> {
             Status::Fail,
             "game",
             format!("{} is inside the VIctory source tree {}; keep game files outside it", dir.display(), tree.display()),
-        )];
+        ).coded("game.inTree", &[("path", dir.display().to_string()), ("tree", tree.display().to_string())])];
     }
     let resolved = gamedir::inspect(&dir).and_then(|info| gamedir::resolve_exe(&info, cfg.game.exe.as_deref()).map(|exe| (info, exe)));
     let (info, exe) = match resolved {
@@ -352,7 +352,7 @@ pub fn check_game(cfg: &Config) -> Vec<Check> {
             Status::Fail,
             "game",
             format!("{} is not a readable 64-bit executable; SixLauncher needs the unpacked files of a game you own", exe.display()),
-        )];
+        ).coded("game.notWin64", &[("path", exe.display().to_string())])];
     }
     let version = info.version.as_deref().map(|v| format!(" {v}")).unwrap_or_default();
     let shown = exe.strip_prefix(&info.folder).unwrap_or(&exe).display().to_string();
@@ -380,8 +380,8 @@ pub fn check_game_hash(verdict: Result<integrity::Verdict>, shown: &str) -> Chec
                 &v.sha256[..12],
                 integrity::expected(integrity::Kind::Exe).iter().map(|h| &h[..12]).collect::<Vec<_>>().join(", ")
             ),
-        ),
-        Err(e) => check(Status::Warn, "game-sha256", format!("{shown}: could not read it to check its SHA-256: {e}")),
+        ).coded("hash.mismatch", &[("file", shown.to_string()), ("sha", v.sha256[..12].to_string())]),
+        Err(e) => check(Status::Warn, "game-sha256", format!("{shown}: could not read it to check its SHA-256: {e}")).coded("hash.unreadable", &[("file", shown.to_string()), ("error", e.to_string())]),
     }
 }
 
@@ -418,7 +418,7 @@ pub fn check_gpu(cfg: &Config, gpus: &[gpu::Gpu]) -> Check {
             Status::Warn,
             "GPU",
             format!("{slot} is not on this machine (now); the system picks the GPU. Choose another one or `auto`"),
-        ),
+        ).coded("gpu.missing", &[("slot", slot.to_string())]),
     }
 }
 
@@ -471,6 +471,8 @@ mod tests {
         assert_eq!(json["args"]["want"], super::MAX_MAP_COUNT.to_string());
         let plain = serde_json::to_value(super::check_max_map_count(Some("2000000"))).unwrap();
         assert!(plain.get("code").is_none() && plain.get("args").is_none(), "{plain}");
+        assert_eq!(super::check_userfaultfd(Some("0\n"), false).code.as_deref(), Some("userfaultfd.off"));
+        assert_eq!(super::check_avx2(Some("flags\t: fpu avx2\n")).code.as_deref(), Some("cpu.ok"));
     }
 
     use super::*;
