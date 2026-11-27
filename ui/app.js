@@ -871,6 +871,9 @@ function showRuntimes(rt) {
   $("#runtimes-why").hidden = rt.candidates.length === 0;
 }
 
+// A build's replacement time (seconds since the epoch, update.rs) in the window's language.
+const when = (secs) => new Date(secs * 1000).toLocaleString(I18N.locale(), { dateStyle: "short", timeStyle: "short" });
+
 function previousBuilds(r) {
   const box = el("details", "previous");
   box.append(el("summary", null, t("runtimes.previous", { n: r.previous.length })));
