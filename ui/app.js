@@ -1203,8 +1203,46 @@ async function guarded(button, fn) {
   }
 }
 
+// -- the outcome of a run -------------------------------------------------------------------
+
+let stopRequested = false;
+
+// A run that ended with an error (any code but 0, unless Parar ended it): today that is the
+// expected end, since no port runs the game yet, so say so and offer what helps the port's
+// developers: detailed logs, another run, the report.
+function showOutcome(code) {
+  const box = $("#run-outcome");
+  const windows = PLATFORM === "windows";
+  const verbose = verboseOn(config);
+  say("#run-outcome-title", "run.failedTitle", { code });
+  say("#run-outcome-body", "run.failedBody", { backend: BACKEND_NAME[config.backend.kind] });
+  const next = $("#run-outcome-next");
+  next.hidden = windows;
+  if (!windows) say("#run-outcome-next", verbose ? "run.failedVerboseOn" : "run.failedVerboseOff");
+  // The step that matters most leads: the detailed run first, then the report.
+  const retryFirst = !windows && !verbose;
+  const retry = $("#run-retry");
+  say("#run-retry", retryFirst ? "run.retryVerbose" : "run.retry");
+  retry.className = retryFirst ? "primary" : "ghost";
+  // The report box right below already offers the export; the card repeats it only when the
+  // export is the next step (detailed logs were on, or there are none to turn on).
+  $("#run-export").hidden = retryFirst;
+  $("#run-export").className = "primary";
+  box.hidden = false;
+}
+
+async function retryRun() {
+  if (PLATFORM !== "windows" && !verboseOn(config)) {
+    await setVerbose(true);
+    $("#verbose-logs").checked = true;
+  }
+  await play(false);
+}
+
 async function play(force) {
   hideBanner();
+  $("#run-outcome").hidden = true;
+  stopRequested = false;
   await save();
   try {
     $("#log").replaceChildren();
@@ -1424,7 +1462,12 @@ async function init() {
   $("#play").addEventListener("click", () => guarded($("#play"), () => play(false)));
   $("#banner-force").addEventListener("click", () => guarded($("#play"), () => play(true)));
   $("#banner-close").addEventListener("click", hideBanner);
-  $("#stop").addEventListener("click", () => invoke("stop_game"));
+  $("#stop").addEventListener("click", () => {
+    stopRequested = true;
+    invoke("stop_game");
+  });
+  $("#run-retry").addEventListener("click", () => guarded($("#run-retry"), retryRun));
+  $("#run-export").addEventListener("click", () => $("#report-export").click());
   $("#save").addEventListener("click", () => guarded($("#save"), save));
   $("#setup").addEventListener("click", () =>
     guarded($("#setup"), async () => {
@@ -1550,7 +1593,10 @@ async function init() {
   await listen("game-log", (ev) => appendLog(ev.payload.line, ev.payload.stream));
   await listen("game-exit", (ev) => {
     setRunning(false);
-    appendLog(`— ${t("log.exit", { code: ev.payload ?? t("log.unknownCode") })} —`, "stdout");
+    const code = ev.payload ?? t("log.unknownCode");
+    appendLog(`— ${t("log.exit", { code })} —`, "stdout");
+    if (!stopRequested && ev.payload !== 0) showOutcome(code);
+    stopRequested = false;
   });
 }
 
