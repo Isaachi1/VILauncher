@@ -211,6 +211,8 @@ pub struct ScarlettSection {
     pub mouse_sensitivity: f32,
     /// Copy the saves before each run (the newest scarlett::KEEP_BACKUPS are kept).
     pub backup_saves: bool,
+    /// The console player's name (SCARLETT_GAMERTAG); empty: the runtime's default.
+    pub player_name: String,
 }
 
 impl Default for ScarlettSection {
@@ -234,6 +236,7 @@ impl Default for ScarlettSection {
             mouse_look: true,
             mouse_sensitivity: 1.0,
             backup_saves: true,
+            player_name: String::new(),
         }
     }
 }

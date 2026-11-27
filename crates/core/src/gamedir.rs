@@ -184,8 +184,92 @@ pub fn resolve_exe(info: &GameInfo, override_exe: Option<&str>) -> Result<PathBu
     )))
 }
 
+// -- finding a game folder (ported from ScarlettPort's first run) ----------------------------
+
+/// How long [`search`] may take before it stops by itself.
+pub const SEARCH_LIMIT: std::time::Duration = std::time::Duration::from_secs(25);
+/// At most this many folders are reported.
+pub const SEARCH_MAX: usize = 20;
+
+/// Folders never searched: system folders, caches, packages and source trees. Hidden folders
+/// (a leading dot) are skipped too.
+const SKIP: [&str; 16] = [
+    "proc", "sys", "dev", "run", "tmp", "windows", "$recycle.bin", "system volume information", "programdata",
+    "appdata", "windowsapps", "node_modules", "target", "snap", "lost+found", "compatdata",
+];
+
+fn skipped(name: &str) -> bool {
+    let n = name.to_ascii_lowercase();
+    n.starts_with('.') || SKIP.contains(&n.as_str())
+}
+
+/// Where to look and how many levels below: the home folder (4) and every mounted disk
+/// (`/mnt`, `/media`, `/run/media/<user>`, `/Volumes`: 4 below each), or the drive roots on
+/// Windows (3).
+pub fn search_starts(home: &Path) -> Vec<(PathBuf, u32)> {
+    let mut out = vec![(home.to_path_buf(), 4)];
+    if cfg!(windows) {
+        out.extend(('C'..='Z').map(|d| PathBuf::from(format!("{d}:\\"))).filter(|p| p.is_dir()).map(|p| (p, 3)));
+        return out;
+    }
+    let user = home.file_name().map(|n| n.to_os_string()).unwrap_or_default();
+    for mounts in [PathBuf::from("/mnt"), PathBuf::from("/media"), Path::new("/media").join(&user), Path::new("/run/media").join(&user), PathBuf::from("/Volumes")] {
+        if let Ok(rd) = fs::read_dir(&mounts) {
+            out.extend(rd.flatten().filter(|e| e.file_type().is_ok_and(|t| t.is_dir())).map(|e| (e.path(), 4)));
+        }
+    }
+    out
+}
+
+/// Breadth-first search of `starts` for game folders (one holding MicrosoftGame.config), until
+/// `deadline` or [`SEARCH_MAX`] found. A found folder is not searched further, and symbolic
+/// links are not followed (no loops). Reads folder listings only.
+pub fn search(starts: &[(PathBuf, u32)], deadline: std::time::Instant) -> Vec<PathBuf> {
+    let mut found = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    let mut queue: std::collections::VecDeque<(PathBuf, u32)> = starts.iter().cloned().collect();
+    while let Some((dir, depth)) = queue.pop_front() {
+        if found.len() >= SEARCH_MAX || std::time::Instant::now() >= deadline {
+            break;
+        }
+        if !seen.insert(dir.clone()) {
+            continue;
+        }
+        if find_config(&dir).is_some() {
+            found.push(dir);
+            continue;
+        }
+        if depth == 0 {
+            continue;
+        }
+        let Ok(rd) = fs::read_dir(&dir) else { continue };
+        for e in rd.flatten() {
+            if e.file_type().is_ok_and(|t| t.is_dir()) && !skipped(&e.file_name().to_string_lossy()) {
+                queue.push_back((e.path(), depth - 1));
+            }
+        }
+    }
+    found
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn search_finds_game_folders_and_skips_the_rest() {
+        let t = tempfile::tempdir().unwrap();
+        let root = t.path();
+        for d in ["Games/GTA/Content", ".cache/hidden", "node_modules/pkg", "deep/a/b/c/d/e"] {
+            fs::create_dir_all(root.join(d)).unwrap();
+        }
+        for d in ["Games/GTA/Content", ".cache/hidden", "node_modules/pkg", "deep/a/b/c/d/e"] {
+            fs::write(root.join(d).join("MicrosoftGame.config"), "<Game/>").unwrap();
+        }
+        let found = search(&[(root.to_path_buf(), 4)], std::time::Instant::now() + SEARCH_LIMIT);
+        assert_eq!(found, [root.join("Games/GTA/Content")], "hidden, skipped and too deep folders are not searched");
+        assert!(search(&[(root.to_path_buf(), 4)], std::time::Instant::now()).is_empty(), "the deadline stops it");
+        assert_eq!(search_starts(root)[0], (root.to_path_buf(), 4));
+    }
+
     use super::*;
     use crate::testutil;
 

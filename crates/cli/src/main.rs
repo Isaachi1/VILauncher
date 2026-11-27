@@ -59,6 +59,8 @@ Usage:
                                   ScarlettPort: translate every shader and make the pipelines
                                   ahead of a run (`scarlett prepare`), for the chosen preset;
                                   a stopped run resumes where it was
+  sixlauncher find-games           look for game folders (MicrosoftGame.config) in the home
+                                  folder and on mounted disks, for up to 25 s
   sixlauncher gpus                 the GPUs, the one `auto` picks, MangoHud and GameMode
   sixlauncher config               print the configuration
   sixlauncher desktop              add a menu entry that runs the game
@@ -819,6 +821,17 @@ fn main() -> ExitCode {
         Some("report") => report_cmd(rest),
         Some("run") => run(rest),
         Some("prepare-shaders") => prepare_shaders(rest),
+        Some("find-games") => {
+            let found = gamedir::search(&gamedir::search_starts(&paths::home()), std::time::Instant::now() + gamedir::SEARCH_LIMIT);
+            for dir in &found {
+                let title = gamedir::inspect(dir).map(|i| i.title()).unwrap_or_default();
+                println!("{}  {title}", dir.display());
+            }
+            if found.is_empty() {
+                println!("no game folder found");
+            }
+            ExitCode::SUCCESS
+        }
         Some("info") => info(rest),
         Some("gpus") => gpus(),
         Some("protons") => {
