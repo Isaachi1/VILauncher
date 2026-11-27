@@ -542,6 +542,8 @@ td.name { white-space: nowrap; font-weight: 700; color: var(--ink); }
 
 /* -- log ---------------------------------------------------------------------------------- */
 
+/* Before the first run: what will show here, instead of an empty black box. */
+pre#log:empty::before { content: attr(data-empty); color: var(--muted); font-family: var(--body); font-size: 13px; }
 pre#log {
   margin: 0;
   color: #d9dbe5;
@@ -558,6 +560,25 @@ pre#log {
 }
 
 /* The report: what goes in the .zip, the detailed-logs switch, the button. */
+/* The outcome of a run that ended with an error, above the report it leads to. */
+.run-outcome {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 20px;
+  margin: 0 0 16px;
+  padding: 16px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--soft);
+  border: 1px solid var(--line-2);
+}
+.run-outcome[hidden] { display: none; }
+.run-outcome-text { flex: 1 1 360px; min-width: 0; }
+.run-outcome-text b { display: block; font-size: 15px; }
+.run-outcome-text p { margin: 6px 0 0; max-width: 70ch; color: var(--ink-2); font-size: 13.5px; line-height: 1.5; }
+.run-outcome-text p + p { color: var(--muted); }
+.run-outcome-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .report {
   display: flex;
   flex-wrap: wrap;

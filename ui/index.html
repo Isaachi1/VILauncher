@@ -344,6 +344,18 @@
         <span class="status" id="log-path"></span>
         <button id="log-clear" class="ghost" data-i18n="log.clear">Limpar</button>
       </div>
+      <!-- After a run that ended with an error: what it means today and the next step. -->
+      <div id="run-outcome" class="run-outcome" role="status" hidden>
+        <div class="run-outcome-text">
+          <b id="run-outcome-title"></b>
+          <p id="run-outcome-body"></p>
+          <p id="run-outcome-next"></p>
+        </div>
+        <div class="run-outcome-actions">
+          <button id="run-retry" type="button"></button>
+          <button id="run-export" type="button" data-i18n="run.export">Exportar relatório .zip</button>
+        </div>
+      </div>
       <div class="report">
         <div class="report-text">
           <b data-i18n="report.title">Relatório para os desenvolvedores</b>
@@ -353,7 +365,7 @@
         </div>
         <button id="report-export" class="primary" data-i18n="report.export">Exportar .zip</button>
       </div>
-      <pre id="log"></pre>
+      <pre id="log" data-empty="A saída do jogo e do Proton aparece aqui quando você clicar em Jogar." data-i18n-attr="data-empty:log.empty"></pre>
     </section>
 
     <section id="tab-status" class="panel bare" hidden>

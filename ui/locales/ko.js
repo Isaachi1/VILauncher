@@ -273,4 +273,12 @@ I18N.add("ko", {
   "runtimes.rolledBack": "{name}이(가) {build}(으)로 돌아갔습니다.",
   "runtimes.offline": "게시된 빌드를 가져올 수 없습니다. 설치된 것만 표시합니다.",
   "runtimes.unpublished": "{url}에 게시된 빌드가 없습니다(GitHub가 404 응답). 빌더가 아직 아무것도 게시하지 않았거나 저장소가 비공개입니다. 비공개 저장소의 다운로드는 런처에 404를 반환합니다.",
+  "run.failedTitle": "게임이 종료되었습니다 (코드 {code})",
+  "run.failedBody": "지금은 예상된 결과입니다. 아직 PC에서 GTA VI를 실행하는 포트는 없습니다. 이번 실행의 보고서로 {backend} 개발자를 도울 수 있습니다.",
+  "run.failedVerboseOff": "보고서가 도움이 되려면 자세한 로그를 켜고 다시 플레이한 뒤 .zip을 내보내세요.",
+  "run.failedVerboseOn": "자세한 로그가 켜져 있었습니다. 이번 실행의 .zip에 개발자에게 필요한 내용이 이미 들어 있습니다.",
+  "run.retryVerbose": "자세한 로그를 켜고 다시 플레이",
+  "run.retry": "다시 플레이",
+  "run.export": "보고서 .zip 내보내기",
+  "log.empty": "플레이를 누르면 게임과 Proton의 출력이 여기에 표시됩니다.",
 });

@@ -273,4 +273,12 @@ I18N.add("tr", {
   "runtimes.rolledBack": "{name}, {build} sürümüne geri döndü.",
   "runtimes.offline": "Yayınlanan derlemeler alınamadı; yalnızca kurulu olanlar gösteriliyor.",
   "runtimes.unpublished": "{url} adresinde yayımlanmış derleme yok (GitHub 404 döndürdü). Builder henüz bir şey yayımlamadı ya da deposu özel: özel bir depodan indirmeler başlatıcıya 404 döndürür.",
+  "run.failedTitle": "Oyun kapandı (kod {code})",
+  "run.failedBody": "Şimdilik bu bekleniyor: henüz hiçbir port GTA VI'yı PC'de çalıştırmıyor. Yapabileceğin şey, bu çalıştırmanın raporuyla {backend} geliştiricilerine yardım etmek.",
+  "run.failedVerboseOff": "Raporun işe yaraması için ayrıntılı günlükler açıkken tekrar oyna, sonra .zip'i dışa aktar.",
+  "run.failedVerboseOn": "Ayrıntılı günlükler açıktı: bu çalıştırmanın .zip'i geliştiricilerin ihtiyacını zaten içeriyor.",
+  "run.retryVerbose": "Ayrıntılı günlükleri aç ve tekrar oyna",
+  "run.retry": "Tekrar oyna",
+  "run.export": "Raporu .zip olarak dışa aktar",
+  "log.empty": "Oyunun ve Proton'un çıktısı, Oyna'ya tıkladığında burada görünür.",
 });

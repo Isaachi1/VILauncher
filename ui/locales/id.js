@@ -273,4 +273,12 @@ I18N.add("id", {
   "runtimes.rolledBack": "{name} kembali ke {build}.",
   "runtimes.offline": "Tidak bisa mengambil build yang diterbitkan; hanya menampilkan yang terpasang.",
   "runtimes.unpublished": "Tidak ada build yang dipublikasikan di {url} (GitHub menjawab 404). Builder belum memublikasikan apa pun, atau repositorinya privat: unduhan dari repositori privat menjawab 404 ke launcher.",
+  "run.failedTitle": "Gim tertutup (kode {code})",
+  "run.failedBody": "Untuk saat ini itu wajar: belum ada port yang menjalankan GTA VI di PC. Yang bisa kamu lakukan adalah membantu pengembang {backend} dengan laporan dari jalannya kali ini.",
+  "run.failedVerboseOff": "Agar laporannya berguna, main lagi dengan log terperinci aktif, lalu ekspor .zip-nya.",
+  "run.failedVerboseOn": "Log terperinci aktif: .zip dari jalannya kali ini sudah berisi yang dibutuhkan pengembang.",
+  "run.retryVerbose": "Aktifkan log terperinci dan main lagi",
+  "run.retry": "Main lagi",
+  "run.export": "Ekspor laporan .zip",
+  "log.empty": "Keluaran gim dan Proton muncul di sini saat kamu mengklik Main.",
 });

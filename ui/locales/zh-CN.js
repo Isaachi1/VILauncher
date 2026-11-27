@@ -273,4 +273,12 @@ I18N.add("zh-CN", {
   "runtimes.rolledBack": "{name} 已回退到 {build}。",
   "runtimes.offline": "无法获取已发布的构建；仅显示已安装的内容。",
   "runtimes.unpublished": "{url} 上没有已发布的构建（GitHub 返回 404）。构建服务尚未发布任何内容，或其仓库是私有的：私有仓库的下载对启动器返回 404。",
+  "run.failedTitle": "游戏已关闭（代码 {code}）",
+  "run.failedBody": "目前这是预期情况：还没有任何移植能在 PC 上运行 GTA VI。你能做的是用这次运行的报告帮助 {backend} 的开发者。",
+  "run.failedVerboseOff": "为了让报告有用，请开启详细日志再玩一次，然后导出 .zip。",
+  "run.failedVerboseOn": "详细日志已开启：这次运行的 .zip 已经包含开发者需要的内容。",
+  "run.retryVerbose": "开启详细日志并重新游玩",
+  "run.retry": "重新游玩",
+  "run.export": "导出报告 .zip",
+  "log.empty": "点击“游玩”后，游戏和 Proton 的输出会显示在这里。",
 });

@@ -273,4 +273,12 @@ I18N.add("ja", {
   "runtimes.rolledBack": "{name} を {build} に戻しました。",
   "runtimes.offline": "公開されたビルドを取得できませんでした。インストール済みのものだけを表示しています。",
   "runtimes.unpublished": "{url} に公開済みのビルドがありません（GitHub は 404 を返しました）。ビルダーがまだ何も公開していないか、リポジトリが非公開です。非公開リポジトリのダウンロードはランチャーに 404 を返します。",
+  "run.failedTitle": "ゲームが終了しました（コード {code}）",
+  "run.failedBody": "現時点ではこれが想定どおりです。PC で GTA VI を動かせる移植はまだありません。できることは、この実行のレポートで {backend} の開発者を助けることです。",
+  "run.failedVerboseOff": "レポートを役立てるには、詳細ログをオンにしてもう一度プレイし、.zip をエクスポートしてください。",
+  "run.failedVerboseOn": "詳細ログはオンでした。この実行の .zip には開発者に必要な情報がすでに入っています。",
+  "run.retryVerbose": "詳細ログをオンにしてもう一度プレイ",
+  "run.retry": "もう一度プレイ",
+  "run.export": "レポートを .zip でエクスポート",
+  "log.empty": "「プレイ」をクリックすると、ゲームと Proton の出力がここに表示されます。",
 });

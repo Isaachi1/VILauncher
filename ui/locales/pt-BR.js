@@ -273,4 +273,12 @@ I18N.add("pt-BR", {
   "runtimes.rolledBack": "{name} voltou para {build}.",
   "runtimes.offline": "Não foi possível buscar as builds publicadas; mostrando só o que está instalado.",
   "runtimes.unpublished": "Nenhuma build publicada em {url} (o GitHub respondeu 404). O builder ainda não publicou nada, ou o repositório dele é privado: downloads de um repositório privado dão 404 para o launcher.",
+  "run.failedTitle": "O jogo fechou (código {code})",
+  "run.failedBody": "Por enquanto isso é esperado: nenhum port roda o GTA VI no PC ainda. O que dá para fazer é ajudar os desenvolvedores do {backend} com o relatório desta execução.",
+  "run.failedVerboseOff": "Para o relatório ser útil, jogue de novo com os logs detalhados ligados e depois exporte o .zip.",
+  "run.failedVerboseOn": "Os logs detalhados estavam ligados: o .zip desta execução já tem o que os desenvolvedores precisam.",
+  "run.retryVerbose": "Ligar logs detalhados e jogar de novo",
+  "run.retry": "Jogar de novo",
+  "run.export": "Exportar relatório .zip",
+  "log.empty": "A saída do jogo e do Proton aparece aqui quando você clicar em Jogar.",
 });
