@@ -279,7 +279,7 @@ function selectTab(name) {
 function appendLog(line, stream) {
   const log = $("#log");
   const span = document.createElement("span");
-  if (stream === "stderr") span.className = "stderr";
+  if (stream === "stderr" || stream === "cmd") span.className = stream;
   span.textContent = line + "\n";
   const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
   log.appendChild(span);
@@ -1181,7 +1181,7 @@ async function installRuntime(backend, button, force = false, file = null) {
     say("#runtimes-info", "runtimes.notInstalled", { name: BACKEND_NAME[backend] });
     showBanner(`${r.blocked}\n\n${t("runtimes.keptOld")}`, false);
     const again = el("button", "danger", t("runtimes.installAnyway"));
-    again.addEventListener("click", () => guarded(again, () => installRuntime(backend, again, true, file)));
+    confirmTwice(again, "runtimes.installAnywayConfirm", () => guarded(again, () => installRuntime(backend, again, true, file)));
     if (button) button.replaceWith(again);
     else $("#runtimes-info").after(again);
     if (lastRuntimes) showBuilds(lastRuntimes);
@@ -1484,6 +1484,46 @@ async function retryRun() {
   await play(false);
 }
 
+// What is about to run, at the top of the log: the environment added, the folder and the
+// command (launch.rs's shell_text, as `sixlauncher run --dry-run` prints it). Nothing hides
+// what runs (PRODUCT.md).
+async function showCommand() {
+  try {
+    const text = await invoke("dry_run", { config });
+    for (const line of text.trimEnd().split("\n")) appendLog(line, "cmd");
+    appendLog("", "cmd");
+  } catch {
+    /* the refusal or the launch error says what is wrong */
+  }
+}
+
+// A button whose action overrides a safeguard asks twice: the first click turns it into the
+// confirmation (red), which goes back after a few seconds or when focus leaves it.
+function confirmTwice(button, confirmKey, action) {
+  const key = button.dataset.i18n; // restored as a key, so a change of language still applies
+  const label = button.textContent;
+  const cls = button.className;
+  let armed = null;
+  const disarm = () => {
+    clearTimeout(armed);
+    armed = null;
+    button.className = cls;
+    if (key) I18N.text(button, key);
+    else button.textContent = label;
+  };
+  button.addEventListener("blur", () => armed && disarm());
+  button.addEventListener("click", () => {
+    if (!armed) {
+      button.className = "danger";
+      I18N.text(button, confirmKey);
+      armed = setTimeout(disarm, 5000);
+      return;
+    }
+    disarm();
+    action();
+  });
+}
+
 async function play(force) {
   hideBanner();
   $("#run-outcome").hidden = true;
@@ -1492,6 +1532,7 @@ async function play(force) {
   await save();
   try {
     $("#log").replaceChildren();
+    await showCommand();
     await invoke("launch_game", { config, force });
     setRunning(true);
     selectTab("log");
@@ -1716,7 +1757,7 @@ async function init() {
   }
 
   $("#play").addEventListener("click", () => guarded($("#play"), () => play(false)));
-  $("#banner-force").addEventListener("click", () => guarded($("#play"), () => play(true)));
+  confirmTwice($("#banner-force"), "banner.forceConfirm", () => guarded($("#play"), () => play(true)));
   $("#banner-close").addEventListener("click", hideBanner);
   $("#stop").addEventListener("click", () => {
     stopRequested = true;
