@@ -333,11 +333,12 @@ function showReadyList() {
     const worst = mine.reduce((w, c) => (rank[c.status] > rank[w] ? c.status : w), "ok");
     const state = !lastChecks ? "checking" : worst;
     const li = el("li", `ready-row ${state}`);
-    li.append(el("i", null), el("span", "ready-name", t(part.key)));
+    const label = !part.checks && worst !== "ok" ? `${t(part.key)} · ${checkName(mine.find((c) => c.status === worst))}` : t(part.key);
+    li.append(el("i", null), el("span", "ready-name", label));
     const bad = mine.find((c) => c.status === worst && worst !== "ok");
     if (bad) {
       const action = bad.fix ? { key: "fix.button", go: async () => askFix(bad.fix) } : CHECK_ACTION[bad.name];
-      const b = el("button", "ghost");
+      const b = el("button", worst === "fail" ? "primary" : "ghost");
       I18N.text(b, action ? action.key : "ready.seeChecks");
       b.addEventListener("click", () => guarded(b, action ? action.go : async () => selectTab("doctor")));
       li.append(b);
@@ -440,7 +441,7 @@ async function showRefusal(error) {
     li.append(el("b", null, checkName(c)), " ", el("span", null, checkDetail(c)));
     const a = CHECK_ACTION[c.name];
     if (a) {
-      const b = el("button", "ghost");
+      const b = el("button", "primary");
       I18N.text(b, a.key);
       b.addEventListener("click", () =>
         guarded(b, async () => {

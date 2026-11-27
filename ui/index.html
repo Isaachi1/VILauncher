@@ -132,12 +132,12 @@
       <div class="toggles">
         <label class="toggle">
           <input type="checkbox" data-path="game.verify" data-kind="bool">
-          <span class="toggle-text"><b data-i18n="game.verify">Verificar o executável do jogo</b> <span data-i18n="game.verifyHint">compara o SHA-256 com o do executável conhecido quando a pasta muda e antes de jogar</span><small class="status" id="game-verify"></small></span>
+          <span class="toggle-text"><b data-i18n="game.verify">Conferir o executável do jogo (SHA-256)</b> <span data-i18n="game.verifyHint">compara o SHA-256 com o do executável conhecido quando a pasta muda e antes de jogar</span><small class="status" id="game-verify"></small></span>
         </label>
       </div>
       <div class="actions">
         <button id="desktop" class="ghost" data-i18n="desktop">Criar atalho no menu</button>
-        <button id="verify-zip" class="ghost" data-i18n="game.verifyZip">Verificar um .zip…</button>
+        <button id="verify-zip" class="ghost" data-i18n="game.verifyZip">Conferir um .zip…</button>
         <span class="status" id="zip-verify" role="status"></span>
       </div>
       <div class="note" data-i18n="game.note">
@@ -188,7 +188,7 @@
         <div class="actions vt">
           <input id="vt-key" type="password" autocomplete="off" placeholder="Chave da API do VirusTotal" data-i18n-attr="placeholder:vt.keyPh">
           <button id="vt-save" class="ghost" data-i18n="vt.save">Salvar chave</button>
-          <button id="vt-check" data-i18n="vt.check">Verificar build atual no VirusTotal</button>
+          <button id="vt-check" data-i18n="vt.check">Consultar a build atual no VirusTotal</button>
         </div>
         <span class="status" id="vt-info" role="status"></span>
         <table id="vt"><tbody></tbody></table>
