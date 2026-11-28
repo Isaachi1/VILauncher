@@ -24,6 +24,7 @@ pub mod gpu;
 pub mod host;
 pub mod integrity;
 pub mod launch;
+pub mod memguard;
 pub mod net;
 pub mod notify;
 pub mod paths;

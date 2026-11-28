@@ -622,6 +622,10 @@ fn start(app: AppHandle, running: &Running, l: launch::Launch, runner: Runner, o
     let _ = std::fs::create_dir_all(log_path.parent().unwrap());
     let log = Arc::new(Mutex::new(std::fs::File::create(&log_path).map_err(err)?));
     writeln!(log.lock().unwrap(), "# {}", l.argv.iter().map(|a| launch::shell_quote(a)).collect::<Vec<_>>().join(" ")).ok();
+    if let Some(guard) = &l.guard {
+        writeln!(log.lock().unwrap(), "{}", guard.describe()).ok();
+    }
+    let guard = l.guard.clone();
 
     let emit = {
         let (app, log) = (app.clone(), log.clone());
@@ -670,6 +674,53 @@ fn start(app: AppHandle, running: &Running, l: launch::Launch, runner: Runner, o
         }));
     }
 
+    // The game's memory (memguard's scope), every 5 s while it runs, in the log when it moved;
+    // the peaks at the end. Shows how the memory grew if the game is ended for using too much.
+    if let Some(g) = guard.clone() {
+        let (emit, ended) = (emit.clone(), ended.clone());
+        readers.push(std::thread::spawn(move || {
+            let mut dir = None;
+            let (mut last, mut seen) = (None, None);
+            // Below the ceilings: a game that only swaps (the machine standing still) is ended.
+            let (mut watch, mut killed) = (sixlauncher_core::memguard::Watch::default(), false);
+            while !ended.load(std::sync::atomic::Ordering::SeqCst) {
+                if dir.is_none() {
+                    dir = g.cgroup();
+                }
+                if let Some(d) = &dir {
+                    let now = sixlauncher_core::memguard::usage(d);
+                    if now.memory > 0 {
+                        seen = Some(now);
+                        if sixlauncher_core::memguard::worth_logging(last, now) {
+                            emit("stdout", now.line(&g));
+                            last = Some(now);
+                        }
+                    }
+                    if !killed && let Some(why) = watch.check(&sixlauncher_core::memguard::strain(d)) {
+                        emit(
+                            "stderr",
+                            format!("# the game was ended because {why}: the computer would have frozen ({})", now.line(&g).trim_start_matches("# ")),
+                        );
+                        g.kill();
+                        killed = true;
+                    }
+                }
+                for _ in 0..20 {
+                    if ended.load(std::sync::atomic::Ordering::SeqCst) {
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(250));
+                }
+            }
+            // The peaks once more, if the scope is still there (it stays when it failed).
+            let end = dir.as_deref().map(sixlauncher_core::memguard::usage).unwrap_or_default();
+            if let Some(mut u) = seen {
+                u.memory_peak = u.memory_peak.max(end.memory_peak);
+                u.swap_peak = u.swap_peak.max(end.swap_peak);
+                emit("stdout", u.line(&g));
+            }
+        }));
+    }
     *running.child.lock().unwrap() = Some(child);
     *running.runner.lock().unwrap() = Some(runner);
     let slot = running.child.clone();
@@ -694,6 +745,17 @@ fn start(app: AppHandle, running: &Running, l: launch::Launch, runner: Runner, o
         ended.store(true, std::sync::atomic::Ordering::SeqCst);
         for r in readers {
             let _ = r.join();
+        }
+        // Ended by its memory ceiling (memguard): said in the log, where the player looks.
+        if let Some(guard) = guard.filter(|g| g.outcome()) {
+            emit(
+                "stderr",
+                format!(
+                    "# the game used all the memory it may use ({} of memory, {} of swap) and was ended so that the rest of the system keeps running",
+                    sixlauncher_core::memguard::gib(guard.memory_max),
+                    sixlauncher_core::memguard::gib(guard.swap_max)
+                ),
+            );
         }
         on_exit(&app, code);
     });
