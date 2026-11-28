@@ -278,11 +278,14 @@ function selectTab(name) {
   }
 }
 
+const ANSI = /\x1b\[[0-9;?]*[A-Za-z]/g;
+
 function appendLog(line, stream) {
   const log = $("#log");
   const span = document.createElement("span");
   if (stream === "stderr" || stream === "cmd") span.className = stream;
-  span.textContent = line + "\n";
+  // The runtime's own log colours its levels with ANSI escapes (ESC[32m...): text only here.
+  span.textContent = line.replace(ANSI, "") + "\n";
   const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
   log.appendChild(span);
   while (log.childNodes.length > MAX_LOG_LINES) log.removeChild(log.firstChild);
@@ -588,7 +591,7 @@ function prepOut(line) {
   const out = $("#prep-out");
   const lines = out.textContent ? out.textContent.split("\n") : [];
   lines.push(line);
-  out.textContent = lines.slice(-PREP_LINES).join("\n");
+  out.textContent = lines.slice(-PREP_LINES).join("\n").replace(ANSI, "");
   out.hidden = false;
 }
 
