@@ -88,6 +88,8 @@ function refreshVisibility() {
   for (const el of $$("[data-scarlett-presets]")) el.hidden = !el.dataset.scarlettPresets.split(" ").includes(preset);
   const upscaler = $('[data-path="scarlett.upscaler"]').value;
   for (const el of $$("[data-scarlett-upscaler]")) el.hidden = el.dataset.scarlettUpscaler !== upscaler;
+  const windowMode = $('[data-path="scarlett.window_mode"]').value || "windowed";
+  for (const el of $$("[data-scarlett-window]")) el.hidden = el.dataset.scarlettWindow !== windowMode;
   say("#scarlett-preset-hint", `scarlett.${preset}Hint`);
   for (const el of $$(".only-wine")) el.hidden = runner !== "wine";
   for (const el of $$(".only-mangohud")) el.hidden = !$('[data-path="performance.mangohud"]').checked;
@@ -654,8 +656,17 @@ async function onPrepExit({ code, prepared }) {
   if (prepared) say("#prep-info", "prep.done");
   else if (stopRequested) say("#prep-info", "prep.stopped");
   else say("#prep-info", code === 0 ? "prep.unfinished" : "prep.failed", { code: code ?? t("log.unknownCode") });
+  const then = playAfterPrep;
+  playAfterPrep = null;
+  const stopped = stopRequested;
   stopRequested = false;
   showChecks(await invoke("run_doctor", { config: readForm() }));
+  // Jogar was waiting: the game starts unless the preparation was stopped. One that failed does
+  // not hold the game back (it translates what is missing as it runs), and prepares again next time.
+  if (then !== null && !stopped) {
+    if (!prepared) say("#prep-info", "prep.playAnyway");
+    await play(then, true);
+  }
 }
 
 // A kernel setting's fix: say what it writes (and the risk, for userfaultfd), then run it as
@@ -1666,12 +1677,29 @@ function confirmTwice(button, confirmKey, action) {
   });
 }
 
-async function play(force) {
+// Jogar with ScarlettPort and "Preparar ao jogar": when the preset's shaders are not prepared
+// for this build, prepare them first (on the Jogo tab, with the progress bar); onPrepExit then
+// starts the game. Only a stop (Parar) cancels the game.
+let playAfterPrep = null; // the `force` of the Jogar waiting for the preparation
+
+async function play(force, prepDone = false) {
   hideBanner();
   $("#run-outcome").hidden = true;
   $("#report-export").className = "primary";
   stopRequested = false;
   await save();
+  if (!prepDone && !force && (await invoke("prepare_before_play", { config }))) {
+    playAfterPrep = force;
+    selectTab("game");
+    try {
+      await startPrepare();
+    } catch (e) {
+      playAfterPrep = null;
+      throw e;
+    }
+    say("#prep-info", "prep.beforePlay");
+    return;
+  }
   try {
     $("#log").replaceChildren();
     await showCommand();

@@ -149,6 +149,12 @@
         <progress id="prep-bar" max="1" value="0" hidden></progress>
         <!-- The runtime's last lines while it prepares (the whole output is in the Log tab). -->
         <pre class="prep-out" id="prep-out" aria-live="off" hidden></pre>
+        <div class="toggles">
+          <label class="toggle">
+            <input type="checkbox" data-path="scarlett.prepare_on_play" data-kind="bool">
+            <span class="toggle-text"><b data-i18n="prep.onPlay">Preparar ao jogar</b> <span data-i18n="prep.onPlayHint">se os shaders não estiverem prontos para esta build e este preset, o Jogar prepara primeiro e abre o jogo em seguida; ficam salvos para as próximas vezes</span></span>
+          </label>
+        </div>
       </section>
       <div class="toggles">
         <label class="toggle">
@@ -272,6 +278,33 @@
             <span><span data-i18n="scarlett.playerName">Nome do jogador</span> <em data-i18n="scarlett.playerNameHint">(até 15 caracteres; vazio: o padrão do runtime)</em></span>
             <input data-path="scarlett.player_name" maxlength="15" autocomplete="off">
           </label>
+          <!-- The game's window: how it opens, its largest size, and whether it stays on top. -->
+          <div class="grid">
+            <label class="field">
+              <span><span data-i18n="win.mode">Janela do jogo</span> <em data-i18n="win.modeHint">(F11 alterna a tela cheia sem bordas durante o jogo)</em></span>
+              <select data-path="scarlett.window_mode">
+                <option value="windowed" data-i18n="win.windowed">Em janela</option>
+                <option value="maximized" data-i18n="win.maximized">Janela maximizada</option>
+                <option value="borderless" data-i18n="win.borderless">Tela cheia sem bordas</option>
+              </select>
+            </label>
+            <label class="field" data-scarlett-window="windowed">
+              <span data-i18n="win.size">Tamanho máximo da janela</span>
+              <select data-path="scarlett.window_max">
+                <option value="" data-i18n="win.sizeScreen">O da tela</option>
+                <option value="1280x720">1280 × 720</option>
+                <option value="1600x900">1600 × 900</option>
+                <option value="1920x1080">1920 × 1080</option>
+                <option value="2560x1440">2560 × 1440</option>
+              </select>
+            </label>
+          </div>
+          <div class="toggles">
+            <label class="toggle">
+              <input type="checkbox" data-path="scarlett.always_on_top" data-kind="bool">
+              <span class="toggle-text"><b data-i18n="win.onTop">Sempre por cima</b> <span data-i18n="win.onTopHint">a janela do jogo fica acima de todos os outros programas, se o jogo pedir; desligado, outros programas podem ficar na frente dela</span></span>
+            </label>
+          </div>
           <!-- The runtime's features (ScarlettPort's Settings > Features), for every preset. -->
           <details class="more" id="scarlett-features">
             <summary data-i18n="feat.title">Recursos do ScarlettPort</summary>

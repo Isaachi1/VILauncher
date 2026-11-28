@@ -65,7 +65,25 @@ fn wrap_as(cfg: &Config, plan: backends::Plan, gpus: &[gpu::Gpu], console: bool)
     env.extend(plan.env);
     env.extend(gpu::env_for(cfg, gpus));
     let argv = if console { runner.argv_console(&plan.exe, &plan.args) } else { runner.argv(&plan.exe, &plan.args) };
+    // `runinprefix` runs Wine as is: the D3D12 and DXGI overrides Proton's `run` verbs set are
+    // ours to set, or the program gets Wine's d3d12 and no D3D12 device (a white, frozen window).
+    if matches!(runner, Runner::Proton(_)) && argv.get(1).is_some_and(|verb| verb == "runinprefix") {
+        let existing = env.get("WINEDLLOVERRIDES").or(base.get("WINEDLLOVERRIDES")).cloned();
+        env.insert(
+            "WINEDLLOVERRIDES".into(),
+            crate::runners::merge_dll_overrides(existing.as_deref(), crate::runners::PROTON_PREFIX_OVERRIDE),
+        );
+    }
     Ok(Launch { argv, env, cwd: cfg.data_dir(), cache: cfg.cache_dir(), prefix })
+}
+
+/// Whether Jogar first prepares the shaders: ScarlettPort with "Preparar ao jogar", nothing that
+/// stops a run (the refusal comes first), and the preset's cache not prepared for this build.
+pub fn prepare_before_play(cfg: &Config) -> bool {
+    cfg.backend.kind == crate::config::BackendKind::Scarlett
+        && cfg.scarlett.prepare_on_play
+        && blocking_failures(cfg).is_empty()
+        && !crate::scarlett::prepared(cfg)
 }
 
 /// ScarlettPort's shader preparation (`scarlett prepare`), through the same runner and GPU as a
@@ -447,6 +465,28 @@ mod tests {
     }
 
     #[test]
+    fn jogar_prepares_scarlettport_shaders_only_when_needed() {
+        let h = TempHome::new();
+        let (mut cfg, ..) = victory_config(&h);
+        assert!(!prepare_before_play(&cfg), "VIctory has no shaders to prepare");
+        cfg.backend.kind = crate::config::BackendKind::Scarlett;
+        cfg.backend.exe = Some(testutil::fake_pe(&h.path().join("rt/scarlett.exe"), 0x8664));
+        assert!(blocking_failures(&cfg).is_empty(), "{:?}", blocking_failures(&cfg));
+        assert!(prepare_before_play(&cfg), "not prepared yet");
+        cfg.scarlett.prepare_on_play = false;
+        assert!(!prepare_before_play(&cfg), "option off");
+        cfg.scarlett.prepare_on_play = true;
+        crate::scarlett::mark_prepared(&cfg).unwrap();
+        assert!(!prepare_before_play(&cfg), "prepared: the cache on disk is used");
+        // A new runtime build (another size): prepared again.
+        let mut exe = fs::OpenOptions::new().append(true).open(cfg.backend.exe.as_ref().unwrap()).unwrap();
+        std::io::Write::write_all(&mut exe, b"new build").unwrap();
+        assert!(prepare_before_play(&cfg), "another runtime build");
+        cfg.game.dir = None;
+        assert!(!prepare_before_play(&cfg), "a run that cannot start is refused first");
+    }
+
+    #[test]
     fn scarlettport_runs_in_the_prefix_and_writes_to_the_log() {
         let h = TempHome::new();
         let (mut cfg, game, ..) = victory_config(&h);
@@ -455,12 +495,18 @@ mod tests {
         let pfx = cfg.prefix().join("pfx");
         fs::create_dir_all(&pfx).unwrap();
         fs::write(pfx.join("system.reg"), "").unwrap();
-        let argv = build_with(&cfg, &[], &perf::Tools::default()).unwrap().argv;
+        let launch = build_with(&cfg, &[], &perf::Tools::default()).unwrap();
+        let argv = launch.argv;
         assert_eq!(argv[1], "runinprefix");
+        // Proton's `run` verbs would make these native; `runinprefix` leaves them to us.
+        assert_eq!(launch.env.get("WINEDLLOVERRIDES").map(String::as_str), Some("d3d12,d3d12core,dxgi=n,b"));
+        assert!(prepare_shaders(&cfg).unwrap().env["WINEDLLOVERRIDES"].starts_with("d3d12,d3d12core,dxgi=n,b"));
         assert!(argv.contains(&paths::to_windows(&game.join("bin/title.exe"))));
         cfg.backend.kind = crate::config::BackendKind::Victory;
         cfg.backend.exe = Some(testutil::fake_pe(&h.path().join("v/victory.exe"), 0x8664));
-        assert_eq!(build_with(&cfg, &[], &perf::Tools::default()).unwrap().argv[1], "waitforexitandrun", "VIctory unchanged");
+        let victory = build_with(&cfg, &[], &perf::Tools::default()).unwrap();
+        assert_eq!(victory.argv[1], "waitforexitandrun", "VIctory unchanged");
+        assert!(!victory.env.contains_key("WINEDLLOVERRIDES"), "Proton's own run sets them");
     }
 
     #[test]
