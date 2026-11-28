@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::config::{FsrQuality, KbmHints, ScarlettPreset, ScarlettSection, Upscaler};
+use crate::config::{FsrQuality, KbmHints, ScarlettPreset, ScarlettSection, Upscaler, WindowMode};
 
 /// The repository of the default build: SixLauncher's fork, which the builder builds on every
 /// run (its PINNED list) and the window offers first.
@@ -204,7 +204,26 @@ pub fn features_env(s: &ScarlettSection, fsr: bool) -> Vec<(&'static str, String
     } else if (s.mouse_sensitivity - d.mouse_sensitivity).abs() > 0.001 {
         v.push(("SCARLETT_MOUSE_LOOK", num(s.mouse_sensitivity)));
     }
+    match s.window_mode {
+        WindowMode::Windowed => {}
+        WindowMode::Maximized => v.push(("SCARLETT_WINDOW_MODE", "maximized".to_string())),
+        WindowMode::Borderless => v.push(("SCARLETT_WINDOW_MODE", "borderless".to_string())),
+    }
+    if let Some((w, h)) = window_size(&s.window_max) {
+        v.push(("SCARLETT_WINDOW_MAX", format!("{w}x{h}")));
+    }
+    if s.always_on_top {
+        v.push(("SCARLETT_WINDOW_TOPMOST", "1".to_string()));
+    }
     v
+}
+
+/// `WIDTHxHEIGHT` with two positive numbers (as the runtime reads SCARLETT_WINDOW_MAX), or
+/// `None` (empty or not a size: the screen's size).
+pub fn window_size(text: &str) -> Option<(u32, u32)> {
+    let (w, h) = text.trim().split_once(['x', 'X'])?;
+    let (w, h): (u32, u32) = (w.trim().parse().ok()?, h.trim().parse().ok()?);
+    (w > 0 && h > 0 && w <= i32::MAX as u32 && h <= i32::MAX as u32).then_some((w, h))
 }
 
 /// The name shown as the console player: printable, trimmed, at most 15 characters (a
@@ -327,6 +346,37 @@ mod tests {
         let mut custom = s.clone();
         custom.preset = ScarlettPreset::Custom;
         once(&run_env(&custom, "g", "c", true));
+    }
+
+    #[test]
+    fn window_settings_map_to_the_runtime_switches() {
+        let mut s = ScarlettSection::default();
+        let e = features_env(&s, false);
+        for k in ["SCARLETT_WINDOW_MODE", "SCARLETT_WINDOW_MAX", "SCARLETT_WINDOW_TOPMOST"] {
+            assert_eq!(get(&e, k), None, "{k}: windowed, the screen's size, not on top by default");
+        }
+        s.window_mode = WindowMode::Maximized;
+        s.window_max = " 1600 x 900 ".into();
+        s.always_on_top = true;
+        let e = features_env(&s, false);
+        assert_eq!(get(&e, "SCARLETT_WINDOW_MODE"), Some("maximized"));
+        assert_eq!(get(&e, "SCARLETT_WINDOW_MAX"), Some("1600x900"));
+        assert_eq!(get(&e, "SCARLETT_WINDOW_TOPMOST"), Some("1"));
+        s.window_mode = WindowMode::Borderless;
+        s.window_max = "grande".into();
+        let e = features_env(&s, false);
+        assert_eq!(get(&e, "SCARLETT_WINDOW_MODE"), Some("borderless"));
+        assert_eq!(get(&e, "SCARLETT_WINDOW_MAX"), None, "not a size: the screen's");
+        once(&run_env(&s, "G", "C", false));
+    }
+
+    #[test]
+    fn window_sizes_need_two_positive_numbers() {
+        assert_eq!(window_size("1920x1080"), Some((1920, 1080)));
+        assert_eq!(window_size("1280X720"), Some((1280, 720)));
+        for bad in ["", "1920", "0x1080", "1920x", "-1x2", "axb", "3000000000x10"] {
+            assert_eq!(window_size(bad), None, "{bad}");
+        }
     }
 
     #[test]

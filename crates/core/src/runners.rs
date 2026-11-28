@@ -22,6 +22,11 @@ use crate::{Error, Result};
 
 pub const VKD3D_DLLS: [&str; 2] = ["d3d12.dll", "d3d12core.dll"];
 pub const D3D12_OVERRIDE: &str = "d3d12,d3d12core=n,b";
+/// What Proton's `run` verbs make native for D3D12 and DXGI (vkd3d-proton's `d3d12.dll` and
+/// `d3d12core.dll`, DXVK's `dxgi.dll`, which Proton copies into the prefix). `runinprefix` skips
+/// the session setup that sets these, so without them Wine loads its own `d3d12.dll` (upstream
+/// vkd3d: no feature level 12_0 there, so no device) and its own `dxgi.dll`.
+pub const PROTON_PREFIX_OVERRIDE: &str = "d3d12,d3d12core,dxgi=n,b";
 
 /// This build runs on macOS: there the title runs under a Wine with Apple's D3DMetal (CrossOver
 /// or the Game Porting Toolkit, through Rosetta 2), not under Proton or vkd3d-proton.

@@ -569,6 +569,12 @@ struct PrepExit {
 /// ScarlettPort: `scarlett prepare` for the chosen preset, in the game's place (Parar stops
 /// it). Its lines arrive as `game-log`, its progress as `prep-line` (scarlett::PrepLine), and
 /// `prep-exit` says how it ended.
+/// Whether Jogar prepares ScarlettPort's shaders before the game (launch::prepare_before_play).
+#[tauri::command]
+fn prepare_before_play(config: Config) -> bool {
+    launch::prepare_before_play(&config)
+}
+
 #[tauri::command]
 fn prepare_shaders(app: AppHandle, running: State<Running>, config: Config) -> Result<(), String> {
     if running.child.lock().unwrap().is_some() {
@@ -718,6 +724,7 @@ fn main() {
         .manage(Running::default())
         .manage(Notifier::default())
         .invoke_handler(tauri::generate_handler![
+            prepare_before_play,
             get_state,
             save_config,
             guess_backend,

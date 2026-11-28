@@ -170,6 +170,20 @@ pub enum Upscaler {
     Fsr,
 }
 
+/// How ScarlettPort opens the game's window (SCARLETT_WINDOW_MODE). F11 toggles borderless
+/// fullscreen in every mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WindowMode {
+    /// As the game makes it, shrunk to the screen (and to `window_max`).
+    #[default]
+    Windowed,
+    /// Maximized over the work area: the taskbar and panels stay visible.
+    Maximized,
+    /// Borderless fullscreen over its monitor.
+    Borderless,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FsrQuality {
@@ -212,8 +226,19 @@ pub struct ScarlettSection {
     pub mouse_sensitivity: f32,
     /// Copy the saves before each run (the newest scarlett::KEEP_BACKUPS are kept).
     pub backup_saves: bool,
+    /// Jogar first prepares the shaders (`scarlett prepare`) when the preset's cache is not
+    /// prepared for this runtime build, then starts the game. The cache stays on disk, so later
+    /// runs start at once.
+    pub prepare_on_play: bool,
     /// The console player's name (SCARLETT_GAMERTAG); empty: the runtime's default.
     pub player_name: String,
+    /// How the game's window opens.
+    pub window_mode: WindowMode,
+    /// Windowed: the largest size, `WIDTHxHEIGHT` (SCARLETT_WINDOW_MAX); empty: the screen.
+    pub window_max: String,
+    /// Let the game's window stay above every other window when the game asks for it
+    /// (SCARLETT_WINDOW_TOPMOST). Off: other programs can come in front of it.
+    pub always_on_top: bool,
 }
 
 impl Default for ScarlettSection {
@@ -237,7 +262,11 @@ impl Default for ScarlettSection {
             mouse_look: true,
             mouse_sensitivity: 1.0,
             backup_saves: true,
+            prepare_on_play: true,
             player_name: String::new(),
+            window_mode: WindowMode::default(),
+            window_max: String::new(),
+            always_on_top: false,
         }
     }
 }
