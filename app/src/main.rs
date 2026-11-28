@@ -7,7 +7,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::io::{BufRead, BufReader, Write};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::{Child, Stdio};
 use std::sync::{Arc, Mutex};
@@ -553,14 +553,7 @@ fn launch_game(app: AppHandle, running: State<Running>, config: Config, force: b
     if let Some(line) = scarlett::before_run(&config) {
         let _ = app.emit("game-log", LogLine { stream: "cmd", line });
     }
-    let env = l.env.clone();
     start(app, &running, l, runner, Arc::new(|_: &AppHandle, _: &str| {}), Box::new(move |app: &AppHandle, code: Option<i32>| {
-        // A failed run's own error went to Proton's log (PROTON_LOG=1): bring it back.
-        if code != Some(0) {
-            for line in launch::proton_log_tail(&env, 30) {
-                let _ = app.emit("game-log", LogLine { stream: "stderr", line });
-            }
-        }
         let _ = app.emit("game-exit", code);
     }))
 }
@@ -583,7 +576,6 @@ fn prepare_shaders(app: AppHandle, running: State<Running>, config: Config) -> R
     }
     let l = launch::prepare_shaders(&config).map_err(err)?;
     let runner = Runner::from_config(&config).map_err(err)?;
-    let env = l.env.clone();
     let finished = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let seen = finished.clone();
     start(
@@ -600,14 +592,7 @@ fn prepare_shaders(app: AppHandle, running: State<Running>, config: Config) -> R
             }
         }),
         Box::new(move |app: &AppHandle, code: Option<i32>| {
-            // With PROTON_LOG=1 the end line may sit in Proton's log rather than the output.
-            let done = finished.load(std::sync::atomic::Ordering::SeqCst)
-                || launch::proton_log_tail(&env, 50).iter().any(|l| matches!(scarlett::parse_prep(l), Some(scarlett::PrepLine::Done { .. })));
-            if !done {
-                for line in launch::proton_log_tail(&env, 30) {
-                    let _ = app.emit("game-log", LogLine { stream: "stderr", line });
-                }
-            }
+            let done = finished.load(std::sync::atomic::Ordering::SeqCst);
             // Or, when the end line never reached the launcher, the cache holding the shaders.
             let done = done || (code == Some(0) && scarlett::cache_complete(&config));
             let prepared = code == Some(0) && done && scarlett::mark_prepared(&config).is_ok();
@@ -620,9 +605,11 @@ type OnLine = Arc<dyn Fn(&AppHandle, &str) + Send + Sync>;
 type OnExit = Box<dyn FnOnce(&AppHandle, Option<i32>) + Send>;
 
 /// Runs `l` as the window's one process: its output goes to the log file and to `game-log`
-/// (and to `on_line`); `on_exit` gets the exit code once every line was read.
+/// (and to `on_line`); `on_exit` gets the exit code once every line was read. With PROTON_LOG=1
+/// the output goes to Proton's log instead, which is followed while it runs.
 fn start(app: AppHandle, running: &Running, l: launch::Launch, runner: Runner, on_line: OnLine, on_exit: OnExit) -> Result<(), String> {
     let mut cmd = l.command().map_err(err)?;
+    let follow = launch::ProtonLog::start(&l.env);
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("{}: {e}", l.argv[0]))?;
 
     let log_path = launch::log_file();
@@ -630,6 +617,14 @@ fn start(app: AppHandle, running: &Running, l: launch::Launch, runner: Runner, o
     let log = Arc::new(Mutex::new(std::fs::File::create(&log_path).map_err(err)?));
     writeln!(log.lock().unwrap(), "# {}", l.argv.iter().map(|a| launch::shell_quote(a)).collect::<Vec<_>>().join(" ")).ok();
 
+    let emit = {
+        let (app, log) = (app.clone(), log.clone());
+        Arc::new(move |stream: &'static str, line: String| {
+            writeln!(log.lock().unwrap(), "{line}").ok();
+            on_line(&app, &line);
+            let _ = app.emit("game-log", LogLine { stream, line });
+        })
+    };
     let mut readers = Vec::new();
     let pipes: [(&'static str, Option<Box<dyn std::io::Read + Send>>); 2] = [
         ("stdout", child.stdout.take().map(|s| Box::new(s) as Box<dyn std::io::Read + Send>)),
@@ -637,12 +632,34 @@ fn start(app: AppHandle, running: &Running, l: launch::Launch, runner: Runner, o
     ];
     for (stream, pipe) in pipes {
         let Some(pipe) = pipe else { continue };
-        let (app, log, on_line) = (app.clone(), log.clone(), on_line.clone());
+        let emit = emit.clone();
         readers.push(std::thread::spawn(move || {
-            for line in BufReader::new(pipe).lines().map_while(Result::ok) {
-                writeln!(log.lock().unwrap(), "{line}").ok();
-                on_line(&app, &line);
-                let _ = app.emit("game-log", LogLine { stream, line });
+            // Read to the end whatever comes: a line that is not UTF-8 must not stop the reading
+            // (the pipe would fill and the program stall).
+            let (mut pipe, mut buf, mut rest) = (pipe, [0u8; 8192], Vec::new());
+            while let Ok(n @ 1..) = pipe.read(&mut buf) {
+                for line in launch::split_lines(&mut rest, &buf[..n]) {
+                    emit(stream, line);
+                }
+            }
+            if !rest.is_empty() {
+                emit(stream, String::from_utf8_lossy(&rest).into_owned());
+            }
+        }));
+    }
+    let ended = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    if let Some(mut follow) = follow {
+        let (emit, ended) = (emit.clone(), ended.clone());
+        readers.push(std::thread::spawn(move || {
+            loop {
+                let last = ended.load(std::sync::atomic::Ordering::SeqCst);
+                for line in follow.poll() {
+                    emit("stdout", line);
+                }
+                if last {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(250));
             }
         }));
     }
@@ -668,6 +685,7 @@ fn start(app: AppHandle, running: &Running, l: launch::Launch, runner: Runner, o
             }
             std::thread::sleep(Duration::from_millis(250));
         };
+        ended.store(true, std::sync::atomic::Ordering::SeqCst);
         for r in readers {
             let _ = r.join();
         }
