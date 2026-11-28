@@ -156,14 +156,14 @@
           </label>
         </div>
       </section>
+      <details class="more">
+        <summary data-i18n="game.more">Mais opções</summary>
       <div class="toggles">
         <label class="toggle">
           <input type="checkbox" data-path="game.verify" data-kind="bool">
           <span class="toggle-text"><b data-i18n="game.verify">Conferir o executável do jogo (SHA-256)</b> <span data-i18n="game.verifyHint">compara o SHA-256 com o do executável conhecido quando a pasta muda e antes de jogar</span><small class="status" id="game-verify"></small></span>
         </label>
       </div>
-      <details class="more">
-        <summary data-i18n="game.more">Mais opções</summary>
       <label class="field">
         <span><span data-i18n="game.args">Argumentos do jogo</span> <em data-i18n="game.argsHint">(um por linha)</em></span>
         <textarea data-path="game.args" data-kind="lines" rows="3"></textarea>
@@ -186,9 +186,11 @@
      <section class="card" aria-labelledby="compat-title">
       <p class="kicker" data-i18n="compat.kicker">Backend</p>
       <h2 id="compat-title" data-i18n="compat.title">Camada de compatibilidade</h2>
-      <!-- Sub-tabs of this card: the build to run, its VirusTotal check, and the advanced options. -->
+      <!-- Sub-tabs of this card: the build to run, ScarlettPort's settings, its VirusTotal check, and
+           the engine's advanced options. -->
       <div class="subtabs" role="tablist" aria-labelledby="compat-title">
         <button type="button" role="tab" id="subtab-builds" data-subtab="builds" aria-controls="compat-builds" aria-selected="true" data-i18n="compat.tabBuilds">Builds</button>
+        <button type="button" role="tab" id="subtab-settings" data-subtab="settings" data-backends="scarlett" aria-controls="compat-settings" aria-selected="false" tabindex="-1" data-i18n="compat.tabSettings">Ajustes</button>
         <button type="button" role="tab" id="subtab-vt" data-subtab="vt" aria-controls="compat-vt" aria-selected="false" tabindex="-1" data-i18n="compat.tabVt">VirusTotal</button>
         <button type="button" role="tab" id="subtab-advanced" data-subtab="advanced" aria-controls="compat-advanced" aria-selected="false" tabindex="-1" data-i18n="compat.tabAdvanced">Avançado</button>
       </div>
@@ -229,85 +231,100 @@
         <table id="vt"><tbody></tbody></table>
       </div>
 
-      <div class="subpanel" id="compat-advanced" role="tabpanel" aria-labelledby="subtab-advanced" hidden>
-        <div class="grid">
-          <label class="field" data-backends="victory scarlett">
-            <span><span data-i18n="compat.console">Console simulado</span></span>
-            <select data-path="backend.console">
-              <option value="series-x">Xbox Series X</option>
-              <option value="series-s">Xbox Series S</option>
-            </select>
-          </label>
-          <label class="field only-victory">
-            <span><span data-i18n="compat.unimpl">Funções não implementadas</span></span>
-            <select data-path="backend.unimplemented">
-              <option value="trap" data-i18n="compat.unimplTrap">trap: para e mostra qual foi (recomendado)</option>
-              <option value="zero" data-i18n="compat.unimplZero">zero: devolve 0 e segue</option>
-            </select>
-          </label>
-        </div>
-        <!-- ScarlettPort's play presets, as its own launcher had them (scarlett.rs). -->
-        <div data-backends="scarlett">
-          <label class="field">
-            <span data-i18n="scarlett.preset">Preset do ScarlettPort</span>
-            <select data-path="scarlett.preset">
-              <option value="stable" data-i18n="scarlett.stable">Estável (recomendado)</option>
-              <option value="look" data-i18n="scarlett.look">Visual</option>
-              <option value="experimental" data-i18n="scarlett.experimental">Experimental</option>
-              <option value="custom" data-i18n="scarlett.custom">Personalizado</option>
-            </select>
-          </label>
-          <p class="status hint" id="scarlett-preset-hint"></p>
-          <div class="toggles" data-scarlett-presets="custom">
-            <label class="toggle">
-              <input type="checkbox" data-path="scarlett.raytracing" data-kind="bool">
-              <span class="toggle-text"><b data-i18n="scarlett.raytracing">Ray tracing</b> <span data-i18n="scarlett.raytracingHint">a luz com ray tracing do próprio jogo; pesa na GPU</span></span>
-            </label>
-            <label class="toggle">
-              <input type="checkbox" data-path="scarlett.fallback_light" data-kind="bool">
-              <span class="toggle-text"><b data-i18n="scarlett.fallbackLight">Luz substituta</b> <span data-i18n="scarlett.fallbackLightHint">ilumina onde a luz do jogo ainda não aparece; precisa de uma build que a tenha</span></span>
-            </label>
-          </div>
-          <div class="toggles">
-            <label class="toggle">
-              <input type="checkbox" data-path="scarlett.backup_saves" data-kind="bool">
-              <span class="toggle-text"><b data-i18n="saves.backup">Backup dos saves</b> <span data-i18n="saves.backupHint">antes de cada partida, copia os saves para save-backups, ao lado da pasta de dados; ficam os 10 mais recentes</span></span>
-            </label>
-          </div>
-          <label class="field">
-            <span><span data-i18n="scarlett.playerName">Nome do jogador</span> <em data-i18n="scarlett.playerNameHint">(até 15 caracteres; vazio: o padrão do runtime)</em></span>
-            <input data-path="scarlett.player_name" maxlength="15" autocomplete="off">
-          </label>
-          <!-- The game's window: how it opens, its largest size, and whether it stays on top. -->
-          <div class="grid">
+      <!-- ScarlettPort's own settings (its launcher's presets and Settings > Features), by subject. -->
+      <div class="subpanel settings" id="compat-settings" role="tabpanel" aria-labelledby="subtab-settings" hidden>
+        <section class="set" aria-labelledby="set-general">
+          <h3 id="set-general" data-i18n="set.general">Geral</h3>
+          <div class="set-body">
             <label class="field">
-              <span><span data-i18n="win.mode">Janela do jogo</span> <em data-i18n="win.modeHint">(F11 alterna a tela cheia sem bordas durante o jogo)</em></span>
-              <select data-path="scarlett.window_mode">
-                <option value="windowed" data-i18n="win.windowed">Em janela</option>
-                <option value="maximized" data-i18n="win.maximized">Janela maximizada</option>
-                <option value="borderless" data-i18n="win.borderless">Tela cheia sem bordas</option>
+              <span data-i18n="scarlett.preset">Preset do ScarlettPort</span>
+              <select data-path="scarlett.preset">
+                <option value="stable" data-i18n="scarlett.stable">Estável (recomendado)</option>
+                <option value="look" data-i18n="scarlett.look">Visual</option>
+                <option value="experimental" data-i18n="scarlett.experimental">Experimental</option>
+                <option value="custom" data-i18n="scarlett.custom">Personalizado</option>
               </select>
             </label>
-            <label class="field" data-scarlett-window="windowed">
-              <span data-i18n="win.size">Tamanho máximo da janela</span>
-              <select data-path="scarlett.window_max">
-                <option value="" data-i18n="win.sizeScreen">O da tela</option>
-                <option value="1280x720">1280 × 720</option>
-                <option value="1600x900">1600 × 900</option>
-                <option value="1920x1080">1920 × 1080</option>
-                <option value="2560x1440">2560 × 1440</option>
-              </select>
-            </label>
+            <p class="status hint" id="scarlett-preset-hint"></p>
+            <div class="toggles" data-scarlett-presets="custom">
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.raytracing" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="scarlett.raytracing">Ray tracing</b> <span data-i18n="scarlett.raytracingHint">a luz com ray tracing do próprio jogo; pesa na GPU</span></span>
+              </label>
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.fallback_light" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="scarlett.fallbackLight">Luz substituta</b> <span data-i18n="scarlett.fallbackLightHint">ilumina onde a luz do jogo ainda não aparece; precisa de uma build que a tenha</span></span>
+              </label>
+            </div>
           </div>
-          <div class="toggles">
-            <label class="toggle">
-              <input type="checkbox" data-path="scarlett.always_on_top" data-kind="bool">
-              <span class="toggle-text"><b data-i18n="win.onTop">Sempre por cima</b> <span data-i18n="win.onTopHint">a janela do jogo fica acima de todos os outros programas, se o jogo pedir; desligado, outros programas podem ficar na frente dela</span></span>
-            </label>
+        </section>
+        <section class="set" aria-labelledby="set-window">
+          <h3 id="set-window" data-i18n="set.window">Janela</h3>
+          <div class="set-body">
+            <div class="grid">
+              <label class="field">
+                <span><span data-i18n="win.mode">Janela do jogo</span> <em data-i18n="win.modeHint">(F11 alterna a tela cheia sem bordas durante o jogo)</em></span>
+                <select data-path="scarlett.window_mode">
+                  <option value="windowed" data-i18n="win.windowed">Em janela</option>
+                  <option value="maximized" data-i18n="win.maximized">Janela maximizada</option>
+                  <option value="borderless" data-i18n="win.borderless">Tela cheia sem bordas</option>
+                </select>
+              </label>
+              <label class="field" data-scarlett-window="windowed">
+                <span data-i18n="win.size">Tamanho máximo da janela</span>
+                <select data-path="scarlett.window_max">
+                  <option value="" data-i18n="win.sizeScreen">O da tela</option>
+                  <option value="1280x720">1280 × 720</option>
+                  <option value="1600x900">1600 × 900</option>
+                  <option value="1920x1080">1920 × 1080</option>
+                  <option value="2560x1440">2560 × 1440</option>
+                </select>
+              </label>
+            </div>
+            <div class="toggles">
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.always_on_top" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="win.onTop">Sempre por cima</b> <span data-i18n="win.onTopHint">a janela do jogo fica acima de todos os outros programas, se o jogo pedir; desligado, outros programas podem ficar na frente dela</span></span>
+              </label>
+            </div>
           </div>
-          <!-- The runtime's features (ScarlettPort's Settings > Features), for every preset. -->
-          <details class="more" id="scarlett-features">
-            <summary data-i18n="feat.title">Recursos do ScarlettPort</summary>
+        </section>
+        <section class="set" aria-labelledby="set-picture">
+          <h3 id="set-picture" data-i18n="set.picture">Imagem</h3>
+          <div class="set-body">
+            <div class="grid">
+              <label class="field">
+                <span data-i18n="feat.upscaler">Escala da imagem</span>
+                <select data-path="scarlett.upscaler">
+                  <option value="default" data-i18n="feat.upDefault">Padrão do runtime</option>
+                  <option value="title" data-i18n="feat.upTitle">Upscaler do próprio jogo</option>
+                  <option value="stretch" data-i18n="feat.upStretch">Esticar</option>
+                  <option value="fsr">AMD FSR</option>
+                </select>
+              </label>
+              <label class="field">
+                <span data-i18n="feat.frameCap">Limite de FPS</span>
+                <select data-path="scarlett.frame_cap" data-kind="int">
+                  <option value="0" data-i18n="feat.capNone">Sem limite (ritmo do runtime)</option>
+                  <option value="30">30 FPS</option>
+                  <option value="60">60 FPS</option>
+                </select>
+              </label>
+              <label class="field" data-scarlett-upscaler="fsr">
+                <span data-i18n="feat.fsrQuality">Qualidade do FSR</span>
+                <select data-path="scarlett.fsr_quality">
+                  <option value="native" data-i18n="feat.qNative">Nativa</option>
+                  <option value="quality" data-i18n="feat.qQuality">Qualidade</option>
+                  <option value="balanced" data-i18n="feat.qBalanced">Equilibrada</option>
+                  <option value="performance" data-i18n="feat.qPerformance">Desempenho</option>
+                  <option value="ultra" data-i18n="feat.qUltra">Ultra desempenho</option>
+                </select>
+              </label>
+              <label class="field" data-scarlett-upscaler="fsr">
+                <span data-i18n="feat.fsrSharpness">Nitidez do FSR</span>
+                <input type="number" min="0" max="1" step="0.05" data-path="scarlett.fsr_sharpness" data-kind="float">
+              </label>
+            </div>
             <div class="toggles">
               <label class="toggle">
                 <input type="checkbox" data-path="scarlett.full_textures" data-kind="bool">
@@ -318,16 +335,29 @@
                 <span class="toggle-text"><b data-i18n="feat.hdr">HDR</b> <span data-i18n="feat.hdrHint">imagem em HDR, num monitor que tenha</span></span>
               </label>
               <label class="toggle">
+                <input type="checkbox" data-path="scarlett.overlay" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="feat.overlay">Painel de desempenho</b> <span data-i18n="feat.overlayHint">FPS e tempo de quadro sobre a imagem (F3 mostra e esconde)</span></span>
+              </label>
+            </div>
+            <div class="toggles" data-scarlett-upscaler="fsr">
+              <label class="toggle">
+                <input type="checkbox" data-path="scarlett.framegen" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="feat.framegen">Geração de quadros</b> <span data-i18n="feat.framegenHint">o FSR cria quadros intermediários; mais fluido, com um pouco mais de atraso</span></span>
+              </label>
+            </div>
+          </div>
+        </section>
+        <section class="set" aria-labelledby="set-controls">
+          <h3 id="set-controls" data-i18n="set.controls">Controles</h3>
+          <div class="set-body">
+            <div class="toggles">
+              <label class="toggle">
                 <input type="checkbox" data-path="scarlett.pad_ps" data-kind="bool">
                 <span class="toggle-text"><b data-i18n="feat.padPs">Controle PlayStation</b> <span data-i18n="feat.padPsHint">botões e controle no estilo PlayStation</span></span>
               </label>
               <label class="toggle">
                 <input type="checkbox" data-path="scarlett.rumble" data-kind="bool">
                 <span class="toggle-text"><b data-i18n="feat.rumble">Vibração</b> <span data-i18n="feat.rumbleHint">vibração do controle</span></span>
-              </label>
-              <label class="toggle">
-                <input type="checkbox" data-path="scarlett.overlay" data-kind="bool">
-                <span class="toggle-text"><b data-i18n="feat.overlay">Painel de desempenho</b> <span data-i18n="feat.overlayHint">FPS e tempo de quadro sobre a imagem (F3 mostra e esconde)</span></span>
               </label>
               <label class="toggle">
                 <input type="checkbox" data-path="scarlett.mouse_look" data-kind="bool">
@@ -351,45 +381,42 @@
                   <option value="off" data-i18n="feat.kbmOff">Nunca</option>
                 </select>
               </label>
-              <label class="field">
-                <span data-i18n="feat.frameCap">Limite de FPS</span>
-                <select data-path="scarlett.frame_cap" data-kind="int">
-                  <option value="0" data-i18n="feat.capNone">Sem limite (ritmo do runtime)</option>
-                  <option value="30">30 FPS</option>
-                  <option value="60">60 FPS</option>
-                </select>
-              </label>
-              <label class="field">
-                <span data-i18n="feat.upscaler">Escala da imagem</span>
-                <select data-path="scarlett.upscaler">
-                  <option value="default" data-i18n="feat.upDefault">Padrão do runtime</option>
-                  <option value="title" data-i18n="feat.upTitle">Upscaler do próprio jogo</option>
-                  <option value="stretch" data-i18n="feat.upStretch">Esticar</option>
-                  <option value="fsr">AMD FSR</option>
-                </select>
-              </label>
-              <label class="field" data-scarlett-upscaler="fsr">
-                <span data-i18n="feat.fsrQuality">Qualidade do FSR</span>
-                <select data-path="scarlett.fsr_quality">
-                  <option value="native" data-i18n="feat.qNative">Nativa</option>
-                  <option value="quality" data-i18n="feat.qQuality">Qualidade</option>
-                  <option value="balanced" data-i18n="feat.qBalanced">Equilibrada</option>
-                  <option value="performance" data-i18n="feat.qPerformance">Desempenho</option>
-                  <option value="ultra" data-i18n="feat.qUltra">Ultra desempenho</option>
-                </select>
-              </label>
-              <label class="field" data-scarlett-upscaler="fsr">
-                <span data-i18n="feat.fsrSharpness">Nitidez do FSR</span>
-                <input type="number" min="0" max="1" step="0.05" data-path="scarlett.fsr_sharpness" data-kind="float">
-              </label>
             </div>
-            <div class="toggles" data-scarlett-upscaler="fsr">
+          </div>
+        </section>
+        <section class="set" aria-labelledby="set-saves">
+          <h3 id="set-saves" data-i18n="set.saves">Saves e jogador</h3>
+          <div class="set-body">
+            <div class="toggles">
               <label class="toggle">
-                <input type="checkbox" data-path="scarlett.framegen" data-kind="bool">
-                <span class="toggle-text"><b data-i18n="feat.framegen">Geração de quadros</b> <span data-i18n="feat.framegenHint">o FSR cria quadros intermediários; mais fluido, com um pouco mais de atraso</span></span>
+                <input type="checkbox" data-path="scarlett.backup_saves" data-kind="bool">
+                <span class="toggle-text"><b data-i18n="saves.backup">Backup dos saves</b> <span data-i18n="saves.backupHint">antes de cada partida, copia os saves para save-backups, ao lado da pasta de dados; ficam os 10 mais recentes</span></span>
               </label>
             </div>
-          </details>
+            <label class="field">
+              <span><span data-i18n="scarlett.playerName">Nome do jogador</span> <em data-i18n="scarlett.playerNameHint">(até 15 caracteres; vazio: o padrão do runtime)</em></span>
+              <input data-path="scarlett.player_name" maxlength="15" autocomplete="off">
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <div class="subpanel" id="compat-advanced" role="tabpanel" aria-labelledby="subtab-advanced" hidden>
+        <div class="grid">
+          <label class="field" data-backends="victory scarlett">
+            <span><span data-i18n="compat.console">Console simulado</span></span>
+            <select data-path="backend.console">
+              <option value="series-x">Xbox Series X</option>
+              <option value="series-s">Xbox Series S</option>
+            </select>
+          </label>
+          <label class="field only-victory">
+            <span><span data-i18n="compat.unimpl">Funções não implementadas</span></span>
+            <select data-path="backend.unimplemented">
+              <option value="trap" data-i18n="compat.unimplTrap">trap: para e mostra qual foi (recomendado)</option>
+              <option value="zero" data-i18n="compat.unimplZero">zero: devolve 0 e segue</option>
+            </select>
+          </label>
         </div>
         <label class="field only-xcl">
           <span><span data-i18n="compat.dxc">DXC</span> <em data-i18n="compat.dxcHint">(bin/x64 de um release do DirectXShaderCompiler)</em></span>

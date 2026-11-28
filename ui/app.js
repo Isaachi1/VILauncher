@@ -84,6 +84,8 @@ function refreshVisibility() {
   for (const el of $$(".only-victory")) el.hidden = backend !== "victory";
   for (const el of $$(".only-xcl")) el.hidden = backend !== "xcl";
   for (const el of $$("[data-backends]")) el.hidden = !el.dataset.backends.split(" ").includes(backend);
+  // Ajustes is ScarlettPort's: with another backend its sub-tab goes, and Builds comes up.
+  if ($("#subtab-settings").hidden && $("#subtab-settings").getAttribute("aria-selected") === "true") selectSubtab("builds");
   const preset = $('[data-path="scarlett.preset"]').value || "stable";
   for (const el of $$("[data-scarlett-presets]")) el.hidden = !el.dataset.scarlettPresets.split(" ").includes(preset);
   const upscaler = $('[data-path="scarlett.upscaler"]').value;
@@ -1168,7 +1170,7 @@ function chooseBuild(card) {
   showBuildDetail(lastRuntimes);
 }
 
-// Compatibilidade's own sub-tabs (Builds, VirusTotal, Avançado).
+// Compatibilidade's own sub-tabs (Builds, Ajustes, VirusTotal, Avançado).
 function selectSubtab(name, focus = false) {
   for (const b of $$(".subtabs [role=tab]")) {
     const on = b.dataset.subtab === name;
@@ -2002,7 +2004,7 @@ async function init() {
   );
   for (const b of $$(".subtabs [role=tab]")) b.addEventListener("click", () => selectSubtab(b.dataset.subtab));
   $(".subtabs").addEventListener("keydown", (ev) =>
-    arrowNav(ev, $$(".subtabs [role=tab]"), ev.target, (b) => selectSubtab(b.dataset.subtab, true)),
+    arrowNav(ev, $$(".subtabs [role=tab]:not([hidden])"), ev.target, (b) => selectSubtab(b.dataset.subtab, true)),
   );
   // The Backend list comes from the builder: load it once at start, without blocking.
   showBuilds(null);
