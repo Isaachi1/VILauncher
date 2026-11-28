@@ -24,6 +24,8 @@ pub struct Launch {
     /// by the run: Proton opens `pfx.lock` in it first and does not create it (Steam always
     /// does). None when the program runs natively (Windows), which has no prefix.
     pub prefix: Option<PathBuf>,
+    /// The memory ceiling it runs under (memguard), if this system offers one.
+    pub guard: Option<crate::memguard::Guard>,
 }
 
 pub fn build(cfg: &Config) -> Result<Launch> {
@@ -74,7 +76,7 @@ fn wrap_as(cfg: &Config, plan: backends::Plan, gpus: &[gpu::Gpu], console: bool)
             crate::runners::merge_dll_overrides(existing.as_deref(), crate::runners::PROTON_PREFIX_OVERRIDE),
         );
     }
-    Ok(Launch { argv, env, cwd: cfg.data_dir(), cache: cfg.cache_dir(), prefix })
+    Ok(Launch { argv, env, cwd: cfg.data_dir(), cache: cfg.cache_dir(), prefix, guard: crate::memguard::plan() })
 }
 
 /// Whether Jogar first prepares the shaders: ScarlettPort with "Preparar ao jogar", nothing that
@@ -116,7 +118,10 @@ impl Launch {
                 fs::create_dir_all(logs)?;
             }
         }
-        let argv: Vec<std::ffi::OsString> = self.argv.iter().map(Into::into).collect();
+        let mut argv: Vec<std::ffi::OsString> = self.argv.iter().map(Into::into).collect();
+        if let Some(guard) = &self.guard {
+            argv = guard.wrap(&argv);
+        }
         Ok(crate::host::command(&argv, &self.env, Some(&self.cwd)))
     }
 
