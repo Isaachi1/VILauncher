@@ -37,7 +37,11 @@ pub fn build_with(cfg: &Config, gpus: &[gpu::Gpu], tools: &perf::Tools) -> Resul
     let info = gamedir::inspect(&game_dir)?;
     let game_exe = gamedir::resolve_exe(&info, cfg.game.exe.as_deref())?;
     let plan = backends::plan(cfg, &game_exe)?;
-    let mut launch = wrap(cfg, plan, gpus)?;
+    // ScarlettPort's runtime is a console program: through Proton's steam.exe it gets a Wine
+    // console window of its own and the Log tab stays empty. In the prefix directly its output
+    // comes to the launcher, as `scarlett prepare`'s does.
+    let console = cfg.backend.kind == crate::config::BackendKind::Scarlett;
+    let mut launch = wrap_as(cfg, plan, gpus, console)?;
     launch.env.extend(perf::env_for(&cfg.performance));
     launch.env.extend(cfg.env.clone());
     let mut argv = perf::wrapper(&cfg.performance, tools);
@@ -47,11 +51,7 @@ pub fn build_with(cfg: &Config, gpus: &[gpu::Gpu], tools: &perf::Tools) -> Resul
 }
 
 /// A backend's plan run through the configured runner, on the chosen GPU.
-fn wrap(cfg: &Config, plan: backends::Plan, gpus: &[gpu::Gpu]) -> Result<Launch> {
-    wrap_as(cfg, plan, gpus, false)
-}
-
-/// [`wrap`]; `console`: the program is a console tool whose output the launcher reads
+/// `console`: the program is a console tool whose output the launcher reads
 /// ([`Runner::argv_console`]).
 fn wrap_as(cfg: &Config, plan: backends::Plan, gpus: &[gpu::Gpu], console: bool) -> Result<Launch> {
     let runner = Runner::from_config(cfg)?;
@@ -360,6 +360,23 @@ mod tests {
         fs::write(pfx.join("system.reg"), "").unwrap();
         assert_eq!(&runner.argv_console(exe, &args)[1..], ["runinprefix", "/rt/scarlett.exe", "prepare"]);
         assert_eq!(runner.argv(exe, &args)[1], "waitforexitandrun", "the game still goes through steam.exe");
+    }
+
+    #[test]
+    fn scarlettport_runs_in_the_prefix_and_writes_to_the_log() {
+        let h = TempHome::new();
+        let (mut cfg, game, ..) = victory_config(&h);
+        cfg.backend.kind = crate::config::BackendKind::Scarlett;
+        cfg.backend.exe = Some(testutil::fake_pe(&h.path().join("rt/scarlett.exe"), 0x8664));
+        let pfx = cfg.prefix().join("pfx");
+        fs::create_dir_all(&pfx).unwrap();
+        fs::write(pfx.join("system.reg"), "").unwrap();
+        let argv = build_with(&cfg, &[], &perf::Tools::default()).unwrap().argv;
+        assert_eq!(argv[1], "runinprefix");
+        assert!(argv.contains(&paths::to_windows(&game.join("bin/title.exe"))));
+        cfg.backend.kind = crate::config::BackendKind::Victory;
+        cfg.backend.exe = Some(testutil::fake_pe(&h.path().join("v/victory.exe"), 0x8664));
+        assert_eq!(build_with(&cfg, &[], &perf::Tools::default()).unwrap().argv[1], "waitforexitandrun", "VIctory unchanged");
     }
 
     #[test]
