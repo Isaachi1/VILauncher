@@ -123,27 +123,84 @@ pub fn shell_quote(s: &str) -> String {
     }
 }
 
-/// With PROTON_LOG=1 Proton sends the program's own output to steam-<SteamAppId>.log instead of
-/// the run's output, so an error message (`Error: ...`) never reaches the Log tab. After a run
-/// that failed: the last `max` lines of that file that are not Wine's or Proton's own
-/// (`0024:...` thread traces, `12.345:...` timestamps, the header).
-pub fn proton_log_tail(env: &BTreeMap<String, String>, max: usize) -> Vec<String> {
-    let (Some(dir), Some(on)) = (env.get("PROTON_LOG_DIR"), env.get("PROTON_LOG")) else { return Vec::new() };
-    if on.is_empty() || on == "0" {
-        return Vec::new();
-    }
+/// With PROTON_LOG=1 Proton sends the program's own output (stdout and stderr) to
+/// steam-<SteamAppId>.log instead of the run's output: that file, or None when it is off.
+pub fn proton_log_path(env: &BTreeMap<String, String>) -> Option<PathBuf> {
+    let dir = env.get("PROTON_LOG_DIR").filter(|d| !d.is_empty())?;
+    env.get("PROTON_LOG").filter(|on| !on.is_empty() && *on != "0")?;
     let id = env.get("SteamAppId").map_or("0", String::as_str);
-    let Ok(bytes) = fs::read(Path::new(dir).join(format!("steam-{id}.log"))) else { return Vec::new() };
+    Some(Path::new(dir).join(format!("steam-{id}.log")))
+}
+
+/// A line of Proton's log that is Wine's or Proton's own, not the program's: `0024:...` thread
+/// traces, `12.345:...` timestamps, the header, blank lines.
+pub fn proton_noise(l: &str) -> bool {
+    let head: String = l.chars().take_while(|c| *c != ':').collect();
+    let traced = !head.is_empty() && head.len() <= 12 && head.chars().all(|c| c.is_ascii_hexdigit() || c == '.');
+    traced
+        || l.starts_with("======")
+        || l.starts_with("Proton:")
+        || l.starts_with("Options:")
+        || l.starts_with("SteamGameId:")
+        || l.starts_with("Command:")
+        || l.starts_with("System WINE")
+        || l.starts_with("pid ")
+        || l.trim().is_empty()
+}
+
+/// After a run that failed: the last `max` of the program's own lines in Proton's log.
+pub fn proton_log_tail(env: &BTreeMap<String, String>, max: usize) -> Vec<String> {
+    let Some(Ok(bytes)) = proton_log_path(env).map(fs::read) else { return Vec::new() };
     let start = bytes.len().saturating_sub(1 << 20);
     let text = String::from_utf8_lossy(&bytes[start..]);
-    let noise = |l: &str| {
-        let head: String = l.chars().take_while(|c| *c != ':').collect();
-        let traced = !head.is_empty() && head.len() <= 12 && head.chars().all(|c| c.is_ascii_hexdigit() || c == '.');
-        traced || l.starts_with("======") || l.starts_with("Proton:") || l.starts_with("Options:") || l.starts_with("SteamGameId:")
-            || l.starts_with("Command:") || l.starts_with("System WINE") || l.starts_with("pid ") || l.trim().is_empty()
-    };
-    let mine: Vec<String> = text.lines().filter(|l| !noise(l)).map(str::to_owned).collect();
+    let mine: Vec<String> = text.lines().filter(|l| !proton_noise(l)).map(str::to_owned).collect();
     mine[mine.len().saturating_sub(max)..].to_vec()
+}
+
+/// Splits `more` onto what is left in `rest` into whole lines (lossy UTF-8, without the line
+/// end); a last line with no end stays in `rest` for the next call.
+pub fn split_lines(rest: &mut Vec<u8>, more: &[u8]) -> Vec<String> {
+    rest.extend_from_slice(more);
+    let Some(last) = rest.iter().rposition(|&b| b == b'\n') else { return Vec::new() };
+    let whole: Vec<u8> = rest.drain(..last).collect();
+    rest.remove(0); // the last line end
+    whole.split(|&b| b == b'\n').map(|l| String::from_utf8_lossy(l.strip_suffix(b"\r").unwrap_or(l)).into_owned()).collect()
+}
+
+/// Follows Proton's log while the program runs, so its output (the shader build's progress
+/// included) reaches the window even with PROTON_LOG=1. Proton rewrites the file on each run;
+/// a file that shrank is read again from the start.
+pub struct ProtonLog {
+    path: PathBuf,
+    read: u64,
+    rest: Vec<u8>,
+}
+
+impl ProtonLog {
+    /// For a run with this environment, when Proton logs. The last run's file goes first: Proton
+    /// overwrites it anyway, and none of it is mistaken for this run's.
+    pub fn start(env: &BTreeMap<String, String>) -> Option<Self> {
+        let path = proton_log_path(env)?;
+        let _ = fs::remove_file(&path);
+        Some(Self { path, read: 0, rest: Vec::new() })
+    }
+
+    /// The program's lines written since the last call.
+    pub fn poll(&mut self) -> Vec<String> {
+        use std::io::{Read, Seek, SeekFrom};
+        let Ok(mut f) = fs::File::open(&self.path) else { return Vec::new() };
+        let len = f.metadata().map_or(0, |m| m.len());
+        if len < self.read {
+            self.read = 0;
+            self.rest.clear();
+        }
+        let mut more = Vec::new();
+        if f.seek(SeekFrom::Start(self.read)).is_err() || f.read_to_end(&mut more).is_err() {
+            return Vec::new();
+        }
+        self.read += more.len() as u64;
+        split_lines(&mut self.rest, &more).into_iter().filter(|l| !proton_noise(l)).collect()
+    }
 }
 
 /// Where a run started from the menu writes its output.
@@ -345,6 +402,33 @@ mod tests {
         assert_eq!(proton_log_tail(&env, 1), ["Caused by: not found"]);
         env.insert("PROTON_LOG".into(), "0".into());
         assert!(proton_log_tail(&env, 10).is_empty());
+    }
+
+    #[test]
+    fn lines_are_split_across_reads_lossily() {
+        let mut rest = Vec::new();
+        assert!(split_lines(&mut rest, b"prepare st").is_empty());
+        assert_eq!(split_lines(&mut rest, b"ep 1/2 shaders\r\nwarm-up \xff 3\nhalf"), ["prepare step 1/2 shaders", "warm-up \u{fffd} 3"]);
+        assert_eq!(split_lines(&mut rest, b"\n\n"), ["half", ""]);
+        assert!(rest.is_empty());
+    }
+
+    #[test]
+    fn protons_log_is_followed_while_the_program_runs() {
+        let t = tempfile::tempdir().unwrap();
+        let file = t.path().join("steam-0.log");
+        fs::write(&file, "Error: the last run's\n").unwrap();
+        let env = BTreeMap::from([("PROTON_LOG_DIR".to_string(), t.path().display().to_string()), ("PROTON_LOG".to_string(), "1".to_string())]);
+        let mut log = ProtonLog::start(&env).unwrap();
+        assert!(log.poll().is_empty(), "the last run's file is gone, and no file yet is no line");
+        fs::write(&file, "Proton: 11.0\n0024:fixme:x\nprepare step 1/2 shaders\nwarm-up 50 sha").unwrap();
+        assert_eq!(log.poll(), ["prepare step 1/2 shaders"]);
+        let mut f = fs::OpenOptions::new().append(true).open(&file).unwrap();
+        std::io::Write::write_all(&mut f, b"ders so far, 3 s\n").unwrap();
+        assert_eq!(log.poll(), ["warm-up 50 shaders so far, 3 s"]);
+        fs::write(&file, "prepare done 9\n").unwrap();
+        assert_eq!(log.poll(), ["prepare done 9"], "a rewritten file is read from the start");
+        assert!(ProtonLog::start(&BTreeMap::new()).is_none());
     }
 
     #[test]
